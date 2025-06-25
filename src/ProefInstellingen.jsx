@@ -1,126 +1,173 @@
-import { useState } from 'react';
+import { useEffect, useState } from "react";
+import { supabase } from "./supabaseClient";
 
-const proefTypes = ['dressuur', 'stijltrail', 'speedtrail'];
-const klassen = ['WE Intro', 'WE1', 'WE2', 'WE3', 'WE4'];
+export default function ProefInstellingen() {
+  const [proeven, setProeven] = useState([]);
+  const [form, setForm] = useState({
+    naam: "",
+    datum: "",
+    max_score: "",
+    jury: "",
+    klasse: "WE Intro",
+  });
+  const [editingId, setEditingId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-// Het hoofdcomponent
-function ProefInstellingen({ proeven, setProeven }) {
-  // Initialiseer state per combinatie type+klasse
-  const [form, setForm] = useState({});
+  useEffect(() => {
+    fetchProeven();
+  }, []);
 
-  // Handlers
-  const handleChange = (type, klasse, veld, waarde) => {
-    setForm((f) => ({
-      ...f,
-      [type]: {
-        ...(f[type] || {}),
-        [klasse]: {
-          ...(f[type]?.[klasse] || {}),
-          [veld]: waarde,
-        },
-      },
-    }));
-  };
+  async function fetchProeven() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("proeven")
+      .select("*")
+      .order("datum", { ascending: true });
+    if (!error) setProeven(data);
+    setLoading(false);
+  }
 
-  const handleOpslaan = (type, klasse) => {
-    const entry = form[type]?.[klasse];
-    if (!entry || !entry.maxPunten || !entry.jury || !entry.datum) return;
-    // Voeg toe aan proeven-array als uniek type+klasse
-    setProeven((p) => [
-      ...p.filter((e) => !(e.type === type && e.klasse === klasse)),
-      { type, klasse, ...entry },
-    ]);
-  };
+  async function handleAddOrUpdate() {
+    if (!form.naam || !form.max_score || !form.klasse) {
+      setError("Vul alle verplichte velden in!");
+      return;
+    }
+    setLoading(true);
+    if (editingId) {
+      const { error } = await supabase
+        .from("proeven")
+        .update(form)
+        .eq("id", editingId);
+      if (error) setError("Bewerken mislukt!");
+    } else {
+      const { error } = await supabase.from("proeven").insert([form]);
+      if (error) setError("Opslaan mislukt!");
+    }
+    setForm({ naam: "", datum: "", max_score: "", jury: "", klasse: "WE Intro" });
+    setEditingId(null);
+    setError("");
+    await fetchProeven();
+    setLoading(false);
+  }
+
+  function handleEdit(proef) {
+    setForm({
+      naam: proef.naam,
+      datum: proef.datum || "",
+      max_score: proef.max_score || "",
+      jury: proef.jury || "",
+      klasse: proef.klasse || "WE Intro",
+    });
+    setEditingId(proef.id);
+  }
+
+  async function handleDelete(id) {
+    setLoading(true);
+    await supabase.from("proeven").delete().eq("id", id);
+    await fetchProeven();
+    setLoading(false);
+  }
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h2>Proefinstellingen per type en klasse</h2>
-      {proefTypes.map((type) => (
-        <div key={type} style={{ marginTop: 24, marginBottom: 8 }}>
-          <h3 style={{ marginBottom: 8, color: '#246' }}>
-            {type[0].toUpperCase() + type.slice(1)}
-          </h3>
-          <table>
+    <div style={{ background: "#fff", borderRadius: 15, boxShadow: "0 2px 12px #2c466622", padding: 32, maxWidth: 650, margin: "40px auto", fontFamily: "system-ui, sans-serif" }}>
+      <h2 style={{ marginBottom: 18, fontSize: 26, color: "#204574", fontWeight: 900 }}>Proefinstellingen</h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <input
+          name="naam"
+          value={form.naam}
+          onChange={e => setForm({ ...form, naam: e.target.value })}
+          placeholder="Naam proef (bijv. Dressuur, Stijltrail)"
+          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
+          disabled={loading}
+        />
+        <input
+          name="datum"
+          type="date"
+          value={form.datum}
+          onChange={e => setForm({ ...form, datum: e.target.value })}
+          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
+          disabled={loading}
+        />
+        <input
+          name="max_score"
+          type="number"
+          value={form.max_score}
+          onChange={e => setForm({ ...form, max_score: e.target.value })}
+          placeholder="Maximaal aantal punten"
+          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
+          disabled={loading}
+        />
+        <input
+          name="jury"
+          value={form.jury}
+          onChange={e => setForm({ ...form, jury: e.target.value })}
+          placeholder="Naam jury"
+          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
+          disabled={loading}
+        />
+        <select
+          name="klasse"
+          value={form.klasse}
+          onChange={e => setForm({ ...form, klasse: e.target.value })}
+          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
+          disabled={loading}
+        >
+          {["WE Intro", "WE1", "WE2", "WE3", "WE4"].map(k => (
+            <option key={k}>{k}</option>
+          ))}
+        </select>
+        <button
+          onClick={handleAddOrUpdate}
+          style={{ marginTop: 8, background: "#3a8bfd", color: "#fff", border: "none", padding: "13px 0", fontSize: 18, borderRadius: 8, cursor: loading ? "not-allowed" : "pointer", fontWeight: "bold", boxShadow: "0 1px 7px #3a8bfd33" }}
+          disabled={loading}
+        >
+          {editingId ? "Bijwerken" : "Toevoegen"}
+        </button>
+      </div>
+      {error && (
+        <div style={{ color: "red", marginTop: 12 }}>{error}</div>
+      )}
+
+      {/* Lijst met proeven */}
+      <div style={{ marginTop: 36 }}>
+        {proeven.length === 0 ? (
+          <div style={{ color: "#555" }}>Nog geen proeven toegevoegd.</div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse", background: "#fafdff", borderRadius: 8, marginBottom: 10 }}>
             <thead>
-              <tr>
-                <th>Klasse</th>
+              <tr style={{ background: "#3a8bfd", color: "#fff" }}>
+                <th style={{ padding: 9 }}>Naam</th>
+                <th>Datum</th>
                 <th>Max punten</th>
                 <th>Jury</th>
-                <th>Datum</th>
-                <th></th>
+                <th>Klasse</th>
+                <th>Acties</th>
               </tr>
             </thead>
             <tbody>
-              {klassen.map((klasse) => {
-                // Speedtrail alleen bij WE2, WE3, WE4
-                if (
-                  type === 'speedtrail' &&
-                  !['WE2', 'WE3', 'WE4'].includes(klasse)
-                )
-                  return null;
-                const waarde = form[type]?.[klasse] || {};
-                return (
-                  <tr key={klasse}>
-                    <td>{klasse}</td>
-                    <td>
-                      <input
-                        type="number"
-                        value={waarde.maxPunten || ''}
-                        placeholder="max"
-                        onChange={(e) =>
-                          handleChange(
-                            type,
-                            klasse,
-                            'maxPunten',
-                            e.target.value
-                          )
-                        }
-                        disabled={type === 'speedtrail'} // Speedtrail heeft geen max punten
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={waarde.jury || ''}
-                        placeholder="jury"
-                        onChange={(e) =>
-                          handleChange(type, klasse, 'jury', e.target.value)
-                        }
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="date"
-                        value={waarde.datum || ''}
-                        onChange={(e) =>
-                          handleChange(type, klasse, 'datum', e.target.value)
-                        }
-                      />
-                    </td>
-                    <td>
-                      <button onClick={() => handleOpslaan(type, klasse)}>
-                        Opslaan
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {proeven.map(proef => (
+                <tr key={proef.id} style={{ textAlign: "center" }}>
+                  <td>{proef.naam}</td>
+                  <td>{proef.datum}</td>
+                  <td>{proef.max_score}</td>
+                  <td>{proef.jury}</td>
+                  <td>{proef.klasse}</td>
+                  <td>
+                    <button style={{ color: "#3a8bfd", background: "none", border: "none", fontWeight: 600, cursor: "pointer", fontSize: 15 }} onClick={() => handleEdit(proef)} disabled={loading}>Bewerken</button>
+                    <button style={{ marginLeft: 8, color: "#b23e3e", background: "none", border: "none", fontWeight: 600, cursor: "pointer", fontSize: 15 }} onClick={() => handleDelete(proef.id)} disabled={loading}>Verwijderen</button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
-          {/* Overzicht van opgeslagen proeven per type */}
-          <ul style={{ marginTop: 12 }}>
-            {proeven
-              .filter((p) => p.type === type)
-              .map((p, i) => (
-                <li key={i} style={{ fontSize: '0.95em' }}>
-                  {p.klasse}: {p.datum}, jury: {p.jury}
-                  {type !== 'speedtrail' && `, max: ${p.maxPunten}`}
-                </li>
-              ))}
-          </ul>
+        )}
+      </div>
+      {loading && (
+        <div style={{ textAlign: "center", marginTop: 20, color: "#666" }}>
+          Even geduld...
         </div>
-      ))}
+      )}
     </div>
   );
 }
-
-export default ProefInstellingen;
