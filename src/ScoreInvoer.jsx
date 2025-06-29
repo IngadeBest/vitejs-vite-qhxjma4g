@@ -144,7 +144,6 @@ export default function ScoreInvoer() {
   async function handleDeleteScore(id) {
     await supabase.from("scores").delete().eq("id", id);
     fetchData();
-    // reset edit-form als je net deze bekeek
     if (editingScoreId === id) setEditingScoreId(null);
   }
 
@@ -159,6 +158,7 @@ export default function ScoreInvoer() {
     let deelnemersZonderDQ = scoresWithName.filter((s) => !s.dq);
     let deelnemersMetDQ = scoresWithName.filter((s) => s.dq);
 
+    // Sorteren voor score/tijd
     if (gekozenProef && gekozenProef.onderdeel === "speedtrail") {
       deelnemersZonderDQ = deelnemersZonderDQ.sort((a, b) => a.tijd - b.tijd);
     } else {
@@ -173,27 +173,28 @@ export default function ScoreInvoer() {
         .sort((a, b) => b.percentage - a.percentage);
     }
 
-    let klassement = [];
+    // Correcte ex-aequo/plaatsen
     let plek = 1;
+    let exaequo = 0;
     let vorigeWaarde = null;
-    let exaequoCount = 0;
-    deelnemersZonderDQ.forEach((s, idx) => {
-      let isEqual = false;
-      if (gekozenProef && gekozenProef.onderdeel === "speedtrail") {
-        isEqual = s.tijd === vorigeWaarde;
-        vorigeWaarde = s.tijd;
+
+    const klassement = deelnemersZonderDQ.map((s, i, arr) => {
+      let waarde = gekozenProef && gekozenProef.onderdeel === "speedtrail"
+        ? s.tijd
+        : s.percentage;
+
+      // Check ex-aequo
+      if (i > 0 && waarde === vorigeWaarde) {
+        exaequo++;
       } else {
-        isEqual = s.percentage === vorigeWaarde;
-        vorigeWaarde = s.percentage;
+        plek = plek + exaequo;
+        exaequo = 0;
       }
-      if (isEqual) {
-        exaequoCount++;
-      } else {
-        plek = plek + exaequoCount;
-        exaequoCount = 0;
-      }
-      let punten = deelnemersZonderDQ.length + 1 - plek;
-      klassement.push({
+      vorigeWaarde = waarde;
+
+      let punten = arr.length + 1 - plek;
+
+      return {
         ...s,
         plaats: plek,
         punten,
@@ -201,7 +202,7 @@ export default function ScoreInvoer() {
           gekozenProef && gekozenProef.onderdeel === "speedtrail"
             ? `${s.tijd}s`
             : `${s.score} (${s.percentage}%)`,
-      });
+      };
     });
 
     deelnemersMetDQ.forEach((s) => {
