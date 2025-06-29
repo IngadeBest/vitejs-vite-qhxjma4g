@@ -14,6 +14,7 @@ export default function ScoreInvoer() {
     dq: false,
     tijd: "",
   });
+  const [editingScoreId, setEditingScoreId] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -56,7 +57,8 @@ export default function ScoreInvoer() {
     (s) => s.proef_id === Number(form.proef_id)
   );
 
-  async function handleAddScore() {
+  async function handleAddOrUpdateScore() {
+    setError("");
     if (
       !form.ruiter_id ||
       !form.klasse ||
@@ -85,29 +87,65 @@ export default function ScoreInvoer() {
       );
       return;
     }
-    setError("");
-    await supabase.from("scores").insert([
-      {
-        ruiter_id: form.ruiter_id,
-        klasse: form.klasse,
-        onderdeel: form.onderdeel,
-        proef_id: Number(form.proef_id),
-        score: gekozenProef.onderdeel === "speedtrail" ? null : Number(form.score),
-        tijd: gekozenProef.onderdeel === "speedtrail" ? Number(form.tijd) : null,
-        max_score: gekozenProef.onderdeel === "speedtrail" ? null : Number(max_score),
-        dq: form.dq,
-      },
-    ]);
-    setForm({
+
+    if (editingScoreId) {
+      // UPDATE
+      await supabase.from("scores")
+        .update({
+          ruiter_id: form.ruiter_id,
+          klasse: form.klasse,
+          onderdeel: form.onderdeel,
+          proef_id: Number(form.proef_id),
+          score: gekozenProef.onderdeel === "speedtrail" ? null : Number(form.score),
+          tijd: gekozenProef.onderdeel === "speedtrail" ? Number(form.tijd) : null,
+          max_score: gekozenProef.onderdeel === "speedtrail" ? null : Number(max_score),
+          dq: form.dq,
+        })
+        .eq("id", editingScoreId);
+      setEditingScoreId(null);
+    } else {
+      // INSERT
+      await supabase.from("scores").insert([
+        {
+          ruiter_id: form.ruiter_id,
+          klasse: form.klasse,
+          onderdeel: form.onderdeel,
+          proef_id: Number(form.proef_id),
+          score: gekozenProef.onderdeel === "speedtrail" ? null : Number(form.score),
+          tijd: gekozenProef.onderdeel === "speedtrail" ? Number(form.tijd) : null,
+          max_score: gekozenProef.onderdeel === "speedtrail" ? null : Number(max_score),
+          dq: form.dq,
+        },
+      ]);
+    }
+
+    // Reset alleen score/tijd/dq, NIET klasse/onderdeel/proef!
+    setForm((prev) => ({
+      ...prev,
       ruiter_id: "",
-      klasse: "",
-      onderdeel: "",
-      proef_id: "",
       score: "",
-      dq: false,
       tijd: "",
-    });
+      dq: false,
+    }));
     fetchData();
+  }
+
+  function handleEditScore(score) {
+    setEditingScoreId(score.id);
+    setForm((prev) => ({
+      ...prev,
+      ruiter_id: score.ruiter_id,
+      score: score.score || "",
+      tijd: score.tijd || "",
+      dq: !!score.dq,
+    }));
+  }
+
+  async function handleDeleteScore(id) {
+    await supabase.from("scores").delete().eq("id", id);
+    fetchData();
+    // reset edit-form als je net deze bekeek
+    if (editingScoreId === id) setEditingScoreId(null);
   }
 
   function berekenKlassement() {
@@ -348,7 +386,7 @@ export default function ScoreInvoer() {
             />
           </label>
           <button
-            onClick={handleAddScore}
+            onClick={handleAddOrUpdateScore}
             style={{
               background: "#3a8bfd",
               color: "#fff",
@@ -364,8 +402,35 @@ export default function ScoreInvoer() {
               minWidth: 110,
             }}
           >
-            Opslaan
+            {editingScoreId ? "Bijwerken" : "Opslaan"}
           </button>
+          {editingScoreId && (
+            <button
+              onClick={() => {
+                setEditingScoreId(null);
+                setForm((prev) => ({
+                  ...prev,
+                  ruiter_id: "",
+                  score: "",
+                  tijd: "",
+                  dq: false,
+                }));
+              }}
+              style={{
+                marginLeft: 8,
+                padding: "13px 24px",
+                background: "#eee",
+                color: "#1a2b44",
+                border: "none",
+                fontSize: 16,
+                borderRadius: 8,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              Annuleren
+            </button>
+          )}
         </div>
         {error && <div style={{ color: "red", marginBottom: 12 }}>{error}</div>}
         <h3
@@ -402,19 +467,20 @@ export default function ScoreInvoer() {
               <th style={{ padding: 8 }}>Paard</th>
               <th style={{ padding: 8 }}>Score</th>
               <th style={{ padding: 8 }}>Punten</th>
+              <th style={{ padding: 8 }}>Acties</th>
             </tr>
           </thead>
           <tbody>
             {klassement.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: 15, color: "#666" }}>
+                <td colSpan={6} style={{ textAlign: "center", padding: 15, color: "#666" }}>
                   Nog geen scores ingevoerd voor deze proef/klasse.
                 </td>
               </tr>
             )}
-            {klassement.map((item, i) => (
+            {klassement.map((item) => (
               <tr
-                key={item.ruiter_id}
+                key={item.id}
                 style={
                   item.plaats === "DQ"
                     ? { color: "#a87c7c", background: "#fff2f2" }
@@ -428,6 +494,20 @@ export default function ScoreInvoer() {
                 <td style={{ padding: 8 }}>{item.paard}</td>
                 <td style={{ padding: 8 }}>{item.scoreLabel}</td>
                 <td style={{ padding: 8, fontWeight: 700 }}>{item.punten}</td>
+                <td style={{ padding: 8 }}>
+                  <button
+                    onClick={() => handleEditScore(item)}
+                    style={{ color: "#3a8bfd", background: "none", border: "none", fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Bewerken
+                  </button>
+                  <button
+                    onClick={() => handleDeleteScore(item.id)}
+                    style={{ color: "#b23e3e", background: "none", border: "none", fontWeight: 600, cursor: "pointer", marginLeft: 8 }}
+                  >
+                    Verwijderen
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
