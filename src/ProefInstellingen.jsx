@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 
-const KLASSEN = ["WE Intro", "WE1", "WE2", "WE3", "WE4"];
-const ONDERDELEN = ["dressuur", "stijltrail", "speedtrail"];
+const klassen = ["WE Intro", "WE1", "WE2", "WE3", "WE4"];
+const onderdelen = ["dressuur", "stijltrail", "speedtrail"];
 
 export default function ProefInstellingen() {
   const [proeven, setProeven] = useState([]);
   const [form, setForm] = useState({
     naam: "",
     datum: "",
-    max_punten: "",
+    klasse: klassen[0],
+    onderdeel: onderdelen[0],
+    max_score: "",
     jury: "",
-    klasse: KLASSEN[0],
-    onderdeel: ONDERDELEN[0],
   });
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
@@ -23,64 +23,60 @@ export default function ProefInstellingen() {
   }, []);
 
   async function fetchProeven() {
-    const { data } = await supabase.from("proeven").select("*").order("id", { ascending: true });
+    const { data } = await supabase.from("proeven").select("*").order("datum", { ascending: true });
     setProeven(data || []);
   }
 
-  function handleChange(e) {
-    const { name, value } = e.target;
-    setForm((f) => ({
-      ...f,
-      [name]: value,
-      // Reset max_punten als onderdeel verandert naar speedtrail
-      ...(name === "onderdeel" && value === "speedtrail" ? { max_punten: "" } : {}),
-    }));
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    // Validatie
-    if (!form.naam || !form.datum || !form.jury || !form.klasse || !form.onderdeel) {
-      setError("Vul alle velden in.");
-      return;
-    }
-    if (form.onderdeel !== "speedtrail" && !form.max_punten) {
-      setError("Vul het maximaal punten in.");
-      return;
-    }
-    setError("");
-    setLoading(true);
-
-    if (editingId) {
-      // Bewerken
-      const { error } = await supabase
-        .from("proeven")
-        .update({
-          ...form,
-          max_punten: form.onderdeel === "speedtrail" ? null : Number(form.max_punten),
-        })
-        .eq("id", editingId);
-      if (error) setError("Bewerken mislukt!");
-    } else {
-      // Toevoegen
-      const { error } = await supabase.from("proeven").insert([
-        {
-          ...form,
-          max_punten: form.onderdeel === "speedtrail" ? null : Number(form.max_punten),
-        },
-      ]);
-      if (error) setError("Opslaan mislukt!");
-    }
+  function resetForm() {
     setForm({
       naam: "",
       datum: "",
-      max_punten: "",
+      klasse: klassen[0],
+      onderdeel: onderdelen[0],
+      max_score: "",
       jury: "",
-      klasse: KLASSEN[0],
-      onderdeel: ONDERDELEN[0],
     });
     setEditingId(null);
+    setError("");
+  }
+
+  async function handleAddOrUpdate() {
+    setError("");
+    if (!form.naam || !form.datum || !form.klasse || !form.onderdeel) {
+      setError("Vul alle verplichte velden in!");
+      return;
+    }
+    if (form.onderdeel !== "speedtrail" && !form.max_score) {
+      setError("Vul een maximaal score in voor dit onderdeel!");
+      return;
+    }
+
+    setLoading(true);
+
+    // Maak object voor insert/update
+    const upsertObj = {
+      naam: form.naam,
+      datum: form.datum,
+      klasse: form.klasse,
+      onderdeel: form.onderdeel,
+      max_score: form.onderdeel === "speedtrail" ? null : Number(form.max_score),
+      jury: form.jury,
+    };
+
+    if (editingId) {
+      // UPDATE
+      const { error } = await supabase
+        .from("proeven")
+        .update(upsertObj)
+        .eq("id", editingId);
+      if (error) setError("Bewerken mislukt!");
+    } else {
+      // INSERT
+      const { error } = await supabase.from("proeven").insert([upsertObj]);
+      if (error) setError("Toevoegen mislukt!");
+    }
     setLoading(false);
+    resetForm();
     fetchProeven();
   }
 
@@ -88,10 +84,10 @@ export default function ProefInstellingen() {
     setForm({
       naam: proef.naam,
       datum: proef.datum,
-      max_punten: proef.max_punten || "",
-      jury: proef.jury,
       klasse: proef.klasse,
       onderdeel: proef.onderdeel,
+      max_score: proef.max_score || "",
+      jury: proef.jury || "",
     });
     setEditingId(proef.id);
     setError("");
@@ -102,161 +98,162 @@ export default function ProefInstellingen() {
     await supabase.from("proeven").delete().eq("id", id);
     setLoading(false);
     fetchProeven();
+    resetForm();
   }
 
   return (
     <div style={{ background: "#f5f7fb", minHeight: "100vh", fontFamily: "system-ui, sans-serif" }}>
       <div style={{
-        maxWidth: 900,
-        background: "#fff",
-        borderRadius: 15,
-        boxShadow: "0 4px 24px #2c466622",
-        margin: "0 auto",
-        padding: "36px 28px 28px 28px",
+        maxWidth: 1000, background: "#fff", borderRadius: 15, boxShadow: "0 4px 24px #2c466622",
+        margin: "0 auto", padding: "36px 28px 28px 28px"
       }}>
         <h2 style={{
-          fontSize: 29,
-          color: "#204574",
-          fontWeight: 900,
-          marginBottom: 22,
-          letterSpacing: 1.3,
-          textTransform: "uppercase",
-        }}>
-          Proefinstellingen
-        </h2>
-        <form onSubmit={handleSubmit} style={{
-          display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24,
-          alignItems: "center",
+          fontSize: 29, color: "#204574", fontWeight: 900, marginBottom: 18,
+          letterSpacing: 1.3, textTransform: "uppercase"
+        }}>Proefinstellingen</h2>
+        <div style={{
+          display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap",
+          alignItems: "center"
         }}>
           <input
-            type="text"
-            name="naam"
-            value={form.naam}
-            onChange={handleChange}
             placeholder="Naam proef (bv. Dressuur WE1)"
-            style={{ fontSize: 17, padding: "7px 11px", borderRadius: 8, border: "1px solid #b3c1d1", width: 180 }}
+            value={form.naam}
+            onChange={e => setForm({ ...form, naam: e.target.value })}
+            style={{ padding: 9, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1", width: 200 }}
             disabled={loading}
           />
           <input
             type="date"
-            name="datum"
             value={form.datum}
-            onChange={handleChange}
-            style={{ fontSize: 17, padding: "7px 11px", borderRadius: 8, border: "1px solid #b3c1d1", width: 140 }}
+            onChange={e => setForm({ ...form, datum: e.target.value })}
+            style={{ padding: 9, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
             disabled={loading}
           />
           <select
-            name="klasse"
             value={form.klasse}
-            onChange={handleChange}
-            style={{ fontSize: 17, padding: "7px 11px", borderRadius: 8, border: "1px solid #b3c1d1", width: 110 }}
+            onChange={e => setForm({ ...form, klasse: e.target.value })}
+            style={{ padding: 9, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
             disabled={loading}
           >
-            {KLASSEN.map((k) => (
-              <option key={k}>{k}</option>
-            ))}
+            {klassen.map(k => <option key={k}>{k}</option>)}
           </select>
           <select
-            name="onderdeel"
             value={form.onderdeel}
-            onChange={handleChange}
-            style={{ fontSize: 17, padding: "7px 11px", borderRadius: 8, border: "1px solid #b3c1d1", width: 110 }}
+            onChange={e => setForm({ ...form, onderdeel: e.target.value, max_score: "" })}
+            style={{ padding: 9, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
             disabled={loading}
           >
-            {ONDERDELEN.map((o) => (
-              <option key={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
-            ))}
+            {onderdelen.map(o => <option key={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
           </select>
-          {/* Alleen tonen als geen speedtrail */}
+          {/* Alleen tonen als niet speedtrail */}
           {form.onderdeel !== "speedtrail" && (
             <input
-              type="number"
-              name="max_punten"
-              value={form.max_punten}
-              onChange={handleChange}
               placeholder="Max punten"
+              type="number"
               min={1}
-              style={{ fontSize: 17, padding: "7px 11px", borderRadius: 8, border: "1px solid #b3c1d1", width: 120 }}
+              value={form.max_score}
+              onChange={e => setForm({ ...form, max_score: e.target.value })}
+              style={{ padding: 9, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1", width: 120 }}
               disabled={loading}
-              required={form.onderdeel !== "speedtrail"}
             />
           )}
           <input
-            type="text"
-            name="jury"
-            value={form.jury}
-            onChange={handleChange}
             placeholder="Jury"
-            style={{ fontSize: 17, padding: "7px 11px", borderRadius: 8, border: "1px solid #b3c1d1", width: 140 }}
+            value={form.jury}
+            onChange={e => setForm({ ...form, jury: e.target.value })}
+            style={{ padding: 9, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1", width: 160 }}
             disabled={loading}
           />
           <button
-            type="submit"
+            onClick={handleAddOrUpdate}
             style={{
               background: "#3a8bfd",
               color: "#fff",
               border: "none",
-              padding: "10px 30px",
+              padding: "13px 24px",
               fontSize: 17,
               borderRadius: 8,
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor: "pointer",
               fontWeight: "bold",
               boxShadow: "0 1px 7px #3a8bfd33",
+              marginLeft: 8,
+              letterSpacing: 1,
+              minWidth: 110,
             }}
             disabled={loading}
           >
             {editingId ? "Bijwerken" : "Toevoegen"}
           </button>
-        </form>
-        {error && <div style={{ color: "red", marginBottom: 12 }}>{error}</div>}
-        {/* Overzicht proeven */}
-        <table style={{ width: "100%", background: "#e5f0ff", borderRadius: 10, marginTop: 14, overflow: "hidden" }}>
+          {editingId && (
+            <button
+              style={{
+                marginLeft: 6,
+                padding: "13px 24px",
+                background: "#eee",
+                color: "#1a2b44",
+                border: "none",
+                fontSize: 16,
+                borderRadius: 8,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+              onClick={resetForm}
+              disabled={loading}
+            >
+              Annuleren
+            </button>
+          )}
+        </div>
+        {error && <div style={{ color: "red", marginBottom: 10 }}>{error}</div>}
+
+        <table style={{
+          width: "100%", borderCollapse: "separate", borderSpacing: "0 5px",
+          background: "#fafdff", borderRadius: 8, overflow: "hidden", marginTop: 16
+        }}>
           <thead>
             <tr style={{ background: "#3a8bfd", color: "#fff" }}>
               <th style={{ padding: 10 }}>Naam</th>
-              <th>Datum</th>
-              <th>Max punten</th>
-              <th>Jury</th>
-              <th>Klasse</th>
-              <th>Onderdeel</th>
-              <th>Acties</th>
+              <th style={{ padding: 10 }}>Datum</th>
+              <th style={{ padding: 10 }}>Max punten</th>
+              <th style={{ padding: 10 }}>Jury</th>
+              <th style={{ padding: 10 }}>Klasse</th>
+              <th style={{ padding: 10 }}>Onderdeel</th>
+              <th style={{ padding: 10 }}>Acties</th>
             </tr>
           </thead>
           <tbody>
-            {proeven.map((p) => (
-              <tr key={p.id} style={{ background: "#fff", textAlign: "center" }}>
-                <td style={{ padding: 9 }}>{p.naam}</td>
-                <td>{p.datum}</td>
-                <td>{p.onderdeel === "speedtrail" ? "-" : p.max_punten}</td>
-                <td>{p.jury}</td>
-                <td>{p.klasse}</td>
-                <td style={{ textTransform: "capitalize" }}>{p.onderdeel}</td>
-                <td>
-                  <button
-                    style={{ color: "#2270e0", background: "none", border: "none", fontWeight: 600, cursor: "pointer" }}
-                    onClick={() => handleEdit(p)}
-                  >
-                    Bewerken
-                  </button>
-                  <button
-                    style={{ color: "#b23e3e", background: "none", border: "none", fontWeight: 600, cursor: "pointer", marginLeft: 8 }}
-                    onClick={() => handleDelete(p.id)}
-                  >
-                    Verwijderen
-                  </button>
-                </td>
-              </tr>
-            ))}
             {proeven.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: "center", padding: 18 }}>
-                  Geen proeven gevonden.
+                <td colSpan={7} style={{ textAlign: "center", padding: 14 }}>
+                  Nog geen proeven aangemaakt.
                 </td>
               </tr>
             )}
+            {proeven.map(p => (
+              <tr key={p.id}>
+                <td style={{ padding: 8 }}>{p.naam}</td>
+                <td style={{ padding: 8 }}>{p.datum}</td>
+                <td style={{ padding: 8 }}>{p.max_score ?? ""}</td>
+                <td style={{ padding: 8 }}>{p.jury ?? ""}</td>
+                <td style={{ padding: 8 }}>{p.klasse}</td>
+                <td style={{ padding: 8 }}>{p.onderdeel.charAt(0).toUpperCase() + p.onderdeel.slice(1)}</td>
+                <td style={{ padding: 8 }}>
+                  <button
+                    onClick={() => handleEdit(p)}
+                    style={{ color: "#3a8bfd", background: "none", border: "none", fontWeight: 600, cursor: "pointer" }}
+                  >Bewerken</button>
+                  <button
+                    onClick={() => handleDelete(p.id)}
+                    style={{ color: "#b23e3e", background: "none", border: "none", fontWeight: 600, cursor: "pointer", marginLeft: 8 }}
+                  >Verwijderen</button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
-        {loading && <div style={{ textAlign: "center", marginTop: 16, color: "#666" }}>Even geduld...</div>}
+        {loading && (
+          <div style={{ textAlign: "center", marginTop: 18, color: "#666" }}>Even geduld...</div>
+        )}
       </div>
     </div>
   );
