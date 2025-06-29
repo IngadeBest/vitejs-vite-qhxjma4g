@@ -6,6 +6,7 @@ const ONDERDELEN = ["dressuur", "stijltrail", "speedtrail"];
 
 export default function ScoreInvoer() {
   const [ruiters, setRuiters] = useState([]);
+  const [proeven, setProeven] = useState([]);
   const [scores, setScores] = useState([]);
   const [form, setForm] = useState({
     ruiter_id: "",
@@ -18,7 +19,7 @@ export default function ScoreInvoer() {
   });
   const [error, setError] = useState("");
 
-  // Ophalen van ruiters en scores uit Supabase
+  // Ophalen van ruiters, proeven en scores uit Supabase
   useEffect(() => {
     fetchData();
   }, []);
@@ -28,7 +29,26 @@ export default function ScoreInvoer() {
     setRuiters(ruiterData || []);
     const { data: scoreData } = await supabase.from("scores").select("*");
     setScores(scoreData || []);
+    const { data: proevenData } = await supabase.from("proeven").select("*");
+    setProeven(proevenData || []);
   }
+
+  // Automatisch max_punten ophalen uit proeven
+  useEffect(() => {
+    if (form.onderdeel !== "speedtrail") {
+      const proef = proeven.find(
+        (p) => p.klasse === form.klasse && p.onderdeel === form.onderdeel
+      );
+      if (proef) {
+        setForm((f) => ({ ...f, max_punten: proef.max_punten }));
+      } else {
+        setForm((f) => ({ ...f, max_punten: "" }));
+      }
+    } else {
+      setForm((f) => ({ ...f, max_punten: "" }));
+    }
+    // eslint-disable-next-line
+  }, [form.klasse, form.onderdeel, proeven]);
 
   // Score toevoegen
   async function handleAddScore() {
@@ -37,7 +57,7 @@ export default function ScoreInvoer() {
       return;
     }
     if (form.onderdeel !== "speedtrail" && !form.max_punten) {
-      setError("Vul het maximaal aantal punten in.");
+      setError("Maximaal punten ontbreekt (nog niet ingesteld bij Proeven).");
       return;
     }
     if (
@@ -127,7 +147,6 @@ export default function ScoreInvoer() {
     let vorigeWaarde = null;
     let exaequoCount = 0;
     deelnemersZonderDQ.forEach((s, idx) => {
-      // Ex-aequo bij gelijke score (tijd of percentage)
       let isEqual = false;
       if (form.onderdeel === "speedtrail") {
         isEqual = s.tijd === vorigeWaarde;
@@ -297,16 +316,14 @@ export default function ScoreInvoer() {
               <input
                 type="number"
                 value={form.max_punten}
-                min={1}
-                onChange={(e) =>
-                  setForm({ ...form, max_punten: e.target.value })
-                }
+                readOnly
                 style={{
                   fontSize: 17,
                   padding: "5px 10px",
                   borderRadius: 8,
                   border: "1px solid #b3c1d1",
                   width: 80,
+                  background: "#f0f4ff",
                 }}
                 required={form.onderdeel !== "speedtrail"}
               />
