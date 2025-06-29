@@ -155,6 +155,9 @@ export default function ScoreInvoer() {
       paard: ruiters.find((r) => r.id === s.ruiter_id)?.paard || "Onbekend",
     }));
 
+    // Bereken totaal aantal gestart (incl DQ voor punten!)
+    const totaalGestart = scoresWithName.length;
+
     let deelnemersZonderDQ = scoresWithName.filter((s) => !s.dq);
     let deelnemersMetDQ = scoresWithName.filter((s) => s.dq);
 
@@ -173,28 +176,30 @@ export default function ScoreInvoer() {
         .sort((a, b) => b.percentage - a.percentage);
     }
 
-    // Correcte ex-aequo/plaatsen
+    // Correcte ex-aequo/plaatsen & punten
     let plek = 1;
-    let exaequo = 0;
+    let exaequoCount = 0;
     let vorigeWaarde = null;
+    let resultaat = [];
 
-    const klassement = deelnemersZonderDQ.map((s, i, arr) => {
-      let waarde = gekozenProef && gekozenProef.onderdeel === "speedtrail"
-        ? s.tijd
-        : s.percentage;
+    for (let i = 0; i < deelnemersZonderDQ.length; i++) {
+      const s = deelnemersZonderDQ[i];
+      let waarde =
+        gekozenProef && gekozenProef.onderdeel === "speedtrail"
+          ? s.tijd
+          : s.percentage;
 
-      // Check ex-aequo
       if (i > 0 && waarde === vorigeWaarde) {
-        exaequo++;
+        exaequoCount++;
       } else {
-        plek = plek + exaequo;
-        exaequo = 0;
+        plek = plek + exaequoCount;
+        exaequoCount = 0;
       }
       vorigeWaarde = waarde;
 
-      let punten = arr.length + 1 - plek;
+      let punten = totaalGestart + 1 - plek;
 
-      return {
+      resultaat.push({
         ...s,
         plaats: plek,
         punten,
@@ -202,11 +207,11 @@ export default function ScoreInvoer() {
           gekozenProef && gekozenProef.onderdeel === "speedtrail"
             ? `${s.tijd}s`
             : `${s.score} (${s.percentage}%)`,
-      };
-    });
+      });
+    }
 
     deelnemersMetDQ.forEach((s) => {
-      klassement.push({
+      resultaat.push({
         ...s,
         plaats: "DQ",
         punten: 0,
@@ -222,8 +227,8 @@ export default function ScoreInvoer() {
     });
 
     return [
-      ...klassement.filter((k) => k.plaats !== "DQ"),
-      ...klassement.filter((k) => k.plaats === "DQ"),
+      ...resultaat.filter((k) => k.plaats !== "DQ"),
+      ...resultaat.filter((k) => k.plaats === "DQ"),
     ];
   }
 
