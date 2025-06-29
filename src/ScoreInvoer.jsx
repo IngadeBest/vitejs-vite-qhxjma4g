@@ -1,19 +1,16 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 
-const KLASSEN = ["WE Intro", "WE1", "WE2", "WE3", "WE4"];
-const ONDERDELEN = ["dressuur", "stijltrail", "speedtrail"];
-
 export default function ScoreInvoer() {
   const [ruiters, setRuiters] = useState([]);
   const [proeven, setProeven] = useState([]);
   const [scores, setScores] = useState([]);
   const [form, setForm] = useState({
     ruiter_id: "",
-    onderdeel: ONDERDELEN[0],
-    klasse: KLASSEN[0],
+    klasse: "",
+    onderdeel: "",
+    proef_id: "",
     score: "",
-    max_punten: "",
     dq: false,
     tijd: "",
   });
@@ -33,40 +30,66 @@ export default function ScoreInvoer() {
     setProeven(proevenData || []);
   }
 
-  // Automatisch max_punten ophalen uit proeven
-  useEffect(() => {
-    if (form.onderdeel !== "speedtrail") {
-      const proef = proeven.find(
-        (p) => p.klasse === form.klasse && p.onderdeel === form.onderdeel
-      );
-      if (proef) {
-        setForm((f) => ({ ...f, max_punten: proef.max_punten }));
-      } else {
-        setForm((f) => ({ ...f, max_punten: "" }));
-      }
-    } else {
-      setForm((f) => ({ ...f, max_punten: "" }));
-    }
-    // eslint-disable-next-line
-  }, [form.klasse, form.onderdeel, proeven]);
+  // Filter unieke klassen uit proeven
+  const klassenBeschikbaar = [...new Set(proeven.map((p) => p.klasse))];
+  // Filter onderdelen per klasse
+  const onderdelenBeschikbaar =
+    form.klasse && form.klasse.length > 0
+      ? [
+          ...new Set(
+            proeven.filter((p) => p.klasse === form.klasse).map((p) => p.onderdeel)
+          ),
+        ]
+      : [];
+  // Filter proeven per klasse & onderdeel
+  const proevenOpties =
+    form.klasse && form.onderdeel
+      ? proeven.filter(
+          (p) => p.klasse === form.klasse && p.onderdeel === form.onderdeel
+        )
+      : [];
+
+  // Bepaal deelnemers voor geselecteerde klasse
+  const deelnemers = ruiters.filter((r) => r.klasse === form.klasse);
+
+  // Bepaal de gekozen proef (volledige proef-object)
+  const gekozenProef = proeven.find((p) => p.id === Number(form.proef_id));
+  // Bepaal max_punten (speedtrail = leeg)
+  const max_punten =
+    gekozenProef && gekozenProef.onderdeel !== "speedtrail"
+      ? gekozenProef.max_punten
+      : "";
+
+  // Bepaal scores voor geselecteerde proef
+  const scoresPerProef = scores.filter(
+    (s) => s.proef_id === Number(form.proef_id)
+  );
 
   // Score toevoegen
   async function handleAddScore() {
-    if (!form.ruiter_id || !form.onderdeel || !form.klasse) {
-      setError("Selecteer een ruiter, onderdeel en klasse.");
-      return;
-    }
-    if (form.onderdeel !== "speedtrail" && !form.max_punten) {
-      setError("Maximaal punten ontbreekt (nog niet ingesteld bij Proeven).");
+    if (
+      !form.ruiter_id ||
+      !form.klasse ||
+      !form.onderdeel ||
+      !form.proef_id
+    ) {
+      setError("Selecteer eerst klasse, onderdeel, proef en ruiter.");
       return;
     }
     if (
-      form.onderdeel === "speedtrail"
+      gekozenProef.onderdeel !== "speedtrail" &&
+      !max_punten
+    ) {
+      setError("Maximaal punten ontbreekt.");
+      return;
+    }
+    if (
+      gekozenProef.onderdeel === "speedtrail"
         ? !form.tijd && !form.dq
         : !form.score && !form.dq
     ) {
       setError(
-        form.onderdeel === "speedtrail"
+        gekozenProef.onderdeel === "speedtrail"
           ? "Vul een tijd in of vink DQ aan."
           : "Vul een score in of vink DQ aan."
       );
@@ -77,33 +100,26 @@ export default function ScoreInvoer() {
     await supabase.from("scores").insert([
       {
         ruiter_id: form.ruiter_id,
-        onderdeel: form.onderdeel,
         klasse: form.klasse,
-        score: form.onderdeel === "speedtrail" ? null : Number(form.score),
-        tijd: form.onderdeel === "speedtrail" ? Number(form.tijd) : null,
-        max_punten: form.onderdeel === "speedtrail" ? null : Number(form.max_punten),
+        onderdeel: form.onderdeel,
+        proef_id: Number(form.proef_id),
+        score: gekozenProef.onderdeel === "speedtrail" ? null : Number(form.score),
+        tijd: gekozenProef.onderdeel === "speedtrail" ? Number(form.tijd) : null,
+        max_punten: gekozenProef.onderdeel === "speedtrail" ? null : Number(max_punten),
         dq: form.dq,
       },
     ]);
     setForm({
       ruiter_id: "",
-      onderdeel: ONDERDELEN[0],
-      klasse: KLASSEN[0],
+      klasse: "",
+      onderdeel: "",
+      proef_id: "",
       score: "",
-      max_punten: "",
       dq: false,
       tijd: "",
     });
     fetchData();
   }
-
-  // Bepaal deelnemers voor geselecteerde klasse
-  const deelnemers = ruiters.filter((r) => r.klasse === form.klasse);
-
-  // Bepaal scores voor geselecteerde onderdeel + klasse
-  const scoresPerProef = scores.filter(
-    (s) => s.onderdeel === form.onderdeel && s.klasse === form.klasse
-  );
 
   // Logica: bereken klassement, met ex aequo en DQ
   function berekenKlassement() {
@@ -112,22 +128,17 @@ export default function ScoreInvoer() {
     // Voeg ruiter-naam toe aan elke score
     const scoresWithName = scoresPerProef.map((s) => ({
       ...s,
-      naam:
-        ruiters.find((r) => r.id === s.ruiter_id)?.naam || "Onbekend",
-      paard:
-        ruiters.find((r) => r.id === s.ruiter_id)?.paard || "Onbekend",
+      naam: ruiters.find((r) => r.id === s.ruiter_id)?.naam || "Onbekend",
+      paard: ruiters.find((r) => r.id === s.ruiter_id)?.paard || "Onbekend",
     }));
 
-    // Filter DQ en niet-DQ
     let deelnemersZonderDQ = scoresWithName.filter((s) => !s.dq);
     let deelnemersMetDQ = scoresWithName.filter((s) => s.dq);
 
     // Score voor ranking: percentage of tijd
-    if (form.onderdeel === "speedtrail") {
+    if (gekozenProef && gekozenProef.onderdeel === "speedtrail") {
       // Snelste tijd wint!
-      deelnemersZonderDQ = deelnemersZonderDQ.sort(
-        (a, b) => a.tijd - b.tijd
-      );
+      deelnemersZonderDQ = deelnemersZonderDQ.sort((a, b) => a.tijd - b.tijd);
     } else {
       // Hoogste % wint!
       deelnemersZonderDQ = deelnemersZonderDQ
@@ -148,7 +159,7 @@ export default function ScoreInvoer() {
     let exaequoCount = 0;
     deelnemersZonderDQ.forEach((s, idx) => {
       let isEqual = false;
-      if (form.onderdeel === "speedtrail") {
+      if (gekozenProef && gekozenProef.onderdeel === "speedtrail") {
         isEqual = s.tijd === vorigeWaarde;
         vorigeWaarde = s.tijd;
       } else {
@@ -168,7 +179,7 @@ export default function ScoreInvoer() {
         plaats: plek,
         punten,
         scoreLabel:
-          form.onderdeel === "speedtrail"
+          gekozenProef && gekozenProef.onderdeel === "speedtrail"
             ? `${s.tijd}s`
             : `${s.score} (${s.percentage}%)`,
       });
@@ -181,7 +192,7 @@ export default function ScoreInvoer() {
         plaats: "DQ",
         punten: 0,
         scoreLabel:
-          form.onderdeel === "speedtrail"
+          gekozenProef && gekozenProef.onderdeel === "speedtrail"
             ? s.dq
               ? "DQ"
               : `${s.tijd}s`
@@ -191,7 +202,6 @@ export default function ScoreInvoer() {
       });
     });
 
-    // Sorteer nogmaals: eerst alle niet-DQ op plek, daarna DQ
     return [
       ...klassement.filter((k) => k.plaats !== "DQ"),
       ...klassement.filter((k) => k.plaats === "DQ"),
@@ -210,7 +220,7 @@ export default function ScoreInvoer() {
     >
       <div
         style={{
-          maxWidth: 750,
+          maxWidth: 800,
           background: "#fff",
           borderRadius: 15,
           boxShadow: "0 4px 24px #2c466622",
@@ -240,6 +250,38 @@ export default function ScoreInvoer() {
             marginBottom: 24,
           }}
         >
+          {/* 1. Klasse */}
+          <label>
+            Klasse:{" "}
+            <select
+              value={form.klasse}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  klasse: e.target.value,
+                  onderdeel: "",
+                  proef_id: "",
+                  ruiter_id: "",
+                  score: "",
+                  dq: false,
+                  tijd: "",
+                })
+              }
+              style={{
+                fontSize: 17,
+                padding: "5px 16px",
+                borderRadius: 8,
+                border: "1px solid #b3c1d1",
+                background: "#fafdff",
+              }}
+            >
+              <option value="">Selecteer klasse</option>
+              {klassenBeschikbaar.map((k) => (
+                <option key={k}>{k}</option>
+              ))}
+            </select>
+          </label>
+          {/* 2. Onderdeel */}
           <label>
             Onderdeel:{" "}
             <select
@@ -248,12 +290,14 @@ export default function ScoreInvoer() {
                 setForm({
                   ...form,
                   onderdeel: e.target.value,
-                  // reset relevante velden
+                  proef_id: "",
+                  ruiter_id: "",
                   score: "",
-                  tijd: "",
                   dq: false,
+                  tijd: "",
                 })
               }
+              disabled={!form.klasse}
               style={{
                 fontSize: 17,
                 padding: "5px 16px",
@@ -263,42 +307,50 @@ export default function ScoreInvoer() {
                 textTransform: "capitalize",
               }}
             >
-              {ONDERDELEN.map((o) => (
-                <option key={o}>{o}</option>
+              <option value="">Selecteer onderdeel</option>
+              {onderdelenBeschikbaar.map((o) => (
+                <option key={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
               ))}
             </select>
           </label>
+          {/* 3. Proef */}
           <label>
-            Klasse:{" "}
+            Proef:{" "}
             <select
-              value={form.klasse}
-              onChange={(e) =>
-                setForm({ ...form, klasse: e.target.value, ruiter_id: "" })
-              }
+              value={form.proef_id}
+              onChange={(e) => setForm({ ...form, proef_id: e.target.value, ruiter_id: "", score: "", dq: false, tijd: "" })}
+              disabled={!form.klasse || !form.onderdeel}
               style={{
                 fontSize: 17,
                 padding: "5px 16px",
                 borderRadius: 8,
                 border: "1px solid #b3c1d1",
                 background: "#fafdff",
+                minWidth: 180,
               }}
             >
-              {KLASSEN.map((k) => (
-                <option key={k}>{k}</option>
+              <option value="">Selecteer proef</option>
+              {proevenOpties.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.naam} ({p.datum})
+                </option>
               ))}
             </select>
           </label>
+          {/* 4. Ruiter */}
           <label>
             Ruiter:{" "}
             <select
               value={form.ruiter_id}
               onChange={(e) => setForm({ ...form, ruiter_id: e.target.value })}
+              disabled={!form.proef_id}
               style={{
                 fontSize: 17,
                 padding: "5px 16px",
                 borderRadius: 8,
                 border: "1px solid #b3c1d1",
                 background: "#fafdff",
+                minWidth: 150,
               }}
             >
               <option value="">Selecteer ruiter</option>
@@ -309,28 +361,8 @@ export default function ScoreInvoer() {
               ))}
             </select>
           </label>
-          {/* Alleen tonen indien GEEN speedtrail */}
-          {form.onderdeel !== "speedtrail" && (
-            <label>
-              Max. punten:{" "}
-              <input
-                type="number"
-                value={form.max_punten}
-                readOnly
-                style={{
-                  fontSize: 17,
-                  padding: "5px 10px",
-                  borderRadius: 8,
-                  border: "1px solid #b3c1d1",
-                  width: 80,
-                  background: "#f0f4ff",
-                }}
-                required={form.onderdeel !== "speedtrail"}
-              />
-            </label>
-          )}
-          {/* Score/tijd invoer */}
-          {form.onderdeel === "speedtrail" ? (
+          {/* 5. Score/tijd of DQ */}
+          {gekozenProef && gekozenProef.onderdeel === "speedtrail" ? (
             <label>
               Tijd (seconden):{" "}
               <input
@@ -353,27 +385,39 @@ export default function ScoreInvoer() {
               />
             </label>
           ) : (
-            <label>
-              Score:{" "}
-              <input
-                type="number"
-                value={form.score}
-                min={0}
-                onChange={(e) =>
-                  setForm({ ...form, score: e.target.value, dq: false })
-                }
-                disabled={form.dq}
-                style={{
-                  fontSize: 17,
-                  padding: "5px 10px",
-                  borderRadius: 8,
-                  border: "1px solid #b3c1d1",
-                  width: 80,
-                  background: form.dq ? "#eee" : "#fff",
-                }}
-              />
-            </label>
+            gekozenProef && (
+              <label>
+                Score:{" "}
+                <input
+                  type="number"
+                  value={form.score}
+                  min={0}
+                  max={max_punten || undefined}
+                  onChange={(e) =>
+                    setForm({ ...form, score: e.target.value, dq: false })
+                  }
+                  disabled={form.dq}
+                  style={{
+                    fontSize: 17,
+                    padding: "5px 10px",
+                    borderRadius: 8,
+                    border: "1px solid #b3c1d1",
+                    width: 80,
+                    background: form.dq ? "#eee" : "#fff",
+                  }}
+                />
+              </label>
+            )
           )}
+          {/* 6. Max punten: alleen tonen als relevant */}
+          {gekozenProef &&
+            gekozenProef.onderdeel !== "speedtrail" &&
+            max_punten !== undefined && (
+              <span style={{ color: "#888", fontSize: 15 }}>
+                Max. punten: <b>{max_punten}</b>
+              </span>
+            )}
+          {/* DQ */}
           <label>
             DQ:{" "}
             <input
@@ -387,6 +431,7 @@ export default function ScoreInvoer() {
                   tijd: "",
                 })
               }
+              disabled={!form.ruiter_id}
               style={{ width: 22, height: 22 }}
             />
           </label>
@@ -405,6 +450,7 @@ export default function ScoreInvoer() {
               marginLeft: 12,
               letterSpacing: 1,
             }}
+            disabled={!form.ruiter_id || !form.proef_id}
           >
             Opslaan
           </button>
@@ -423,7 +469,13 @@ export default function ScoreInvoer() {
             letterSpacing: 1,
           }}
         >
-          Tussenstand {form.klasse} – {form.onderdeel}
+          Tussenstand{" "}
+          {form.klasse && form.onderdeel && (
+            <>
+              {form.klasse} – {form.onderdeel.charAt(0).toUpperCase() +
+                form.onderdeel.slice(1)}
+            </>
+          )}
         </h3>
         <table
           style={{
@@ -442,7 +494,9 @@ export default function ScoreInvoer() {
               <th style={{ padding: 8 }}>Ruiter</th>
               <th style={{ padding: 8 }}>Paard</th>
               <th style={{ padding: 8 }}>
-                {form.onderdeel === "speedtrail" ? "Tijd (s)" : "Score"}
+                {gekozenProef && gekozenProef.onderdeel === "speedtrail"
+                  ? "Tijd (s)"
+                  : "Score"}
               </th>
               <th style={{ padding: 8 }}>Punten</th>
             </tr>
