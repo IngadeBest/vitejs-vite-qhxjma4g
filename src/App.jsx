@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { HashRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
+import { HashRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import ProefInstellingen from "./ProefInstellingen";
-import ScoreInvoer from "./ScoreInvoer";
-import Einduitslag from "./Einduitslag";
+import ScoreTabs from "./ScoreTabs";
 
 // ----- Styling kleuren -----
 const kleuren = {
@@ -11,8 +10,6 @@ const kleuren = {
   accent: "#3a8bfd",
   achtergrond: "#f5f7fb",
   wit: "#fff",
-  tabel: "#e2f0ff",
-  dq: "#ffe2e2",
 };
 
 // ----- RuiterInvoer-component (direct in App.jsx) -----
@@ -277,63 +274,6 @@ function RuiterInvoer() {
             Even geduld...
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ---- Tabnavigatie voor ScoreInvoer en Einduitslag ----
-function ScoreTabs() {
-  const location = useLocation();
-  const tab = location.pathname.endsWith("/einduitslag") ? "einduitslag" : "score";
-
-  return (
-    <div>
-      <div style={{ display: "flex", gap: 0, margin: "0 auto", maxWidth: 900, paddingTop: 18 }}>
-        <Link
-          to="/score"
-          style={{
-            flex: 1,
-            padding: "16px 0",
-            textAlign: "center",
-            background: tab === "score" ? kleuren.accent : "#e6eefb",
-            color: tab === "score" ? "#fff" : kleuren.hoofd,
-            fontWeight: 800,
-            borderRadius: "16px 0 0 0",
-            letterSpacing: 1,
-            textDecoration: "none",
-            fontSize: 17,
-            borderRight: "1px solid #ccc",
-            transition: "background 0.2s",
-          }}
-        >
-          Score-invoer
-        </Link>
-        <Link
-          to="/score/einduitslag"
-          style={{
-            flex: 1,
-            padding: "16px 0",
-            textAlign: "center",
-            background: tab === "einduitslag" ? kleuren.accent : "#e6eefb",
-            color: tab === "einduitslag" ? "#fff" : kleuren.hoofd,
-            fontWeight: 800,
-            borderRadius: "0 16px 0 0",
-            letterSpacing: 1,
-            textDecoration: "none",
-            fontSize: 17,
-            borderLeft: "1px solid #ccc",
-            transition: "background 0.2s",
-          }}
-        >
-          Einduitslag
-        </Link>
-      </div>
-      <div>
-        <Routes>
-          <Route path="/score" element={<ScoreInvoer />} />
-          <Route path="/score/einduitslag" element={<Einduitslag />} />
-        </Routes>
       </div>
     </div>
   );
