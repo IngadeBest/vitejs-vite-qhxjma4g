@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
+import { Link } from "react-router-dom";
 
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
 
@@ -16,13 +17,11 @@ export default function ScoreInvoer() {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
 
-  // Ophalen ruiters & proeven
   useEffect(() => {
     fetchRuiters();
     fetchProeven();
   }, []);
 
-  // Ophalen scores voor geselecteerde proef
   useEffect(() => {
     if (selectedProef) {
       fetchScores();
@@ -59,7 +58,6 @@ export default function ScoreInvoer() {
     setError("");
   }
 
-  // Proef selecteren op basis van klasse en onderdeel
   function getProefOpties() {
     return proeven.filter(
       (p) =>
@@ -68,7 +66,6 @@ export default function ScoreInvoer() {
     );
   }
 
-  // Max score uit de geselecteerde proef
   function getMaxScore() {
     if (selectedProef) {
       return selectedProef.max_score || "";
@@ -76,12 +73,10 @@ export default function ScoreInvoer() {
     return "";
   }
 
-  // Ruiters in de geselecteerde klasse
   function getRuitersVoorKlasse() {
     return ruiters.filter((r) => r.klasse === selectedKlasse);
   }
 
-  // Toevoegen of bewerken score
   async function handleOpslaan() {
     if (!selectedProef || !selectedRuiter) {
       setError("Kies proef en ruiter!");
@@ -97,7 +92,6 @@ export default function ScoreInvoer() {
       ruiter_id: selectedRuiter,
       score: dq ? 0 : Number(scoreInput),
       dq: dq,
-      // evt. tijd/extra velden toevoegen
     };
     if (editingId) {
       await supabase.from("scores").update(insertObj).eq("id", editingId);
@@ -108,7 +102,6 @@ export default function ScoreInvoer() {
     fetchScores();
   }
 
-  // Bewerken score
   function handleEdit(score) {
     setEditingId(score.id);
     setSelectedRuiter(score.ruiter_id);
@@ -117,24 +110,21 @@ export default function ScoreInvoer() {
     setError("");
   }
 
-  // Verwijderen score
   async function handleDelete(id) {
     await supabase.from("scores").delete().eq("id", id);
     fetchScores();
   }
 
-  // Klassement berekenen
   function berekenKlassement() {
     if (!scores.length) return [];
 
-    // Vul namen/paarden aan uit ruiters
     const scoresWithName = scores.map((s) => ({
       ...s,
       naam: ruiters.find((r) => r.id === s.ruiter_id)?.naam || "Onbekend",
       paard: ruiters.find((r) => r.id === s.ruiter_id)?.paard || "Onbekend",
     }));
 
-    const totaalGestart = scoresWithName.length; // incl DQ
+    const totaalGestart = scoresWithName.length;
 
     let deelnemersZonderDQ = scoresWithName.filter((s) => !s.dq);
     let deelnemersMetDQ = scoresWithName.filter((s) => s.dq);
@@ -146,9 +136,8 @@ export default function ScoreInvoer() {
           ? Math.round((s.score / selectedProef.max_score) * 1000) / 10
           : 0,
     }))
-    .sort((a, b) => b.score - a.score);
+      .sort((a, b) => b.score - a.score);
 
-    // Plaats- en puntentelling (ex-aequo, correct volgens WE)
     let resultaat = [];
     let plek = 1;
     let exaequoCount = 1;
@@ -156,7 +145,7 @@ export default function ScoreInvoer() {
 
     for (let i = 0; i < deelnemersZonderDQ.length; i++) {
       const s = deelnemersZonderDQ[i];
-      let waarde = s.score; // vergelijk op ruwe score
+      let waarde = s.score;
 
       if (i === 0) {
         plek = 1;
@@ -179,7 +168,6 @@ export default function ScoreInvoer() {
       });
     }
 
-    // DQ’s onderaan, altijd plek DQ en 0 punten
     deelnemersMetDQ.forEach((s) => {
       resultaat.push({
         ...s,
@@ -189,14 +177,12 @@ export default function ScoreInvoer() {
       });
     });
 
-    // Eerst niet-DQ, dan DQ’s
     return [
       ...resultaat.filter((k) => k.plaats !== "DQ"),
       ...resultaat.filter((k) => k.plaats === "DQ"),
     ];
   }
 
-  // Rendering
   return (
     <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: "24px 0" }}>
       <div style={{
@@ -208,6 +194,27 @@ export default function ScoreInvoer() {
         padding: "40px 32px 28px 32px",
         fontFamily: "system-ui, sans-serif"
       }}>
+        {/* Link naar einduitslag */}
+        <div style={{ marginBottom: 12, textAlign: "right" }}>
+          <Link
+            to="/score/einduitslag"
+            style={{
+              color: "#3a8bfd",
+              fontWeight: 700,
+              textDecoration: "none",
+              fontSize: 18,
+              border: "1px solid #3a8bfd",
+              borderRadius: 8,
+              padding: "5px 18px",
+              background: "#f5f7fb",
+              transition: "background 0.2s, color 0.2s",
+            }}
+            onMouseOver={e => e.currentTarget.style.background = "#e7f0fa"}
+            onMouseOut={e => e.currentTarget.style.background = "#f5f7fb"}
+          >
+            → Ga naar einduitslag
+          </Link>
+        </div>
         <h2 style={{ fontSize: 33, fontWeight: 900, color: "#204574", letterSpacing: 1.2, marginBottom: 22 }}>
           Score-invoer
         </h2>
