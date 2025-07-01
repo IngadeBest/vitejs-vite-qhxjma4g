@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 // HELPER: 'mm:ss:hh'
 function formatTime(secs) {
@@ -10,11 +13,29 @@ function formatTime(secs) {
   return [m, s, h].map((v, i) => v.toString().padStart(2, "0")).join(":");
 }
 
+// --- Sorteer klasses met Jeugd direct na hoofdklasse, altijd Intro, WE1, WE2, WE3, WE4 ---
+const KLASSERIJ = [
+  "WE Intro", "WE1", "WE2", "WE3", "WE4",
+];
+function sorteerKlasses(klasses) {
+  // Vul lijst met hoofdklasses + direct erna Jeugd-variant als ze bestaan
+  let resultaat = [];
+  KLASSERIJ.forEach(hoofd => {
+    if (klasses.includes(hoofd)) resultaat.push(hoofd);
+    const jeugd = hoofd + " - Jeugd";
+    if (klasses.includes(jeugd)) resultaat.push(jeugd);
+  });
+  // Voeg rest toe (bijvoorbeeld onbekende nieuwe klasses)
+  const rest = klasses.filter(k => !resultaat.includes(k)).sort();
+  return [...resultaat, ...rest];
+}
+
 export default function Einduitslag() {
   const [ruiters, setRuiters] = useState([]);
   const [proeven, setProeven] = useState([]);
   const [scores, setScores] = useState([]);
   const [klasses, setKlasses] = useState([]);
+  const refs = useRef({}); // voor afbeelding export
 
   useEffect(() => {
     fetchAll();
@@ -30,19 +51,17 @@ export default function Einduitslag() {
     setProeven(p.data || []);
     setScores(s.data || []);
     // Automatisch alle klasses uit proeven (inclusief Jeugd)
-    setKlasses(Array.from(new Set((p.data || []).map(x => x.klasse))));
+    const unieke = Array.from(new Set((p.data || []).map(x => x.klasse)));
+    setKlasses(sorteerKlasses(unieke));
   }
 
   function berekenEindstand(klasse) {
-    // Welke proeven?
     const proevenInKlasse = proeven.filter(p => p.klasse === klasse);
     const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"].filter(o =>
       proevenInKlasse.some(p => p.onderdeel === o)
     );
-    // Ruiters
     const deelnemers = ruiters.filter(r => r.klasse === klasse);
 
-    // Per deelnemer, verzamel per onderdeel: punten/percentage/tijd, DQ
     const perRuiter = deelnemers.map(r => {
       let resultaat = { naam: r.naam, paard: r.paard, totaalpunten: 0, dqCount: 0, onderdelen: {} };
       onderdelen.forEach(onderdeel => {
@@ -74,13 +93,14 @@ export default function Einduitslag() {
     let uitslag = [...perRuiter];
     onderdelen.forEach(onderdeel => {
       let groep = uitslag
-        .map(d => ({ ...d, raw: onderdeel === "Speedtrail"
-          ? (d.onderdelen[onderdeel]?.dq ? Infinity : d.onderdelen[onderdeel]?.tijd)
-          : (d.onderdelen[onderdeel]?.dq ? -999999 : d.onderdelen[onderdeel]?.punten)
+        .map(d => ({
+          ...d,
+          raw: onderdeel === "Speedtrail"
+            ? (d.onderdelen[onderdeel]?.dq ? Infinity : d.onderdelen[onderdeel]?.tijd)
+            : (d.onderdelen[onderdeel]?.dq ? -999999 : d.onderdelen[onderdeel]?.punten)
         }))
         .filter(d => d.raw !== null && d.raw !== undefined);
 
-      // Sorteren: Speedtrail = laagste tijd eerst, anders hoogste score eerst
       groep.sort((a, b) => onderdeel === "Speedtrail" ? a.raw - b.raw : b.raw - a.raw);
 
       // Punten toekennen, ex aequo correct
@@ -103,14 +123,12 @@ export default function Einduitslag() {
       }
     });
 
-    // Totaalpunten = som alle onderdelen
     uitslag.forEach(u => {
       u.totaalpunten = onderdelen.reduce(
         (sum, o) => sum + (u.onderdelen[o]?.plaatsingspunten || 0), 0
       );
     });
 
-    // Einduitslag sorteren: eerst dqCount, dan totaalpunten, dan dress percentage, dan stijl percentage, dan speed tijd
     uitslag.sort((a, b) => {
       if (a.dqCount !== b.dqCount) return a.dqCount - b.dqCount;
       if (b.totaalpunten !== a.totaalpunten) return b.totaalpunten - a.totaalpunten;
@@ -122,7 +140,6 @@ export default function Einduitslag() {
       return spdA - spdB;
     });
 
-    // Plaatsnummer toekennen (ex aequo = zelfde plek, sterretje)
     let eindstand = [];
     let plek = 1, i = 0;
     while (i < uitslag.length) {
@@ -143,6 +160,46 @@ export default function Einduitslag() {
     }
 
     return { onderdelen, eindstand };
+  }
+
+  // --- EXPORTS ---
+  function handleExportExcel(klasse, onderdelen, eindstand) {
+    const ws = XLSX.utils.json_to_sheet(
+      eindstand.map(item => ({
+        Plaats: item.plaats,
+        Ruiter: item.naam,
+        Paard: item.paard,
+        ...Object.fromEntries(onderdelen.map(o =>
+          [o, item.onderdelen[o]?.scoreLabel + (item.onderdelen[o]?.plaats ? ` (${item.onderdelen[o].plaats})` : "")]
+        )),
+        "Totaal punten": item.totaalpunten
+      }))
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, klasse);
+    XLSX.writeFile(wb, `Einduitslag_${klasse}.xlsx`);
+  }
+
+  async function handleExportPDF(klasse) {
+    const el = refs.current[klasse];
+    const canvas = await html2canvas(el, { backgroundColor: "#fff", scale: 2 });
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "pt",
+      format: [canvas.width, canvas.height + 60]
+    });
+    pdf.addImage(canvas, "PNG", 10, 30, canvas.width - 20, canvas.height - 40);
+    pdf.text(`Einduitslag ${klasse}`, 30, 20);
+    pdf.save(`Einduitslag_${klasse}.pdf`);
+  }
+
+  async function handleExportAfbeelding(klasse) {
+    const el = refs.current[klasse];
+    const canvas = await html2canvas(el, { backgroundColor: "#fff", scale: 2 });
+    const link = document.createElement("a");
+    link.download = `Einduitslag_${klasse}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
   }
 
   return (
@@ -174,36 +231,52 @@ export default function Einduitslag() {
                 fontSize: 22,
                 marginBottom: 14
               }}>{`Klasse ${klasse}`}</div>
-              <table style={{ width: "100%", borderCollapse: "collapse", background: "#fafdff", borderRadius: 8 }}>
-                <thead>
-                  <tr style={{ background: "#d3e6fd", color: "#174174" }}>
-                    <th style={{ padding: 8 }}>Plaats</th>
-                    <th style={{ padding: 8 }}>Ruiter</th>
-                    <th style={{ padding: 8 }}>Paard</th>
-                    {onderdelen.map(o =>
-                      <th key={o} style={{ padding: 8 }}>{o}</th>
-                    )}
-                    <th style={{ padding: 8 }}>Totaal punten</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {eindstand.map((item, idx) => (
-                    <tr key={item.naam + item.paard}>
-                      <td style={{ padding: 8, fontWeight: 700 }}>{item.plaats}</td>
-                      <td style={{ padding: 8 }}>{item.naam}</td>
-                      <td style={{ padding: 8 }}>{item.paard}</td>
-                      {onderdelen.map(o => (
-                        <td key={o} style={{ padding: 8 }}>
-                          {item.onderdelen[o]?.scoreLabel}
-                          {item.onderdelen[o]?.plaats &&
-                            ` (${item.onderdelen[o].plaats})`}
-                        </td>
-                      ))}
-                      <td style={{ padding: 8, fontWeight: 700 }}>{item.totaalpunten}</td>
+              <div ref={el => (refs.current[klasse] = el)}>
+                <table style={{ width: "100%", borderCollapse: "collapse", background: "#fafdff", borderRadius: 8 }}>
+                  <thead>
+                    <tr style={{ background: "#d3e6fd", color: "#174174" }}>
+                      <th style={{ padding: 8 }}>Plaats</th>
+                      <th style={{ padding: 8 }}>Ruiter</th>
+                      <th style={{ padding: 8 }}>Paard</th>
+                      {onderdelen.map(o =>
+                        <th key={o} style={{ padding: 8 }}>{o}</th>
+                      )}
+                      <th style={{ padding: 8 }}>Totaal punten</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {eindstand.map((item, idx) => (
+                      <tr key={item.naam + item.paard}>
+                        <td style={{ padding: 8, fontWeight: 700 }}>{item.plaats}</td>
+                        <td style={{ padding: 8 }}>{item.naam}</td>
+                        <td style={{ padding: 8 }}>{item.paard}</td>
+                        {onderdelen.map(o => (
+                          <td key={o} style={{ padding: 8 }}>
+                            {item.onderdelen[o]?.scoreLabel}
+                            {item.onderdelen[o]?.plaats &&
+                              ` (${item.onderdelen[o].plaats})`}
+                          </td>
+                        ))}
+                        <td style={{ padding: 8, fontWeight: 700 }}>{item.totaalpunten}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ margin: "12px 0 0 0", display: "flex", gap: 12 }}>
+                <button onClick={() => handleExportPDF(klasse, onderdelen, eindstand)}
+                  style={{ padding: "7px 16px", fontWeight: 700, borderRadius: 8, border: "1px solid #d3e6fd", background: "#fafdff", cursor: "pointer" }}>
+                  Export PDF
+                </button>
+                <button onClick={() => handleExportExcel(klasse, onderdelen, eindstand)}
+                  style={{ padding: "7px 16px", fontWeight: 700, borderRadius: 8, border: "1px solid #d3e6fd", background: "#fafdff", cursor: "pointer" }}>
+                  Export Excel
+                </button>
+                <button onClick={() => handleExportAfbeelding(klasse)}
+                  style={{ padding: "7px 16px", fontWeight: 700, borderRadius: 8, border: "1px solid #d3e6fd", background: "#fafdff", cursor: "pointer" }}>
+                  Export afbeelding
+                </button>
+              </div>
             </div>
           );
         })}
