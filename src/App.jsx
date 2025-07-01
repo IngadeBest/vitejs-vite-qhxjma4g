@@ -96,7 +96,7 @@ function RuiterInvoer() {
             display: "inline-block",
           }}
         >
-          🐴
+          🐴<div>TEST 123</div>
         </span>
         <span
           style={{
