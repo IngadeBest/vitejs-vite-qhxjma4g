@@ -114,11 +114,10 @@ export default function ScoreInvoer() {
     fetchScores();
   }
 
-  // === Officiële WEH puntentelling, altijd aantal starts incl. DQ! ===
+  // === Correcte WEH-puntentelling (zie uitleg Chat) ===
   function berekenTussenstand() {
     if (!scores.length) return [];
 
-    // Alle scores (dus incl. DQ's)
     let scoreList = scores.map(s => ({
       ...s,
       naam: ruiters.find(r => r.id === s.ruiter_id)?.naam || "Onbekend",
@@ -143,16 +142,9 @@ export default function ScoreInvoer() {
         exaequoGroep.push(zonderDQ[i + exaequoGroep.length]);
       }
       const plaats = i + 1;
-      let puntenVoorPlaats = [];
-      for (let j = 0; j < exaequoGroep.length; j++) {
-        let index = plaats + j;
-        let punten = index === 1
-          ? aantalGestart + 1
-          : aantalGestart - (index - 2);
-        puntenVoorPlaats.push(punten);
-      }
-      const punten = Math.min(...puntenVoorPlaats);
-
+      const punten = plaats === 1
+        ? aantalGestart + 1
+        : aantalGestart - (plaats - 1);
       exaequoGroep.forEach(s => {
         tussenstand.push({
           ...s,

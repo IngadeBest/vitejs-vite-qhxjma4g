@@ -6,7 +6,6 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import domtoimage from "dom-to-image";
 
-// Klassen & onderdelen
 const klasses = ["WE Intro", "WE1", "WE2", "WE3", "WE4"];
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
 
@@ -31,7 +30,7 @@ export default function Einduitslag() {
     fetchData();
   }, []);
 
-  // ---- Correcte WEH-puntentelling met ex aequo en DQ, altijd incl. DQ's! ----
+  // Correcte puntentelling per onderdeel
   function berekenEindklassement(klasse) {
     const klasseRuiters = ruiters.filter(r => r.klasse === klasse);
 
@@ -42,7 +41,6 @@ export default function Einduitslag() {
       );
       if (!proef) return;
 
-      // LET OP: alle scores voor deze proef, incl. DQ's!
       let scoresVoorProef = scores
         .filter(s => s.proef_id === proef.id)
         .map(s => ({
@@ -68,16 +66,9 @@ export default function Einduitslag() {
           exaequoGroep.push(zonderDQ[i + exaequoGroep.length]);
         }
         const plaats = i + 1;
-        let puntenVoorPlaats = [];
-        for (let j = 0; j < exaequoGroep.length; j++) {
-          let index = plaats + j;
-          let punten = index === 1
-            ? aantalGestart + 1
-            : aantalGestart - (index - 2);
-          puntenVoorPlaats.push(punten);
-        }
-        const punten = Math.min(...puntenVoorPlaats);
-
+        const punten = plaats === 1
+          ? aantalGestart + 1
+          : aantalGestart - (plaats - 1);
         exaequoGroep.forEach(s => {
           tussenstanden[s.ruiter_id] = tussenstanden[s.ruiter_id] || [];
           tussenstanden[s.ruiter_id].push({
@@ -142,7 +133,8 @@ export default function Einduitslag() {
     return eindresultaat;
   }
 
-  // ---- Exports (PDF, Excel, Afbeelding) ----
+  // Exportfuncties: onveranderd, zie eerdere versie
+
   function exportPDF(klasse, eindstand) {
     const doc = new jsPDF();
     doc.setFontSize(18);
