@@ -1,6 +1,30 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 
+// Helper: 'mm:ss:hh' (of 'mm:ss') => seconden (float)
+function parseTimeString(str) {
+  if (!str) return 0;
+  const parts = str.trim().split(":").map(s => s.replace(/[^0-9]/g,"")).filter(Boolean);
+  if (parts.length === 2) {
+    const [min, sec] = parts;
+    return parseInt(min) * 60 + parseInt(sec);
+  }
+  if (parts.length === 3) {
+    const [min, sec, hun] = parts;
+    return parseInt(min) * 60 + parseInt(sec) + parseInt(hun) / 100;
+  }
+  return Number(str); // fallback
+}
+
+// Helper: seconden (float) => 'mm:ss:hh'
+function formatTime(secs) {
+  if (secs == null) return "";
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  const h = Math.round((secs - Math.floor(secs)) * 100);
+  return [m, s, h].map((v, i) => v.toString().padStart(2, "0")).join(":");
+}
+
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
 
 export default function ScoreInvoer() {
@@ -75,7 +99,7 @@ export default function ScoreInvoer() {
       dq: dq,
     };
     if (selectedOnderdeel === "Speedtrail") {
-      insertObj.score = dq ? 0 : Number(scoreInput); // score = tijd in seconden
+      insertObj.score = dq ? 0 : parseTimeString(scoreInput);
     } else {
       insertObj.score = dq ? 0 : Number(scoreInput);
     }
@@ -90,7 +114,12 @@ export default function ScoreInvoer() {
   function handleEdit(score) {
     setEditingId(score.id);
     setSelectedRuiter(score.ruiter_id);
-    setScoreInput(score.score || "");
+    // Tijd als string tonen bij Speedtrail
+    setScoreInput(
+      selectedOnderdeel === "Speedtrail"
+        ? formatTime(score.score)
+        : (score.score || "")
+    );
     setDQ(!!score.dq);
     setError("");
   }
@@ -148,7 +177,7 @@ export default function ScoreInvoer() {
           plaats: plekLabel,
           punten,
           scoreLabel: selectedOnderdeel === "Speedtrail"
-            ? `${groep[j].score ? groep[j].score.toFixed(2) : "0"} sec`
+            ? (groep[j].score ? formatTime(groep[j].score) : "0")
             : `${groep[j].score} (${groep[j].percentage}%)`
         });
       }
@@ -237,16 +266,26 @@ export default function ScoreInvoer() {
             </select>
           </label>
           <label>
-            {selectedOnderdeel === "Speedtrail" ? "Tijd (seconden)" : "Score"}:
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={scoreInput}
-              onChange={e => setScoreInput(e.target.value)}
-              disabled={dq}
-              style={{ width: 100 }}
-            />
+            {selectedOnderdeel === "Speedtrail" ? "Tijd (mm:ss:hh)" : "Score"}:
+            {selectedOnderdeel === "Speedtrail" ? (
+              <input
+                type="text"
+                pattern="[0-9]{2}:[0-9]{2}(:[0-9]{2})?"
+                value={scoreInput}
+                onChange={e => setScoreInput(e.target.value)}
+                placeholder="02:35:09"
+                disabled={dq}
+                style={{ width: 100 }}
+              />
+            ) : (
+              <input
+                type="number"
+                value={scoreInput}
+                onChange={e => setScoreInput(e.target.value)}
+                disabled={dq}
+                style={{ width: 70 }}
+              />
+            )}
             {selectedOnderdeel !== "Speedtrail" && selectedProef && selectedProef.max_score ? (
               <span style={{ color: "#999", marginLeft: 4 }}>
                 / {selectedProef.max_score}
@@ -289,7 +328,7 @@ export default function ScoreInvoer() {
               <th style={{ padding: 8 }}>Plaats</th>
               <th style={{ padding: 8 }}>Ruiter</th>
               <th style={{ padding: 8 }}>Paard</th>
-              <th style={{ padding: 8 }}>{selectedOnderdeel === "Speedtrail" ? "Tijd (sec)" : "Score"}</th>
+              <th style={{ padding: 8 }}>{selectedOnderdeel === "Speedtrail" ? "Tijd" : "Score"}</th>
               <th style={{ padding: 8 }}>Punten</th>
               <th style={{ padding: 8 }}>Acties</th>
             </tr>
@@ -298,7 +337,7 @@ export default function ScoreInvoer() {
             {berekenKlassement().length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", padding: 16, color: "#777" }}>
-                  Nog geen scores/tijden ingevoerd voor deze proef/klasse.
+                  Nog geen scores ingevoerd voor deze proef/klasse.
                 </td>
               </tr>
             ) : (

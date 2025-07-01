@@ -1,269 +1,154 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
-import { Link } from "react-router-dom";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
-import domtoimage from "dom-to-image";
 
-const klasses = ["WE Intro", "WE1", "WE2", "WE3", "WE4"];
+// HELPER: 'mm:ss:hh'
+function formatTime(secs) {
+  if (secs == null) return "";
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  const h = Math.round((secs - Math.floor(secs)) * 100);
+  return [m, s, h].map((v, i) => v.toString().padStart(2, "0")).join(":");
+}
 
 export default function Einduitslag() {
   const [ruiters, setRuiters] = useState([]);
-  const [scores, setScores] = useState([]);
   const [proeven, setProeven] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const tableRefs = useRef({});
+  const [scores, setScores] = useState([]);
+  const [klasses, setKlasses] = useState([]);
 
   useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      const { data: ruiterData } = await supabase.from("ruiters").select("*");
-      const { data: scoreData } = await supabase.from("scores").select("*");
-      const { data: proefData } = await supabase.from("proeven").select("*");
-      setRuiters(ruiterData || []);
-      setScores(scoreData || []);
-      setProeven(proefData || []);
-      setLoading(false);
-    }
-    fetchData();
+    fetchAll();
   }, []);
 
-  function getOnderdelenVoorKlasse(klasse) {
-    return proeven
-      .filter(p => p.klasse === klasse)
-      .map(p => p.onderdeel)
-      .filter((v, i, arr) => arr.indexOf(v) === i);
+  async function fetchAll() {
+    const [r, p, s] = await Promise.all([
+      supabase.from("ruiters").select("*"),
+      supabase.from("proeven").select("*"),
+      supabase.from("scores").select("*"),
+    ]);
+    setRuiters(r.data || []);
+    setProeven(p.data || []);
+    setScores(s.data || []);
+    // Automatisch alle klasses uit proeven (inclusief Jeugd)
+    setKlasses(Array.from(new Set((p.data || []).map(x => x.klasse))));
   }
 
-  function getPercentage(scoreObj, proef) {
-    if (!proef || !scoreObj || scoreObj.dq) return 0;
-    return proef.max_score
-      ? (scoreObj.score / proef.max_score) * 100
-      : 0;
-  }
+  function berekenEindstand(klasse) {
+    // Welke proeven?
+    const proevenInKlasse = proeven.filter(p => p.klasse === klasse);
+    const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"].filter(o =>
+      proevenInKlasse.some(p => p.onderdeel === o)
+    );
+    // Ruiters
+    const deelnemers = ruiters.filter(r => r.klasse === klasse);
 
-  function berekenEindklassement(klasse) {
-    const onderdelen = getOnderdelenVoorKlasse(klasse);
-    const klasseRuiters = ruiters.filter(r => r.klasse === klasse);
+    // Per deelnemer, verzamel per onderdeel: punten/percentage/tijd, DQ
+    const perRuiter = deelnemers.map(r => {
+      let resultaat = { naam: r.naam, paard: r.paard, totaalpunten: 0, dqCount: 0, onderdelen: {} };
+      onderdelen.forEach(onderdeel => {
+        const proef = proevenInKlasse.find(p => p.onderdeel === onderdeel);
+        if (proef) {
+          const sc = scores.find(s => s.proef_id === proef.id && s.ruiter_id === r.id);
+          if (onderdeel === "Speedtrail") {
+            resultaat.onderdelen[onderdeel] = {
+              tijd: sc?.score ?? null,
+              dq: !!sc?.dq,
+              scoreLabel: sc?.dq ? "DQ" : (sc?.score != null ? formatTime(sc.score) : "-"),
+            };
+          } else {
+            let perc = proef.max_score && sc && !sc.dq ? Math.round((sc.score / proef.max_score) * 1000) / 10 : 0;
+            resultaat.onderdelen[onderdeel] = {
+              punten: sc?.score ?? null,
+              percentage: perc,
+              dq: !!sc?.dq,
+              scoreLabel: sc?.dq ? "DQ" : sc?.score != null ? `${sc.score} (${perc}%)` : "-",
+            };
+          }
+          if (sc?.dq) resultaat.dqCount++;
+        }
+      });
+      return resultaat;
+    });
 
-    let proevenPerOnderdeel = {};
+    // Plaatsingspunten per onderdeel: hoogste = n+1
+    let uitslag = [...perRuiter];
     onderdelen.forEach(onderdeel => {
-      proevenPerOnderdeel[onderdeel] = proeven.find(
-        p => p.klasse === klasse && p.onderdeel === onderdeel
+      let groep = uitslag
+        .map(d => ({ ...d, raw: onderdeel === "Speedtrail"
+          ? (d.onderdelen[onderdeel]?.dq ? Infinity : d.onderdelen[onderdeel]?.tijd)
+          : (d.onderdelen[onderdeel]?.dq ? -999999 : d.onderdelen[onderdeel]?.punten)
+        }))
+        .filter(d => d.raw !== null && d.raw !== undefined);
+
+      // Sorteren: Speedtrail = laagste tijd eerst, anders hoogste score eerst
+      groep.sort((a, b) => onderdeel === "Speedtrail" ? a.raw - b.raw : b.raw - a.raw);
+
+      // Punten toekennen, ex aequo correct
+      let plek = 1, i = 0;
+      while (i < groep.length) {
+        let exEq = [groep[i]];
+        while (
+          i + exEq.length < groep.length &&
+          groep[i].raw === groep[i + exEq.length].raw
+        ) exEq.push(groep[i + exEq.length]);
+        let punten = plek === 1
+          ? groep.length + 1
+          : groep.length - (plek - 1);
+        for (let d of exEq) {
+          uitslag.find(u => u.naam === d.naam).onderdelen[onderdeel].plaats = plek + (exEq.length > 1 ? "*" : "");
+          uitslag.find(u => u.naam === d.naam).onderdelen[onderdeel].plaatsingspunten = d.raw === Infinity || d.raw === -999999 ? 0 : punten;
+        }
+        plek += exEq.length;
+        i += exEq.length;
+      }
+    });
+
+    // Totaalpunten = som alle onderdelen
+    uitslag.forEach(u => {
+      u.totaalpunten = onderdelen.reduce(
+        (sum, o) => sum + (u.onderdelen[o]?.plaatsingspunten || 0), 0
       );
     });
 
-    let deelnemers = klasseRuiters.map(r => {
-      let aantalDQ = 0;
-      let totaalPunten = 0;
-      let perOnderdeel = [];
-      let percentages = {};
-
-      onderdelen.forEach(onderdeel => {
-        const proef = proevenPerOnderdeel[onderdeel];
-        let scoreObj = proef
-          ? scores.find(s => s.proef_id === proef.id && s.ruiter_id === r.id)
-          : null;
-        let dq = !scoreObj || !!scoreObj.dq;
-        let punten = 0;
-        let percentage = getPercentage(scoreObj, proef);
-
-        if (proef) {
-          let scoresVoorProef = scores
-            .filter(s => s.proef_id === proef.id)
-            .map(s => ({
-              ...s,
-              naam: ruiters.find(r2 => r2.id === s.ruiter_id)?.naam || "",
-              paard: ruiters.find(r2 => r2.id === s.ruiter_id)?.paard || "",
-            }));
-
-          const aantalGestart = scoresVoorProef.length;
-          let zonderDQ = scoresVoorProef.filter(s => !s.dq);
-
-          // --- EX AEQUO plaats- en puntenbepaling per onderdeel ---
-          let sortedScores = [...zonderDQ].sort((a, b) => b.score - a.score);
-          let plaatsen = {};
-          let puntenPerPlek = {};
-          let plekNummer = 1;
-          for (let i = 0; i < sortedScores.length; ) {
-            let eqGroep = sortedScores.filter(s => s.score === sortedScores[i].score);
-            let score = sortedScores[i].score;
-            plaatsen[score] = plekNummer;
-            // Punten volgens WEH (aantalGestart + 1 - plaats)
-            puntenPerPlek[score] = plekNummer === 1 ? aantalGestart + 1 : aantalGestart - (plekNummer - 1);
-            plekNummer += eqGroep.length;
-            i += eqGroep.length;
-          }
-
-          let plaats = null;
-          if (!dq && scoreObj) {
-            plaats = plaatsen[scoreObj.score];
-            punten = puntenPerPlek[scoreObj.score];
-          }
-
-          if (dq) {
-            punten = 0;
-            aantalDQ++;
-          }
-
-          perOnderdeel.push({
-            onderdeel,
-            plek: plaats,
-            punten,
-            dq,
-            percentage: Number(percentage.toFixed(2)),
-          });
-        } else {
-          aantalDQ++;
-          perOnderdeel.push({
-            onderdeel,
-            plek: null,
-            punten: 0,
-            dq: true,
-            percentage: 0,
-          });
-        }
-
-        totaalPunten += punten;
-        percentages[onderdeel] = Number(percentage.toFixed(2));
-      });
-
-      return {
-        id: r.id,
-        naam: r.naam,
-        paard: r.paard,
-        totaalPunten,
-        aantalDQ,
-        perOnderdeel,
-        percentages,
-      };
+    // Einduitslag sorteren: eerst dqCount, dan totaalpunten, dan dress percentage, dan stijl percentage, dan speed tijd
+    uitslag.sort((a, b) => {
+      if (a.dqCount !== b.dqCount) return a.dqCount - b.dqCount;
+      if (b.totaalpunten !== a.totaalpunten) return b.totaalpunten - a.totaalpunten;
+      const percA = a.onderdelen["Dressuur"]?.percentage || 0, percB = b.onderdelen["Dressuur"]?.percentage || 0;
+      if (percB !== percA) return percB - percA;
+      const percStA = a.onderdelen["Stijltrail"]?.percentage || 0, percStB = b.onderdelen["Stijltrail"]?.percentage || 0;
+      if (percStB !== percStA) return percStB - percStA;
+      const spdA = a.onderdelen["Speedtrail"]?.tijd || Infinity, spdB = b.onderdelen["Speedtrail"]?.tijd || Infinity;
+      return spdA - spdB;
     });
 
-    // --- Sortering einduitslag ---
-    deelnemers.sort((a, b) => {
-      if (a.aantalDQ !== b.aantalDQ) return a.aantalDQ - b.aantalDQ;
-      if (a.totaalPunten !== b.totaalPunten) return b.totaalPunten - a.totaalPunten;
-      if ((b.percentages.Dressuur ?? 0) !== (a.percentages.Dressuur ?? 0)) {
-        return (b.percentages.Dressuur ?? 0) - (a.percentages.Dressuur ?? 0);
-      }
-      if ((b.percentages.Stijltrail ?? 0) !== (a.percentages.Stijltrail ?? 0)) {
-        return (b.percentages.Stijltrail ?? 0) - (a.percentages.Stijltrail ?? 0);
-      }
-      if (
-        onderdelen.includes("Speedtrail") &&
-        (b.percentages.Speedtrail ?? 0) !== (a.percentages.Speedtrail ?? 0)
-      ) {
-        return (b.percentages.Speedtrail ?? 0) - (a.percentages.Speedtrail ?? 0);
-      }
-      return 0;
-    });
-
-    // --- Ex aequo plaatsnummering in de totaaltabel ---
-    let eindresultaat = [];
-    let plek = 1;
-    let i = 0;
-    while (i < deelnemers.length) {
-      let groep = [deelnemers[i]];
+    // Plaatsnummer toekennen (ex aequo = zelfde plek, sterretje)
+    let eindstand = [];
+    let plek = 1, i = 0;
+    while (i < uitslag.length) {
+      let groep = [uitslag[i]];
       while (
-        i + groep.length < deelnemers.length &&
-        deelnemers[i].aantalDQ === deelnemers[i + groep.length].aantalDQ &&
-        deelnemers[i].totaalPunten === deelnemers[i + groep.length].totaalPunten &&
-        (deelnemers[i].percentages.Dressuur ?? 0) === (deelnemers[i + groep.length].percentages.Dressuur ?? 0) &&
-        (deelnemers[i].percentages.Stijltrail ?? 0) === (deelnemers[i + groep.length].percentages.Stijltrail ?? 0) &&
-        (
-          (!onderdelen.includes("Speedtrail")) ||
-          (deelnemers[i].percentages.Speedtrail ?? 0) === (deelnemers[i + groep.length].percentages.Speedtrail ?? 0)
-        )
-      ) {
-        groep.push(deelnemers[i + groep.length]);
-      }
+        i + groep.length < uitslag.length &&
+        uitslag[i].dqCount === uitslag[i + groep.length].dqCount &&
+        uitslag[i].totaalpunten === uitslag[i + groep.length].totaalpunten &&
+        (uitslag[i].onderdelen["Dressuur"]?.percentage || 0) === (uitslag[i + groep.length].onderdelen["Dressuur"]?.percentage || 0) &&
+        (uitslag[i].onderdelen["Stijltrail"]?.percentage || 0) === (uitslag[i + groep.length].onderdelen["Stijltrail"]?.percentage || 0) &&
+        (uitslag[i].onderdelen["Speedtrail"]?.tijd || Infinity) === (uitslag[i + groep.length].onderdelen["Speedtrail"]?.tijd || Infinity)
+      ) groep.push(uitslag[i + groep.length]);
       let plekLabel = groep.length > 1 ? plek + "*" : plek + "";
-      for (let j = 0; j < groep.length; j++) {
-        eindresultaat.push({
-          ...groep[j],
-          plek: plekLabel
-        });
-      }
+      for (let d of groep) d.plaats = plekLabel;
+      eindstand.push(...groep);
       plek += groep.length;
       i += groep.length;
     }
 
-    return { eindresultaat, onderdelen };
-  }
-
-  function exportPDF(klasse, eindstand, onderdelen) {
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text(`Einduitslag klasse ${klasse}`, 14, 16);
-    let head = [
-      ["Plaats", "Ruiter", "Paard", ...onderdelen, "Totaal punten"]
-    ];
-    let body = eindstand.map(e => [
-      e.plek,
-      e.naam,
-      e.paard,
-      ...onderdelen.map(onderdeel => {
-        const item = e.perOnderdeel.find(x => x.onderdeel === onderdeel);
-        return item
-          ? item.dq
-            ? "DQ"
-            : `${item.punten} (${item.plek})`
-          : "-";
-      }),
-      e.totaalPunten
-    ]);
-    autoTable(doc, {
-      head,
-      body,
-      startY: 22,
-      theme: "grid",
-      headStyles: { fillColor: [32, 69, 116] },
-      styles: { fontSize: 11 }
-    });
-    doc.save(`Einduitslag_${klasse}.pdf`);
-  }
-
-  function exportExcel(klasse, eindstand, onderdelen) {
-    const ws_data = [
-      ["Plaats", "Ruiter", "Paard", ...onderdelen, "Totaal punten"],
-      ...eindstand.map(e => [
-        e.plek,
-        e.naam,
-        e.paard,
-        ...onderdelen.map(onderdeel => {
-          const item = e.perOnderdeel.find(x => x.onderdeel === onderdeel);
-          return item
-            ? item.dq
-              ? "DQ"
-              : `${item.punten} (${item.plek})`
-            : "-";
-        }),
-        e.totaalPunten
-      ])
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Einduitslag_${klasse}`);
-    XLSX.writeFile(wb, `Einduitslag_${klasse}.xlsx`);
-  }
-
-  function exportAfbeelding(klasse) {
-    if (tableRefs.current[klasse]) {
-      domtoimage.toPng(tableRefs.current[klasse])
-        .then(dataUrl => {
-          const link = document.createElement("a");
-          link.download = `Einduitslag_${klasse}.png`;
-          link.href = dataUrl;
-          link.click();
-        });
-    }
+    return { onderdelen, eindstand };
   }
 
   return (
-    <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: "24px 0" }}>
+    <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: 24 }}>
       <div style={{
-        maxWidth: 1100,
+        maxWidth: 900,
         background: "#fff",
         borderRadius: 16,
         boxShadow: "0 6px 24px #20457422",
@@ -271,108 +156,57 @@ export default function Einduitslag() {
         padding: "40px 32px 28px 32px",
         fontFamily: "system-ui, sans-serif"
       }}>
-        <div style={{ marginBottom: 12, textAlign: "right" }}>
-          <Link
-            to="/score-invoer"
-            style={{
-              color: "#3a8bfd",
-              fontWeight: 700,
-              textDecoration: "none",
-              fontSize: 18,
-              border: "1px solid #3a8bfd",
-              borderRadius: 8,
-              padding: "5px 18px",
-              background: "#f5f7fb",
-              transition: "background 0.2s, color 0.2s",
-              marginRight: 10,
-            }}
-            onMouseOver={e => e.currentTarget.style.background = "#e7f0fa"}
-            onMouseOut={e => e.currentTarget.style.background = "#f5f7fb"}
-          >
-            ← Terug naar score-invoer
-          </Link>
-        </div>
         <h2 style={{ fontSize: 33, fontWeight: 900, color: "#204574", letterSpacing: 1.2, marginBottom: 22 }}>
           Einduitslag per klasse
         </h2>
-        {loading ? (
-          <div style={{ textAlign: "center", fontSize: 22, color: "#888", padding: 40 }}>Laden...</div>
-        ) : (
-          klasses.map(klasse => {
-            const { eindresultaat, onderdelen } = berekenEindklassement(klasse);
-            if (!eindresultaat.length) return null;
-            return (
-              <div key={klasse} style={{ marginBottom: 38 }}>
-                <h3 style={{
-                  color: "#3a8bfd",
-                  background: "#f2f8ff",
-                  padding: "8px 16px",
-                  borderRadius: 12,
-                  display: "inline-block",
-                  fontWeight: 800,
-                  fontSize: 23,
-                  letterSpacing: 1.1,
-                  marginBottom: 9,
-                }}>
-                  Klasse {klasse}
-                </h3>
-                <div style={{ marginBottom: 8, textAlign: "right" }}>
-                  <button onClick={() => exportPDF(klasse, eindresultaat, onderdelen)} style={{ marginLeft: 0 }}>Export PDF</button>
-                  <button onClick={() => exportExcel(klasse, eindresultaat, onderdelen)} style={{ marginLeft: 8 }}>Export Excel</button>
-                  <button onClick={() => exportAfbeelding(klasse)} style={{ marginLeft: 8 }}>Export afbeelding</button>
-                </div>
-                <div ref={el => (tableRefs.current[klasse] = el)}>
-                  <table style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    marginTop: 12,
-                    marginBottom: 16,
-                    background: "#fafdff",
-                    borderRadius: 8,
-                  }}>
-                    <thead>
-                      <tr style={{ background: "#d3e6fd", color: "#174174" }}>
-                        <th style={{ padding: 8 }}>Plaats</th>
-                        <th style={{ padding: 8 }}>Ruiter</th>
-                        <th style={{ padding: 8 }}>Paard</th>
-                        {onderdelen.map(onderdeel =>
-                          <th style={{ padding: 8 }} key={onderdeel}>{onderdeel}</th>
-                        )}
-                        <th style={{ padding: 8 }}>Totaal punten</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {eindresultaat.map(e => (
-                        <tr key={e.id}>
-                          <td style={{
-                            padding: 8,
-                            fontWeight: 800,
-                            color: e.aantalDQ === onderdelen.length ? "#b23e3e" : "#204574"
-                          }}>{e.plek}</td>
-                          <td style={{ padding: 8 }}>{e.naam}</td>
-                          <td style={{ padding: 8 }}>{e.paard}</td>
-                          {onderdelen.map(onderdeel => {
-                            const item = e.perOnderdeel.find(x => x.onderdeel === onderdeel);
-                            return (
-                              <td style={{ padding: 8, textAlign: "center" }} key={onderdeel}>
-                                {item
-                                  ? item.dq
-                                    ? <span style={{ color: "#b23e3e", fontWeight: 700 }}>DQ</span>
-                                    : <>{item.punten} <span style={{ color: "#888", fontWeight: 400 }}>({item.plek})</span></>
-                                  : "-"}
-                              </td>
-                            );
-                          })}
-                          <td style={{ padding: 8, fontWeight: 700 }}>{e.totaalPunten}</td>
-                        </tr>
+        {klasses.map(klasse => {
+          const { onderdelen, eindstand } = berekenEindstand(klasse);
+          if (eindstand.length === 0) return null;
+          return (
+            <div key={klasse} style={{ marginBottom: 40 }}>
+              <div style={{
+                fontWeight: 800,
+                background: "#e6eefb",
+                color: "#296fe6",
+                padding: "8px 16px",
+                borderRadius: 10,
+                display: "inline-block",
+                fontSize: 22,
+                marginBottom: 14
+              }}>{`Klasse ${klasse}`}</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", background: "#fafdff", borderRadius: 8 }}>
+                <thead>
+                  <tr style={{ background: "#d3e6fd", color: "#174174" }}>
+                    <th style={{ padding: 8 }}>Plaats</th>
+                    <th style={{ padding: 8 }}>Ruiter</th>
+                    <th style={{ padding: 8 }}>Paard</th>
+                    {onderdelen.map(o =>
+                      <th key={o} style={{ padding: 8 }}>{o}</th>
+                    )}
+                    <th style={{ padding: 8 }}>Totaal punten</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eindstand.map((item, idx) => (
+                    <tr key={item.naam + item.paard}>
+                      <td style={{ padding: 8, fontWeight: 700 }}>{item.plaats}</td>
+                      <td style={{ padding: 8 }}>{item.naam}</td>
+                      <td style={{ padding: 8 }}>{item.paard}</td>
+                      {onderdelen.map(o => (
+                        <td key={o} style={{ padding: 8 }}>
+                          {item.onderdelen[o]?.scoreLabel}
+                          {item.onderdelen[o]?.plaats &&
+                            ` (${item.onderdelen[o].plaats})`}
+                        </td>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })
-        )}
+                      <td style={{ padding: 8, fontWeight: 700 }}>{item.totaalpunten}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
