@@ -30,110 +30,158 @@ export default function Einduitslag() {
     fetchData();
   }, []);
 
-  // Correcte puntentelling per onderdeel
+  function getPercentage(scoreObj, proef) {
+    if (!proef || scoreObj.dq) return 0;
+    return proef.max_score
+      ? (scoreObj.score / proef.max_score) * 100
+      : 0;
+  }
+
   function berekenEindklassement(klasse) {
     const klasseRuiters = ruiters.filter(r => r.klasse === klasse);
 
-    let tussenstanden = {};
+    // Proeven per onderdeel
+    let proevenPerOnderdeel = {};
     onderdelen.forEach(onderdeel => {
-      const proef = proeven.find(
+      proevenPerOnderdeel[onderdeel] = proeven.find(
         p => p.klasse === klasse && p.onderdeel === onderdeel
       );
-      if (!proef) return;
+    });
 
-      let scoresVoorProef = scores
-        .filter(s => s.proef_id === proef.id)
-        .map(s => ({
-          ...s,
-          naam: ruiters.find(r => r.id === s.ruiter_id)?.naam || "",
-          paard: ruiters.find(r => r.id === s.ruiter_id)?.paard || "",
-        }));
+    // Resultaten per ruiter
+    let deelnemers = klasseRuiters.map(r => {
+      let aantalDQ = 0;
+      let totaalPunten = 0;
+      let perOnderdeel = [];
+      let percentages = {};
 
-      const aantalGestart = scoresVoorProef.length;
+      onderdelen.forEach(onderdeel => {
+        const proef = proevenPerOnderdeel[onderdeel];
+        let scoreObj = proef
+          ? scores.find(s => s.proef_id === proef.id && s.ruiter_id === r.id)
+          : null;
+        let dq = scoreObj ? !!scoreObj.dq : true; // als niet gestart, is DQ
+        let punten = 0;
+        let percentage = getPercentage(scoreObj || { dq: true }, proef);
 
-      let zonderDQ = scoresVoorProef.filter(s => !s.dq);
-      let metDQ = scoresVoorProef.filter(s => s.dq);
+        // Puntentelling WEH
+        if (proef && scoreObj) {
+          // Haal ALLE scores op voor dit proef-onderdeel (incl. DQ's)
+          let scoresVoorProef = scores
+            .filter(s => s.proef_id === proef.id)
+            .map(s => ({
+              ...s,
+              naam: ruiters.find(r2 => r2.id === s.ruiter_id)?.naam || "",
+              paard: ruiters.find(r2 => r2.id === s.ruiter_id)?.paard || "",
+            }));
+          const aantalGestart = scoresVoorProef.length;
+          let zonderDQ = scoresVoorProef.filter(s => !s.dq);
+          zonderDQ.sort((a, b) => b.score - a.score);
 
-      zonderDQ.sort((a, b) => b.score - a.score);
-
-      let i = 0;
-      while (i < zonderDQ.length) {
-        let exaequoGroep = [zonderDQ[i]];
-        while (
-          i + exaequoGroep.length < zonderDQ.length &&
-          zonderDQ[i].score === zonderDQ[i + exaequoGroep.length].score
-        ) {
-          exaequoGroep.push(zonderDQ[i + exaequoGroep.length]);
-        }
-        const plaats = i + 1;
-        const punten = plaats === 1
-          ? aantalGestart + 1
-          : aantalGestart - (plaats - 1);
-        exaequoGroep.forEach(s => {
-          tussenstanden[s.ruiter_id] = tussenstanden[s.ruiter_id] || [];
-          tussenstanden[s.ruiter_id].push({
+          // Plaats bepalen
+          let plaats = zonderDQ.findIndex(s => s.ruiter_id === r.id) + 1;
+          if (plaats > 0) {
+            // Ex aequo groep
+            let score = scoreObj.score;
+            let exaequo = zonderDQ.filter(s => s.score === score);
+            // Punten voor deze plaats
+            punten = plaats === 1
+              ? aantalGestart + 1
+              : aantalGestart - (plaats - 1);
+          }
+          // DQ: altijd 0 punten
+          if (dq) {
+            punten = 0;
+            plaats = zonderDQ.length + 1; // onderaan
+          }
+          perOnderdeel.push({
             onderdeel,
             plek: plaats,
             punten,
-            dq: false,
+            dq,
+            percentage: Number(percentage.toFixed(2))
           });
-        });
-        i += exaequoGroep.length;
-      }
+        } else {
+          // Niet gestart = DQ
+          aantalDQ++;
+          perOnderdeel.push({
+            onderdeel,
+            plek: null,
+            punten: 0,
+            dq: true,
+            percentage: 0
+          });
+        }
 
-      // DQ's onderaan, altijd 0 punten
-      metDQ.forEach((s, idx) => {
-        tussenstanden[s.ruiter_id] = tussenstanden[s.ruiter_id] || [];
-        tussenstanden[s.ruiter_id].push({
-          onderdeel,
-          plek: zonderDQ.length + idx + 1,
-          punten: 0,
-          dq: true,
-        });
+        if (dq) aantalDQ++;
+        totaalPunten += punten;
+        percentages[onderdeel] = Number(percentage.toFixed(2));
       });
-    });
 
-    // Einduitslag op basis van totaalpunten
-    let eindstand = klasseRuiters.map(r => {
-      let perOnderdeel = tussenstanden[r.id] || [];
-      let totaalPunten = perOnderdeel.reduce((sum, s) => sum + s.punten, 0);
-      let heeftDQ = perOnderdeel.some(s => s.dq);
       return {
         id: r.id,
         naam: r.naam,
         paard: r.paard,
         totaalPunten,
+        aantalDQ,
         perOnderdeel,
-        heeftDQ,
+        percentages,
       };
     });
 
-    let zonderDQ = eindstand.filter(e => !e.heeftDQ);
-    let metDQ = eindstand.filter(e => e.heeftDQ);
-
-    zonderDQ.sort((a, b) => b.totaalPunten - a.totaalPunten);
-
-    let eindresultaat = [];
-    let plek = 1, exaequoCount = 1, vorige = null;
-    zonderDQ.forEach((e, i) => {
-      if (i > 0 && e.totaalPunten === vorige) {
-        exaequoCount++;
-      } else if (i > 0) {
-        plek += exaequoCount;
-        exaequoCount = 1;
+    // Sorteren: eerst aantal DQ's (laag naar hoog), dan totaalpunten (hoog naar laag),
+    // dan percentages dressuur, stijltrail, speedtrail (indien WE2+)
+    deelnemers.sort((a, b) => {
+      if (a.aantalDQ !== b.aantalDQ) return a.aantalDQ - b.aantalDQ;
+      if (a.totaalPunten !== b.totaalPunten) return b.totaalPunten - a.totaalPunten;
+      // Ex equo! Tiebreakers:
+      // 1. Dressuurpercentage
+      if (b.percentages.Dressuur !== a.percentages.Dressuur) {
+        return b.percentages.Dressuur - a.percentages.Dressuur;
       }
-      vorige = e.totaalPunten;
-      eindresultaat.push({ ...e, plek });
+      // 2. Stijltrailpercentage
+      if (b.percentages.Stijltrail !== a.percentages.Stijltrail) {
+        return b.percentages.Stijltrail - a.percentages.Stijltrail;
+      }
+      // 3. Speedtrailpercentage (alleen vanaf WE2)
+      if (
+        (klasse === "WE2" ||
+         klasse === "WE3" ||
+         klasse === "WE4") &&
+        b.percentages.Speedtrail !== a.percentages.Speedtrail
+      ) {
+        return b.percentages.Speedtrail - a.percentages.Speedtrail;
+      }
+      // 4. Nog steeds gelijk: ex aequo
+      return 0;
     });
 
-    metDQ.forEach(e => {
-      eindresultaat.push({ ...e, plek: "DQ" });
-    });
+    // Plaatsen en ex equo-markering
+    let eindresultaat = [];
+    let plek = 1;
+    for (let i = 0; i < deelnemers.length; i++) {
+      let exaequo = false;
+      if (
+        i > 0 &&
+        deelnemers[i].aantalDQ === deelnemers[i - 1].aantalDQ &&
+        deelnemers[i].totaalPunten === deelnemers[i - 1].totaalPunten &&
+        deelnemers[i].percentages.Dressuur === deelnemers[i - 1].percentages.Dressuur &&
+        deelnemers[i].percentages.Stijltrail === deelnemers[i - 1].percentages.Stijltrail &&
+        (klasse === "WE2" || klasse === "WE3" || klasse === "WE4"
+          ? deelnemers[i].percentages.Speedtrail === deelnemers[i - 1].percentages.Speedtrail
+          : true)
+      ) {
+        exaequo = true;
+      }
+      eindresultaat.push({
+        ...deelnemers[i],
+        plek: plek + (exaequo ? "*" : ""),
+      });
+      if (!exaequo) plek = i + 1 + 1; // tel volgende plek alleen op als er géén ex aequo is
+    }
 
     return eindresultaat;
   }
-
-  // Exportfuncties: onveranderd, zie eerdere versie
 
   function exportPDF(klasse, eindstand) {
     const doc = new jsPDF();
@@ -259,7 +307,6 @@ export default function Einduitslag() {
                 }}>
                   Klasse {klasse}
                 </h3>
-                {/* Export buttons per klasse */}
                 <div style={{ marginBottom: 8, textAlign: "right" }}>
                   <button onClick={() => exportPDF(klasse, eindstand)} style={{ marginLeft: 0 }}>Export PDF</button>
                   <button onClick={() => exportExcel(klasse, eindstand)} style={{ marginLeft: 8 }}>Export Excel</button>
@@ -291,7 +338,7 @@ export default function Einduitslag() {
                           <td style={{
                             padding: 8,
                             fontWeight: 800,
-                            color: e.plek === "DQ" ? "#b23e3e" : "#204574"
+                            color: e.aantalDQ === 3 ? "#b23e3e" : "#204574"
                           }}>{e.plek}</td>
                           <td style={{ padding: 8 }}>{e.naam}</td>
                           <td style={{ padding: 8 }}>{e.paard}</td>
