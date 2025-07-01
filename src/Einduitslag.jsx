@@ -29,16 +29,15 @@ export default function Einduitslag() {
     fetchData();
   }, []);
 
-  // Dynamisch: onderdelen per klasse
   function getOnderdelenVoorKlasse(klasse) {
     return proeven
       .filter(p => p.klasse === klasse)
       .map(p => p.onderdeel)
-      .filter((v, i, arr) => arr.indexOf(v) === i); // unieke volgorde
+      .filter((v, i, arr) => arr.indexOf(v) === i);
   }
 
   function getPercentage(scoreObj, proef) {
-    if (!proef || scoreObj.dq) return 0;
+    if (!proef || !scoreObj || scoreObj.dq) return 0;
     return proef.max_score
       ? (scoreObj.score / proef.max_score) * 100
       : 0;
@@ -48,7 +47,6 @@ export default function Einduitslag() {
     const onderdelen = getOnderdelenVoorKlasse(klasse);
     const klasseRuiters = ruiters.filter(r => r.klasse === klasse);
 
-    // Proeven per onderdeel
     let proevenPerOnderdeel = {};
     onderdelen.forEach(onderdeel => {
       proevenPerOnderdeel[onderdeel] = proeven.find(
@@ -56,7 +54,6 @@ export default function Einduitslag() {
       );
     });
 
-    // Resultaten per ruiter
     let deelnemers = klasseRuiters.map(r => {
       let aantalDQ = 0;
       let totaalPunten = 0;
@@ -68,13 +65,11 @@ export default function Einduitslag() {
         let scoreObj = proef
           ? scores.find(s => s.proef_id === proef.id && s.ruiter_id === r.id)
           : null;
-        let dq = scoreObj ? !!scoreObj.dq : true; // als niet gestart, is DQ
+        let dq = !scoreObj || !!scoreObj.dq;
         let punten = 0;
-        let percentage = getPercentage(scoreObj || { dq: true }, proef);
+        let percentage = getPercentage(scoreObj, proef);
 
-        // Puntentelling WEH
-        if (proef && scoreObj) {
-          // Haal ALLE scores op voor dit proef-onderdeel (incl. DQ's)
+        if (proef) {
           let scoresVoorProef = scores
             .filter(s => s.proef_id === proef.id)
             .map(s => ({
@@ -82,43 +77,49 @@ export default function Einduitslag() {
               naam: ruiters.find(r2 => r2.id === s.ruiter_id)?.naam || "",
               paard: ruiters.find(r2 => r2.id === s.ruiter_id)?.paard || "",
             }));
+
           const aantalGestart = scoresVoorProef.length;
           let zonderDQ = scoresVoorProef.filter(s => !s.dq);
-          zonderDQ.sort((a, b) => b.score - a.score);
 
-          // Plaats bepalen
-          let plaats = zonderDQ.findIndex(s => s.ruiter_id === r.id) + 1;
-          if (plaats > 0) {
-            // Punten voor deze plaats
+          // --- EX AEQUO plaatsbepaling per onderdeel ---
+          let plaats = null;
+          if (!dq) {
+            // Sorteer op score aflopend
+            let sorted = [...zonderDQ].sort((a, b) => b.score - a.score);
+            // Unieke scores hoog-laag
+            let uniqueScores = [...new Set(sorted.map(s => s.score))];
+            let score = scoreObj.score;
+            plaats = uniqueScores.indexOf(score) + 1;
+          }
+
+          // --- Puntentoekenning (WEH) ---
+          if (!dq && plaats !== null) {
             punten = plaats === 1
               ? aantalGestart + 1
               : aantalGestart - (plaats - 1);
           }
-          // DQ: altijd 0 punten
           if (dq) {
             punten = 0;
-            plaats = zonderDQ.length + 1; // onderaan
+            aantalDQ++;
           }
           perOnderdeel.push({
             onderdeel,
             plek: plaats,
             punten,
             dq,
-            percentage: Number(percentage.toFixed(2))
+            percentage: Number(percentage.toFixed(2)),
           });
         } else {
-          // Niet gestart = DQ
           aantalDQ++;
           perOnderdeel.push({
             onderdeel,
             plek: null,
             punten: 0,
             dq: true,
-            percentage: 0
+            percentage: 0,
           });
         }
 
-        if (dq) aantalDQ++;
         totaalPunten += punten;
         percentages[onderdeel] = Number(percentage.toFixed(2));
       });
@@ -134,37 +135,30 @@ export default function Einduitslag() {
       };
     });
 
-    // Sorteren: eerst aantal DQ's (laag naar hoog), dan totaalpunten (hoog naar laag),
-    // dan percentages dressuur, stijltrail, speedtrail (indien van toepassing)
+    // --- Sortering einduitslag ---
     deelnemers.sort((a, b) => {
       if (a.aantalDQ !== b.aantalDQ) return a.aantalDQ - b.aantalDQ;
       if (a.totaalPunten !== b.totaalPunten) return b.totaalPunten - a.totaalPunten;
-      // Ex equo! Tiebreakers:
-      // 1. Dressuurpercentage
       if ((b.percentages.Dressuur ?? 0) !== (a.percentages.Dressuur ?? 0)) {
         return (b.percentages.Dressuur ?? 0) - (a.percentages.Dressuur ?? 0);
       }
-      // 2. Stijltrailpercentage
       if ((b.percentages.Stijltrail ?? 0) !== (a.percentages.Stijltrail ?? 0)) {
         return (b.percentages.Stijltrail ?? 0) - (a.percentages.Stijltrail ?? 0);
       }
-      // 3. Speedtrailpercentage (alleen als het onderdeel bestaat in deze klasse)
       if (
         onderdelen.includes("Speedtrail") &&
         (b.percentages.Speedtrail ?? 0) !== (a.percentages.Speedtrail ?? 0)
       ) {
         return (b.percentages.Speedtrail ?? 0) - (a.percentages.Speedtrail ?? 0);
       }
-      // 4. Nog steeds gelijk: ex aequo
       return 0;
     });
 
-    // Plaatsen en ex equo-markering (nu 1,2,2,4,5 ...)
+    // --- Ex aequo plaatsnummering ---
     let eindresultaat = [];
     let plek = 1;
     let i = 0;
     while (i < deelnemers.length) {
-      // Zoek alle ex-aequo's vanaf i
       let groep = [deelnemers[i]];
       while (
         i + groep.length < deelnemers.length &&
@@ -179,7 +173,6 @@ export default function Einduitslag() {
       ) {
         groep.push(deelnemers[i + groep.length]);
       }
-      // Sterretje als ex aequo (groep > 1)
       let plekLabel = groep.length > 1 ? plek + "*" : plek + "";
       for (let j = 0; j < groep.length; j++) {
         eindresultaat.push({
@@ -187,11 +180,11 @@ export default function Einduitslag() {
           plek: plekLabel
         });
       }
-      plek += groep.length; // volgende plek na het ex aequo-blok
+      plek += groep.length;
       i += groep.length;
     }
 
-    return { eindresultaat, onderdelen }; // geef ook onderdelen door
+    return { eindresultaat, onderdelen };
   }
 
   function exportPDF(klasse, eindstand, onderdelen) {
