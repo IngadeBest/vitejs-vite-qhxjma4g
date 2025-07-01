@@ -16,29 +16,17 @@ export default function ScoreInvoer() {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetchRuiters();
-    fetchProeven();
-  }, []);
-
-  useEffect(() => {
-    if (selectedProef) {
-      fetchScores();
-    } else {
-      setScores([]);
-    }
-  }, [selectedProef]);
+  useEffect(() => { fetchRuiters(); fetchProeven(); }, []);
+  useEffect(() => { if (selectedProef) { fetchScores(); } else { setScores([]); } }, [selectedProef]);
 
   async function fetchRuiters() {
     let { data } = await supabase.from("ruiters").select("*").order("id");
     setRuiters(data || []);
   }
-
   async function fetchProeven() {
     let { data } = await supabase.from("proeven").select("*").order("id");
     setProeven(data || []);
   }
-
   async function fetchScores() {
     if (!selectedProef) return;
     let { data } = await supabase
@@ -48,7 +36,6 @@ export default function ScoreInvoer() {
       .order("id");
     setScores(data || []);
   }
-
   function resetForm() {
     setSelectedRuiter("");
     setScoreInput("");
@@ -56,7 +43,6 @@ export default function ScoreInvoer() {
     setEditingId(null);
     setError("");
   }
-
   function getProefOpties() {
     return proeven.filter(
       (p) =>
@@ -64,34 +50,35 @@ export default function ScoreInvoer() {
         p.onderdeel === selectedOnderdeel
     );
   }
-
   function getMaxScore() {
-    if (selectedProef) {
-      return selectedProef.max_score || "";
+    if (selectedProef && selectedProef.max_score) {
+      return selectedProef.max_score;
     }
     return "";
   }
-
   function getRuitersVoorKlasse() {
     return ruiters.filter((r) => r.klasse === selectedKlasse);
   }
-
   async function handleOpslaan() {
     if (!selectedProef || !selectedRuiter) {
       setError("Kies proef en ruiter!");
       return;
     }
     if (!dq && !scoreInput) {
-      setError("Vul score in of vink DQ aan.");
+      setError("Vul score/tijd in of vink DQ aan.");
       return;
     }
     setError("");
     let insertObj = {
       proef_id: selectedProef.id,
       ruiter_id: selectedRuiter,
-      score: dq ? 0 : Number(scoreInput),
       dq: dq,
     };
+    if (selectedOnderdeel === "Speedtrail") {
+      insertObj.score = dq ? 0 : Number(scoreInput); // score = tijd in seconden
+    } else {
+      insertObj.score = dq ? 0 : Number(scoreInput);
+    }
     if (editingId) {
       await supabase.from("scores").update(insertObj).eq("id", editingId);
     } else {
@@ -100,7 +87,6 @@ export default function ScoreInvoer() {
     resetForm();
     fetchScores();
   }
-
   function handleEdit(score) {
     setEditingId(score.id);
     setSelectedRuiter(score.ruiter_id);
@@ -108,68 +94,81 @@ export default function ScoreInvoer() {
     setDQ(!!score.dq);
     setError("");
   }
-
   async function handleDelete(id) {
     await supabase.from("scores").delete().eq("id", id);
     fetchScores();
   }
-
-  // === Correcte WEH-puntentelling (zie uitleg Chat) ===
-  function berekenTussenstand() {
+  function berekenKlassement() {
     if (!scores.length) return [];
-
-    let scoreList = scores.map(s => ({
+    // Vul namen/paarden aan uit ruiters
+    const scoresWithName = scores.map((s) => ({
       ...s,
-      naam: ruiters.find(r => r.id === s.ruiter_id)?.naam || "Onbekend",
-      paard: ruiters.find(r => r.id === s.ruiter_id)?.paard || "Onbekend",
+      naam: ruiters.find((r) => r.id === s.ruiter_id)?.naam || "Onbekend",
+      paard: ruiters.find((r) => r.id === s.ruiter_id)?.paard || "Onbekend",
     }));
+    const totaalGestart = scoresWithName.length; // incl DQ
 
-    const aantalGestart = scoreList.length;
+    let deelnemersZonderDQ = scoresWithName.filter((s) => !s.dq);
+    let deelnemersMetDQ = scoresWithName.filter((s) => s.dq);
 
-    let zonderDQ = scoreList.filter(s => !s.dq);
-    let metDQ = scoreList.filter(s => s.dq);
-
-    zonderDQ.sort((a, b) => b.score - a.score);
-
-    let tussenstand = [];
-    let i = 0;
-    while (i < zonderDQ.length) {
-      let exaequoGroep = [zonderDQ[i]];
-      while (
-        i + exaequoGroep.length < zonderDQ.length &&
-        zonderDQ[i].score === zonderDQ[i + exaequoGroep.length].score
-      ) {
-        exaequoGroep.push(zonderDQ[i + exaequoGroep.length]);
-      }
-      const plaats = i + 1;
-      const punten = plaats === 1
-        ? aantalGestart + 1
-        : aantalGestart - (plaats - 1);
-      exaequoGroep.forEach(s => {
-        tussenstand.push({
+    // Sortering: Speedtrail op tijd, anders op score
+    if (selectedOnderdeel === "Speedtrail") {
+      deelnemersZonderDQ = deelnemersZonderDQ
+        .sort((a, b) => a.score - b.score);
+    } else {
+      deelnemersZonderDQ = deelnemersZonderDQ
+        .map((s) => ({
           ...s,
-          plaats,
-          punten,
-          scoreLabel: selectedProef && selectedProef.max_score
-            ? `${s.score} (${Math.round((s.score / selectedProef.max_score) * 1000) / 10}%)`
-            : s.score,
-        });
-      });
-      i += exaequoGroep.length;
+          percentage:
+            selectedProef && selectedProef.max_score && s.score
+              ? Math.round((s.score / selectedProef.max_score) * 1000) / 10
+              : 0,
+        }))
+        .sort((a, b) => b.score - a.score);
     }
-    // DQ's onderaan
-    metDQ.forEach((s, idx) => {
-      tussenstand.push({
+
+    // Ex aequo per score/tijd
+    let resultaat = [];
+    let plek = 1, i = 0;
+    while (i < deelnemersZonderDQ.length) {
+      let groep = [deelnemersZonderDQ[i]];
+      while (
+        i + groep.length < deelnemersZonderDQ.length &&
+        deelnemersZonderDQ[i].score === deelnemersZonderDQ[i + groep.length].score
+      ) {
+        groep.push(deelnemersZonderDQ[i + groep.length]);
+      }
+      let plekLabel = groep.length > 1 ? plek + "*" : plek + "";
+      let punten = plek === 1
+        ? totaalGestart + 1
+        : totaalGestart - (plek - 1);
+      for (let j = 0; j < groep.length; j++) {
+        resultaat.push({
+          ...groep[j],
+          plaats: plekLabel,
+          punten,
+          scoreLabel: selectedOnderdeel === "Speedtrail"
+            ? `${groep[j].score ? groep[j].score.toFixed(2) : "0"} sec`
+            : `${groep[j].score} (${groep[j].percentage}%)`
+        });
+      }
+      plek += groep.length;
+      i += groep.length;
+    }
+
+    // DQ’s onderaan, altijd plek DQ en 0 punten
+    deelnemersMetDQ.forEach((s) => {
+      resultaat.push({
         ...s,
-        plaats: zonderDQ.length + idx + 1,
+        plaats: "DQ",
         punten: 0,
         scoreLabel: "DQ",
       });
     });
 
     return [
-      ...tussenstand.filter(k => !k.dq),
-      ...tussenstand.filter(k => k.dq),
+      ...resultaat.filter((k) => k.plaats !== "DQ"),
+      ...resultaat.filter((k) => k.plaats === "DQ"),
     ];
   }
 
@@ -197,7 +196,7 @@ export default function ScoreInvoer() {
               resetForm();
             }}>
               <option value="">--</option>
-              {["WE Intro", "WE1", "WE2", "WE3", "WE4"].map(k => <option key={k}>{k}</option>)}
+              {[...new Set(proeven.map(p => p.klasse))].map(k => <option key={k}>{k}</option>)}
             </select>
           </label>
           <label>
@@ -238,15 +237,17 @@ export default function ScoreInvoer() {
             </select>
           </label>
           <label>
-            Score:
+            {selectedOnderdeel === "Speedtrail" ? "Tijd (seconden)" : "Score"}:
             <input
               type="number"
+              min="0"
+              step="0.01"
               value={scoreInput}
               onChange={e => setScoreInput(e.target.value)}
               disabled={dq}
-              style={{ width: 70 }}
+              style={{ width: 100 }}
             />
-            {selectedProef && selectedProef.max_score ? (
+            {selectedOnderdeel !== "Speedtrail" && selectedProef && selectedProef.max_score ? (
               <span style={{ color: "#999", marginLeft: 4 }}>
                 / {selectedProef.max_score}
               </span>
@@ -288,20 +289,20 @@ export default function ScoreInvoer() {
               <th style={{ padding: 8 }}>Plaats</th>
               <th style={{ padding: 8 }}>Ruiter</th>
               <th style={{ padding: 8 }}>Paard</th>
-              <th style={{ padding: 8 }}>Score</th>
+              <th style={{ padding: 8 }}>{selectedOnderdeel === "Speedtrail" ? "Tijd (sec)" : "Score"}</th>
               <th style={{ padding: 8 }}>Punten</th>
               <th style={{ padding: 8 }}>Acties</th>
             </tr>
           </thead>
           <tbody>
-            {berekenTussenstand().length === 0 ? (
+            {berekenKlassement().length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", padding: 16, color: "#777" }}>
-                  Nog geen scores ingevoerd voor deze proef/klasse.
+                  Nog geen scores/tijden ingevoerd voor deze proef/klasse.
                 </td>
               </tr>
             ) : (
-              berekenTussenstand().map(item => (
+              berekenKlassement().map(item => (
                 <tr key={item.id || item.ruiter_id}>
                   <td style={{ padding: 8 }}>{item.plaats}</td>
                   <td style={{ padding: 8 }}>{item.naam}</td>
