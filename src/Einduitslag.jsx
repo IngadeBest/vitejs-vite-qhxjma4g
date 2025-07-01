@@ -91,7 +91,7 @@ export default function Einduitslag() {
           if (plaats > 0) {
             // Ex aequo groep
             let score = scoreObj.score;
-            let exaequo = zonderDQ.filter(s => s.score === score);
+            // let exaequo = zonderDQ.filter(s => s.score === score); // evt. voor weergave
             // Punten voor deze plaats
             punten = plaats === 1
               ? aantalGestart + 1
@@ -162,7 +162,7 @@ export default function Einduitslag() {
       return 0;
     });
 
-    // Plaatsen en ex equo-markering (correcte blokken)
+    // Plaatsen en ex equo-markering (perfect voor groepen!)
     let eindresultaat = [];
     let plek = 1;
     let i = 0;
@@ -194,7 +194,7 @@ export default function Einduitslag() {
       i += groep.length;
     }
 
-    return { eindresultaat, onderdelen };
+    return { eindresultaat, onderdelen }; // geef ook onderdelen door
   }
 
   function exportPDF(klasse, eindstand, onderdelen) {
