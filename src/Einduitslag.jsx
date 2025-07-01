@@ -89,9 +89,6 @@ export default function Einduitslag() {
           // Plaats bepalen
           let plaats = zonderDQ.findIndex(s => s.ruiter_id === r.id) + 1;
           if (plaats > 0) {
-            // Ex aequo groep
-            let score = scoreObj.score;
-            // let exaequo = zonderDQ.filter(s => s.score === score); // evt. voor weergave
             // Punten voor deze plaats
             punten = plaats === 1
               ? aantalGestart + 1
@@ -162,7 +159,7 @@ export default function Einduitslag() {
       return 0;
     });
 
-    // Plaatsen en ex equo-markering (perfect voor groepen!)
+    // Plaatsen en ex equo-markering (nu 1,2,2,4,5 ...)
     let eindresultaat = [];
     let plek = 1;
     let i = 0;
@@ -190,7 +187,7 @@ export default function Einduitslag() {
           plek: plekLabel
         });
       }
-      plek += groep.length;
+      plek += groep.length; // volgende plek na het ex aequo-blok
       i += groep.length;
     }
 
