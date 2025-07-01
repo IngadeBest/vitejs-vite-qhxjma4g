@@ -81,27 +81,32 @@ export default function Einduitslag() {
           const aantalGestart = scoresVoorProef.length;
           let zonderDQ = scoresVoorProef.filter(s => !s.dq);
 
-          // --- EX AEQUO plaatsbepaling per onderdeel ---
-          let plaats = null;
-          if (!dq) {
-            // Sorteer op score aflopend
-            let sorted = [...zonderDQ].sort((a, b) => b.score - a.score);
-            // Unieke scores hoog-laag
-            let uniqueScores = [...new Set(sorted.map(s => s.score))];
-            let score = scoreObj.score;
-            plaats = uniqueScores.indexOf(score) + 1;
+          // --- EX AEQUO plaats- en puntenbepaling per onderdeel ---
+          let sortedScores = [...zonderDQ].sort((a, b) => b.score - a.score);
+          let plaatsen = {};
+          let puntenPerPlek = {};
+          let plekNummer = 1;
+          for (let i = 0; i < sortedScores.length; ) {
+            let eqGroep = sortedScores.filter(s => s.score === sortedScores[i].score);
+            let score = sortedScores[i].score;
+            plaatsen[score] = plekNummer;
+            // Punten volgens WEH (aantalGestart + 1 - plaats)
+            puntenPerPlek[score] = plekNummer === 1 ? aantalGestart + 1 : aantalGestart - (plekNummer - 1);
+            plekNummer += eqGroep.length;
+            i += eqGroep.length;
           }
 
-          // --- Puntentoekenning (WEH) ---
-          if (!dq && plaats !== null) {
-            punten = plaats === 1
-              ? aantalGestart + 1
-              : aantalGestart - (plaats - 1);
+          let plaats = null;
+          if (!dq && scoreObj) {
+            plaats = plaatsen[scoreObj.score];
+            punten = puntenPerPlek[scoreObj.score];
           }
+
           if (dq) {
             punten = 0;
             aantalDQ++;
           }
+
           perOnderdeel.push({
             onderdeel,
             plek: plaats,
@@ -154,7 +159,7 @@ export default function Einduitslag() {
       return 0;
     });
 
-    // --- Ex aequo plaatsnummering ---
+    // --- Ex aequo plaatsnummering in de totaaltabel ---
     let eindresultaat = [];
     let plek = 1;
     let i = 0;
