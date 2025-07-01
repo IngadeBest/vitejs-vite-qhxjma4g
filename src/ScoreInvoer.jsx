@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
-import { Link } from "react-router-dom";
 
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
 
@@ -66,6 +65,13 @@ export default function ScoreInvoer() {
     );
   }
 
+  function getMaxScore() {
+    if (selectedProef) {
+      return selectedProef.max_score || "";
+    }
+    return "";
+  }
+
   function getRuitersVoorKlasse() {
     return ruiters.filter((r) => r.klasse === selectedKlasse);
   }
@@ -108,71 +114,72 @@ export default function ScoreInvoer() {
     fetchScores();
   }
 
-  function berekenKlassement() {
+  // === Correcte WEH-puntentelling voor tussenstand ===
+  function berekenTussenstand() {
     if (!scores.length) return [];
 
-    const scoresWithName = scores.map((s) => ({
+    // Maak een copy van de score-objecten + naam/paard
+    let scoreList = scores.map(s => ({
       ...s,
-      naam: ruiters.find((r) => r.id === s.ruiter_id)?.naam || "Onbekend",
-      paard: ruiters.find((r) => r.id === s.ruiter_id)?.paard || "Onbekend",
+      naam: ruiters.find(r => r.id === s.ruiter_id)?.naam || "Onbekend",
+      paard: ruiters.find(r => r.id === s.ruiter_id)?.paard || "Onbekend",
     }));
 
-    const totaalGestart = scoresWithName.length;
+    let zonderDQ = scoreList.filter(s => !s.dq);
+    let metDQ = scoreList.filter(s => s.dq);
 
-    let deelnemersZonderDQ = scoresWithName.filter((s) => !s.dq);
-    let deelnemersMetDQ = scoresWithName.filter((s) => s.dq);
+    zonderDQ.sort((a, b) => b.score - a.score);
 
-    deelnemersZonderDQ = deelnemersZonderDQ.map((s) => ({
-      ...s,
-      percentage:
-        selectedProef && selectedProef.max_score && s.score
-          ? Math.round((s.score / selectedProef.max_score) * 1000) / 10
-          : 0,
-    }))
-      .sort((a, b) => b.score - a.score);
+    const aantalDeelnemers = zonderDQ.length + metDQ.length;
 
-    let resultaat = [];
-    let plek = 1;
-    let exaequoCount = 1;
-    let vorigeWaarde = null;
-
-    for (let i = 0; i < deelnemersZonderDQ.length; i++) {
-      const s = deelnemersZonderDQ[i];
-      let waarde = s.score;
-
-      if (i === 0) {
-        plek = 1;
-        exaequoCount = 1;
-      } else if (waarde === vorigeWaarde) {
-        exaequoCount++;
-      } else {
-        plek = plek + exaequoCount;
-        exaequoCount = 1;
+    let tussenstand = [];
+    let i = 0;
+    while (i < zonderDQ.length) {
+      // Ex aequo groep
+      let exaequoGroep = [zonderDQ[i]];
+      while (
+        i + exaequoGroep.length < zonderDQ.length &&
+        zonderDQ[i].score === zonderDQ[i + exaequoGroep.length].score
+      ) {
+        exaequoGroep.push(zonderDQ[i + exaequoGroep.length]);
       }
-      vorigeWaarde = waarde;
+      const plaats = i + 1;
+      let puntenVoorPlaats = [];
+      for (let j = 0; j < exaequoGroep.length; j++) {
+        let index = plaats + j;
+        let punten = index === 1
+          ? aantalDeelnemers + 1
+          : aantalDeelnemers - (index - 2);
+        puntenVoorPlaats.push(punten);
+      }
+      const punten = Math.min(...puntenVoorPlaats);
 
-      let punten = totaalGestart + 1 - plek;
-
-      resultaat.push({
-        ...s,
-        plaats: plek,
-        punten,
-        scoreLabel: `${s.score} (${s.percentage}%)`,
+      exaequoGroep.forEach(s => {
+        tussenstand.push({
+          ...s,
+          plaats,
+          punten,
+          scoreLabel: selectedProef && selectedProef.max_score
+            ? `${s.score} (${Math.round((s.score / selectedProef.max_score) * 1000) / 10}%)`
+            : s.score,
+        });
       });
+      i += exaequoGroep.length;
     }
-
-    deelnemersMetDQ.forEach((s) => {
-      resultaat.push({
+    // DQ's onderaan
+    metDQ.forEach((s, idx) => {
+      tussenstand.push({
         ...s,
-        plaats: "DQ",
+        plaats: zonderDQ.length + idx + 1,
         punten: 0,
         scoreLabel: "DQ",
       });
     });
 
+    // Eerst niet-DQ, dan DQ's
     return [
-      ...resultaat.filter((k) => k.plaats !== "DQ"),
-      ...resultaat.filter((k) => k.plaats === "DQ"),
+      ...tussenstand.filter(k => !k.dq),
+      ...tussenstand.filter(k => k.dq),
     ];
   }
 
@@ -187,27 +194,6 @@ export default function ScoreInvoer() {
         padding: "40px 32px 28px 32px",
         fontFamily: "system-ui, sans-serif"
       }}>
-        {/* Link naar einduitslag */}
-        <div style={{ marginBottom: 12, textAlign: "right" }}>
-          <Link
-            to="/einduitslag"
-            style={{
-              color: "#3a8bfd",
-              fontWeight: 700,
-              textDecoration: "none",
-              fontSize: 18,
-              border: "1px solid #3a8bfd",
-              borderRadius: 8,
-              padding: "5px 18px",
-              background: "#f5f7fb",
-              transition: "background 0.2s, color 0.2s",
-            }}
-            onMouseOver={e => e.currentTarget.style.background = "#e7f0fa"}
-            onMouseOut={e => e.currentTarget.style.background = "#f5f7fb"}
-          >
-            → Ga naar einduitslag
-          </Link>
-        </div>
         <h2 style={{ fontSize: 33, fontWeight: 900, color: "#204574", letterSpacing: 1.2, marginBottom: 22 }}>
           Score-invoer
         </h2>
@@ -318,14 +304,14 @@ export default function ScoreInvoer() {
             </tr>
           </thead>
           <tbody>
-            {berekenKlassement().length === 0 ? (
+            {berekenTussenstand().length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", padding: 16, color: "#777" }}>
                   Nog geen scores ingevoerd voor deze proef/klasse.
                 </td>
               </tr>
             ) : (
-              berekenKlassement().map(item => (
+              berekenTussenstand().map(item => (
                 <tr key={item.id || item.ruiter_id}>
                   <td style={{ padding: 8 }}>{item.plaats}</td>
                   <td style={{ padding: 8 }}>{item.naam}</td>

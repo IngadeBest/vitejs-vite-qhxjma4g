@@ -6,7 +6,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import domtoimage from "dom-to-image";
 
-// Klassen & onderdelen (eventueel dynamisch maken)
+// Klassen & onderdelen
 const klasses = ["WE Intro", "WE1", "WE2", "WE3", "WE4"];
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
 
@@ -15,8 +15,6 @@ export default function Einduitslag() {
   const [scores, setScores] = useState([]);
   const [proeven, setProeven] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Ref voor afbeelding-export
   const tableRefs = useRef({});
 
   useEffect(() => {
@@ -33,7 +31,7 @@ export default function Einduitslag() {
     fetchData();
   }, []);
 
-  // === Eindklassement met DQ volgens WEH ===
+  // ---- Correcte WEH-puntentelling met ex aequo en DQ ----
   function berekenEindklassement(klasse) {
     const klasseRuiters = ruiters.filter(r => r.klasse === klasse);
 
@@ -52,40 +50,65 @@ export default function Einduitslag() {
           paard: ruiters.find(r => r.id === s.ruiter_id)?.paard || "",
         }));
 
-      // Split DQ’s en niet-DQ’s
       let zonderDQ = scoresVoorProef.filter(s => !s.dq);
       let metDQ = scoresVoorProef.filter(s => s.dq);
-      // Sorteren op score (hoog naar laag)
+
       zonderDQ.sort((a, b) => b.score - a.score);
 
-      // Plaatsen, ex-aequo & punten
-      let plek = 1, exaequoCount = 1, vorigeScore = null;
-      let deelnemers = zonderDQ.length + metDQ.length;
-      zonderDQ.forEach((s, i) => {
-        if (i > 0 && s.score === vorigeScore) {
-          exaequoCount++;
-        } else if (i > 0) {
-          plek += exaequoCount;
-          exaequoCount = 1;
+      const aantalDeelnemers = zonderDQ.length + metDQ.length;
+
+      let i = 0;
+      while (i < zonderDQ.length) {
+        // Ex aequo groep
+        let exaequoGroep = [zonderDQ[i]];
+        while (
+          i + exaequoGroep.length < zonderDQ.length &&
+          zonderDQ[i].score === zonderDQ[i + exaequoGroep.length].score
+        ) {
+          exaequoGroep.push(zonderDQ[i + exaequoGroep.length]);
         }
-        vorigeScore = s.score;
-        let punten = deelnemers + 1 - plek;
+        const plaats = i + 1;
+        // Puntentelling conform WEH:
+        // 1e = aantalDeelnemers + 1, 2e = aantalDeelnemers -1, enz.
+        let puntenVoorPlaats = [];
+        for (let j = 0; j < exaequoGroep.length; j++) {
+          let index = plaats + j;
+          let punten = index === 1
+            ? aantalDeelnemers + 1
+            : aantalDeelnemers - (index - 2);
+          puntenVoorPlaats.push(punten);
+        }
+        const punten = Math.min(...puntenVoorPlaats);
+
+        exaequoGroep.forEach(s => {
+          tussenstanden[s.ruiter_id] = tussenstanden[s.ruiter_id] || [];
+          tussenstanden[s.ruiter_id].push({
+            onderdeel,
+            plek: plaats,
+            punten,
+            dq: false,
+          });
+        });
+        i += exaequoGroep.length;
+      }
+
+      // DQ's: altijd onderaan, plek na niet-DQ's, altijd 0 punten
+      metDQ.forEach((s, idx) => {
         tussenstanden[s.ruiter_id] = tussenstanden[s.ruiter_id] || [];
-        tussenstanden[s.ruiter_id].push({ onderdeel, plek, punten, dq: false });
-      });
-      // DQ’s: plek DQ, 0 punten
-      metDQ.forEach(s => {
-        tussenstanden[s.ruiter_id] = tussenstanden[s.ruiter_id] || [];
-        tussenstanden[s.ruiter_id].push({ onderdeel, plek: "DQ", punten: 0, dq: true });
+        tussenstanden[s.ruiter_id].push({
+          onderdeel,
+          plek: zonderDQ.length + idx + 1,
+          punten: 0,
+          dq: true,
+        });
       });
     });
 
-    // Maak eindlijst, alle onderdelen DQ = uit eindklassement, minstens 1 DQ = onderaan
+    // Einduitslag op basis van totaalpunten
     let eindstand = klasseRuiters.map(r => {
       let perOnderdeel = tussenstanden[r.id] || [];
       let totaalPunten = perOnderdeel.reduce((sum, s) => sum + s.punten, 0);
       let heeftDQ = perOnderdeel.some(s => s.dq);
-      let onderdelenMetDQ = perOnderdeel.filter(s => s.dq).map(s => s.onderdeel);
       return {
         id: r.id,
         naam: r.naam,
@@ -93,14 +116,13 @@ export default function Einduitslag() {
         totaalPunten,
         perOnderdeel,
         heeftDQ,
-        onderdelenMetDQ,
       };
     });
 
     let zonderDQ = eindstand.filter(e => !e.heeftDQ);
     let metDQ = eindstand.filter(e => e.heeftDQ);
 
-    // Sorteren op punten, ex-aequo
+    // Sorteren op totaalpunten, ex aequo netjes
     zonderDQ.sort((a, b) => b.totaalPunten - a.totaalPunten);
 
     let eindresultaat = [];
@@ -115,7 +137,8 @@ export default function Einduitslag() {
       vorige = e.totaalPunten;
       eindresultaat.push({ ...e, plek });
     });
-    // DQ’s (minstens 1 DQ op onderdeel) onderaan
+
+    // DQ's plek "DQ"
     metDQ.forEach(e => {
       eindresultaat.push({ ...e, plek: "DQ" });
     });
@@ -123,9 +146,7 @@ export default function Einduitslag() {
     return eindresultaat;
   }
 
-  // ==== EXPORTS ====
-
-  // 1. PDF (per klasse, hele tabel met styling)
+  // ---- Exports (PDF, Excel, Afbeelding) ----
   function exportPDF(klasse, eindstand) {
     const doc = new jsPDF();
     doc.setFontSize(18);
@@ -158,7 +179,6 @@ export default function Einduitslag() {
     doc.save(`Einduitslag_${klasse}.pdf`);
   }
 
-  // 2. Excel (xlsx)
   function exportExcel(klasse, eindstand) {
     const ws_data = [
       ["Plaats", "Ruiter", "Paard", ...onderdelen, "Totaal punten"],
@@ -183,7 +203,6 @@ export default function Einduitslag() {
     XLSX.writeFile(wb, `Einduitslag_${klasse}.xlsx`);
   }
 
-  // 3. Afbeelding (PNG, alleen tabel)
   function exportAfbeelding(klasse) {
     if (tableRefs.current[klasse]) {
       domtoimage.toPng(tableRefs.current[klasse])
@@ -195,8 +214,6 @@ export default function Einduitslag() {
         });
     }
   }
-
-  // ===================
 
   return (
     <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: "24px 0" }}>
