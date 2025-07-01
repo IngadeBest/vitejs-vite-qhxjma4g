@@ -6,8 +6,16 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import domtoimage from "dom-to-image";
 
-const klasses = ["WE Intro", "WE1", "WE2", "WE3", "WE4"];
-const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
+// Per klasse welke onderdelen verreden worden
+const onderdelenPerKlasse = {
+  "WE Intro": ["Dressuur", "Stijltrail"],
+  "WE1": ["Dressuur", "Stijltrail"],
+  "WE2": ["Dressuur", "Stijltrail", "Speedtrail"],
+  "WE3": ["Dressuur", "Stijltrail", "Speedtrail"],
+  "WE4": ["Dressuur", "Stijltrail", "Speedtrail"],
+};
+
+const klasses = Object.keys(onderdelenPerKlasse);
 
 export default function Einduitslag() {
   const [ruiters, setRuiters] = useState([]);
@@ -31,13 +39,14 @@ export default function Einduitslag() {
   }, []);
 
   function getPercentage(scoreObj, proef) {
-    if (!proef || scoreObj.dq) return 0;
+    if (!proef || !scoreObj || scoreObj.dq) return 0;
     return proef.max_score
       ? (scoreObj.score / proef.max_score) * 100
       : 0;
   }
 
   function berekenEindklassement(klasse) {
+    const onderdelen = onderdelenPerKlasse[klasse];
     const klasseRuiters = ruiters.filter(r => r.klasse === klasse);
 
     // Proeven per onderdeel
@@ -60,11 +69,11 @@ export default function Einduitslag() {
         let scoreObj = proef
           ? scores.find(s => s.proef_id === proef.id && s.ruiter_id === r.id)
           : null;
-        let dq = scoreObj ? !!scoreObj.dq : true; // als niet gestart, is DQ
+        let dq = !scoreObj || !!scoreObj.dq;
         let punten = 0;
-        let percentage = getPercentage(scoreObj || { dq: true }, proef);
+        let percentage = getPercentage(scoreObj, proef);
 
-        // Puntentelling WEH
+        // Puntentelling WEH (alleen voor bestaande proef/score)
         if (proef && scoreObj) {
           // Haal ALLE scores op voor dit proef-onderdeel (incl. DQ's)
           let scoresVoorProef = scores
@@ -83,7 +92,6 @@ export default function Einduitslag() {
           if (plaats > 0) {
             // Ex aequo groep
             let score = scoreObj.score;
-            let exaequo = zonderDQ.filter(s => s.score === score);
             // Punten voor deze plaats
             punten = plaats === 1
               ? aantalGestart + 1
@@ -93,6 +101,7 @@ export default function Einduitslag() {
           if (dq) {
             punten = 0;
             plaats = zonderDQ.length + 1; // onderaan
+            aantalDQ++;
           }
           perOnderdeel.push({
             onderdeel,
@@ -102,7 +111,7 @@ export default function Einduitslag() {
             percentage: Number(percentage.toFixed(2))
           });
         } else {
-          // Niet gestart = DQ
+          // Geen score = DQ
           aantalDQ++;
           perOnderdeel.push({
             onderdeel,
@@ -113,7 +122,6 @@ export default function Einduitslag() {
           });
         }
 
-        if (dq) aantalDQ++;
         totaalPunten += punten;
         percentages[onderdeel] = Number(percentage.toFixed(2));
       });
@@ -130,7 +138,7 @@ export default function Einduitslag() {
     });
 
     // Sorteren: eerst aantal DQ's (laag naar hoog), dan totaalpunten (hoog naar laag),
-    // dan percentages dressuur, stijltrail, speedtrail (indien WE2+)
+    // dan percentages dressuur, stijltrail, speedtrail (indien van toepassing)
     deelnemers.sort((a, b) => {
       if (a.aantalDQ !== b.aantalDQ) return a.aantalDQ - b.aantalDQ;
       if (a.totaalPunten !== b.totaalPunten) return b.totaalPunten - a.totaalPunten;
@@ -145,9 +153,7 @@ export default function Einduitslag() {
       }
       // 3. Speedtrailpercentage (alleen vanaf WE2)
       if (
-        (klasse === "WE2" ||
-         klasse === "WE3" ||
-         klasse === "WE4") &&
+        onderdelen.includes("Speedtrail") &&
         b.percentages.Speedtrail !== a.percentages.Speedtrail
       ) {
         return b.percentages.Speedtrail - a.percentages.Speedtrail;
@@ -167,9 +173,10 @@ export default function Einduitslag() {
         deelnemers[i].totaalPunten === deelnemers[i - 1].totaalPunten &&
         deelnemers[i].percentages.Dressuur === deelnemers[i - 1].percentages.Dressuur &&
         deelnemers[i].percentages.Stijltrail === deelnemers[i - 1].percentages.Stijltrail &&
-        (klasse === "WE2" || klasse === "WE3" || klasse === "WE4"
-          ? deelnemers[i].percentages.Speedtrail === deelnemers[i - 1].percentages.Speedtrail
-          : true)
+        (
+          !onderdelen.includes("Speedtrail") ||
+          deelnemers[i].percentages.Speedtrail === deelnemers[i - 1].percentages.Speedtrail
+        )
       ) {
         exaequo = true;
       }
@@ -177,13 +184,13 @@ export default function Einduitslag() {
         ...deelnemers[i],
         plek: plek + (exaequo ? "*" : ""),
       });
-      if (!exaequo) plek = i + 1 + 1; // tel volgende plek alleen op als er géén ex aequo is
+      if (!exaequo) plek = i + 1 + 1;
     }
 
-    return eindresultaat;
+    return { eindresultaat, onderdelen };
   }
 
-  function exportPDF(klasse, eindstand) {
+  function exportPDF(klasse, eindstand, onderdelen) {
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text(`Einduitslag klasse ${klasse}`, 14, 16);
@@ -215,7 +222,7 @@ export default function Einduitslag() {
     doc.save(`Einduitslag_${klasse}.pdf`);
   }
 
-  function exportExcel(klasse, eindstand) {
+  function exportExcel(klasse, eindstand, onderdelen) {
     const ws_data = [
       ["Plaats", "Ruiter", "Paard", ...onderdelen, "Totaal punten"],
       ...eindstand.map(e => [
@@ -290,8 +297,8 @@ export default function Einduitslag() {
           <div style={{ textAlign: "center", fontSize: 22, color: "#888", padding: 40 }}>Laden...</div>
         ) : (
           klasses.map(klasse => {
-            const eindstand = berekenEindklassement(klasse);
-            if (!eindstand.length) return null;
+            const { eindresultaat, onderdelen } = berekenEindklassement(klasse);
+            if (!eindresultaat.length) return null;
             return (
               <div key={klasse} style={{ marginBottom: 38 }}>
                 <h3 style={{
@@ -308,8 +315,8 @@ export default function Einduitslag() {
                   Klasse {klasse}
                 </h3>
                 <div style={{ marginBottom: 8, textAlign: "right" }}>
-                  <button onClick={() => exportPDF(klasse, eindstand)} style={{ marginLeft: 0 }}>Export PDF</button>
-                  <button onClick={() => exportExcel(klasse, eindstand)} style={{ marginLeft: 8 }}>Export Excel</button>
+                  <button onClick={() => exportPDF(klasse, eindresultaat, onderdelen)} style={{ marginLeft: 0 }}>Export PDF</button>
+                  <button onClick={() => exportExcel(klasse, eindresultaat, onderdelen)} style={{ marginLeft: 8 }}>Export Excel</button>
                   <button onClick={() => exportAfbeelding(klasse)} style={{ marginLeft: 8 }}>Export afbeelding</button>
                 </div>
                 <div ref={el => (tableRefs.current[klasse] = el)}>
@@ -333,12 +340,12 @@ export default function Einduitslag() {
                       </tr>
                     </thead>
                     <tbody>
-                      {eindstand.map(e => (
+                      {eindresultaat.map(e => (
                         <tr key={e.id}>
                           <td style={{
                             padding: 8,
                             fontWeight: 800,
-                            color: e.aantalDQ === 3 ? "#b23e3e" : "#204574"
+                            color: e.aantalDQ === onderdelen.length ? "#b23e3e" : "#204574"
                           }}>{e.plek}</td>
                           <td style={{ padding: 8 }}>{e.naam}</td>
                           <td style={{ padding: 8 }}>{e.paard}</td>
