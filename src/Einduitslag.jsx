@@ -31,7 +31,7 @@ export default function Einduitslag() {
     fetchData();
   }, []);
 
-  // ---- Correcte WEH-puntentelling met ex aequo en DQ ----
+  // ---- Correcte WEH-puntentelling met ex aequo en DQ, altijd incl. DQ's! ----
   function berekenEindklassement(klasse) {
     const klasseRuiters = ruiters.filter(r => r.klasse === klasse);
 
@@ -42,6 +42,7 @@ export default function Einduitslag() {
       );
       if (!proef) return;
 
+      // LET OP: alle scores voor deze proef, incl. DQ's!
       let scoresVoorProef = scores
         .filter(s => s.proef_id === proef.id)
         .map(s => ({
@@ -50,16 +51,15 @@ export default function Einduitslag() {
           paard: ruiters.find(r => r.id === s.ruiter_id)?.paard || "",
         }));
 
+      const aantalGestart = scoresVoorProef.length;
+
       let zonderDQ = scoresVoorProef.filter(s => !s.dq);
       let metDQ = scoresVoorProef.filter(s => s.dq);
 
       zonderDQ.sort((a, b) => b.score - a.score);
 
-      const aantalDeelnemers = zonderDQ.length + metDQ.length;
-
       let i = 0;
       while (i < zonderDQ.length) {
-        // Ex aequo groep
         let exaequoGroep = [zonderDQ[i]];
         while (
           i + exaequoGroep.length < zonderDQ.length &&
@@ -68,14 +68,12 @@ export default function Einduitslag() {
           exaequoGroep.push(zonderDQ[i + exaequoGroep.length]);
         }
         const plaats = i + 1;
-        // Puntentelling conform WEH:
-        // 1e = aantalDeelnemers + 1, 2e = aantalDeelnemers -1, enz.
         let puntenVoorPlaats = [];
         for (let j = 0; j < exaequoGroep.length; j++) {
           let index = plaats + j;
           let punten = index === 1
-            ? aantalDeelnemers + 1
-            : aantalDeelnemers - (index - 2);
+            ? aantalGestart + 1
+            : aantalGestart - (index - 2);
           puntenVoorPlaats.push(punten);
         }
         const punten = Math.min(...puntenVoorPlaats);
@@ -92,7 +90,7 @@ export default function Einduitslag() {
         i += exaequoGroep.length;
       }
 
-      // DQ's: altijd onderaan, plek na niet-DQ's, altijd 0 punten
+      // DQ's onderaan, altijd 0 punten
       metDQ.forEach((s, idx) => {
         tussenstanden[s.ruiter_id] = tussenstanden[s.ruiter_id] || [];
         tussenstanden[s.ruiter_id].push({
@@ -122,7 +120,6 @@ export default function Einduitslag() {
     let zonderDQ = eindstand.filter(e => !e.heeftDQ);
     let metDQ = eindstand.filter(e => e.heeftDQ);
 
-    // Sorteren op totaalpunten, ex aequo netjes
     zonderDQ.sort((a, b) => b.totaalPunten - a.totaalPunten);
 
     let eindresultaat = [];
@@ -138,7 +135,6 @@ export default function Einduitslag() {
       eindresultaat.push({ ...e, plek });
     });
 
-    // DQ's plek "DQ"
     metDQ.forEach(e => {
       eindresultaat.push({ ...e, plek: "DQ" });
     });

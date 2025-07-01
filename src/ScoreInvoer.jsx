@@ -114,28 +114,27 @@ export default function ScoreInvoer() {
     fetchScores();
   }
 
-  // === Correcte WEH-puntentelling voor tussenstand ===
+  // === Officiële WEH puntentelling, altijd aantal starts incl. DQ! ===
   function berekenTussenstand() {
     if (!scores.length) return [];
 
-    // Maak een copy van de score-objecten + naam/paard
+    // Alle scores (dus incl. DQ's)
     let scoreList = scores.map(s => ({
       ...s,
       naam: ruiters.find(r => r.id === s.ruiter_id)?.naam || "Onbekend",
       paard: ruiters.find(r => r.id === s.ruiter_id)?.paard || "Onbekend",
     }));
 
+    const aantalGestart = scoreList.length;
+
     let zonderDQ = scoreList.filter(s => !s.dq);
     let metDQ = scoreList.filter(s => s.dq);
 
     zonderDQ.sort((a, b) => b.score - a.score);
 
-    const aantalDeelnemers = zonderDQ.length + metDQ.length;
-
     let tussenstand = [];
     let i = 0;
     while (i < zonderDQ.length) {
-      // Ex aequo groep
       let exaequoGroep = [zonderDQ[i]];
       while (
         i + exaequoGroep.length < zonderDQ.length &&
@@ -148,8 +147,8 @@ export default function ScoreInvoer() {
       for (let j = 0; j < exaequoGroep.length; j++) {
         let index = plaats + j;
         let punten = index === 1
-          ? aantalDeelnemers + 1
-          : aantalDeelnemers - (index - 2);
+          ? aantalGestart + 1
+          : aantalGestart - (index - 2);
         puntenVoorPlaats.push(punten);
       }
       const punten = Math.min(...puntenVoorPlaats);
@@ -176,7 +175,6 @@ export default function ScoreInvoer() {
       });
     });
 
-    // Eerst niet-DQ, dan DQ's
     return [
       ...tussenstand.filter(k => !k.dq),
       ...tussenstand.filter(k => k.dq),
