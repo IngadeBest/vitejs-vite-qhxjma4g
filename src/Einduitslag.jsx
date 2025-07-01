@@ -6,16 +6,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import domtoimage from "dom-to-image";
 
-// Per klasse welke onderdelen verreden worden
-const onderdelenPerKlasse = {
-  "WE Intro": ["Dressuur", "Stijltrail"],
-  "WE1": ["Dressuur", "Stijltrail"],
-  "WE2": ["Dressuur", "Stijltrail", "Speedtrail"],
-  "WE3": ["Dressuur", "Stijltrail", "Speedtrail"],
-  "WE4": ["Dressuur", "Stijltrail", "Speedtrail"],
-};
-
-const klasses = Object.keys(onderdelenPerKlasse);
+const klasses = ["WE Intro", "WE1", "WE2", "WE3", "WE4"];
 
 export default function Einduitslag() {
   const [ruiters, setRuiters] = useState([]);
@@ -38,15 +29,23 @@ export default function Einduitslag() {
     fetchData();
   }, []);
 
+  // Dynamisch: onderdelen per klasse
+  function getOnderdelenVoorKlasse(klasse) {
+    return proeven
+      .filter(p => p.klasse === klasse)
+      .map(p => p.onderdeel)
+      .filter((v, i, arr) => arr.indexOf(v) === i); // unieke volgorde
+  }
+
   function getPercentage(scoreObj, proef) {
-    if (!proef || !scoreObj || scoreObj.dq) return 0;
+    if (!proef || scoreObj.dq) return 0;
     return proef.max_score
       ? (scoreObj.score / proef.max_score) * 100
       : 0;
   }
 
   function berekenEindklassement(klasse) {
-    const onderdelen = onderdelenPerKlasse[klasse];
+    const onderdelen = getOnderdelenVoorKlasse(klasse);
     const klasseRuiters = ruiters.filter(r => r.klasse === klasse);
 
     // Proeven per onderdeel
@@ -69,11 +68,11 @@ export default function Einduitslag() {
         let scoreObj = proef
           ? scores.find(s => s.proef_id === proef.id && s.ruiter_id === r.id)
           : null;
-        let dq = !scoreObj || !!scoreObj.dq;
+        let dq = scoreObj ? !!scoreObj.dq : true; // als niet gestart, is DQ
         let punten = 0;
-        let percentage = getPercentage(scoreObj, proef);
+        let percentage = getPercentage(scoreObj || { dq: true }, proef);
 
-        // Puntentelling WEH (alleen voor bestaande proef/score)
+        // Puntentelling WEH
         if (proef && scoreObj) {
           // Haal ALLE scores op voor dit proef-onderdeel (incl. DQ's)
           let scoresVoorProef = scores
@@ -92,6 +91,7 @@ export default function Einduitslag() {
           if (plaats > 0) {
             // Ex aequo groep
             let score = scoreObj.score;
+            let exaequo = zonderDQ.filter(s => s.score === score);
             // Punten voor deze plaats
             punten = plaats === 1
               ? aantalGestart + 1
@@ -101,7 +101,6 @@ export default function Einduitslag() {
           if (dq) {
             punten = 0;
             plaats = zonderDQ.length + 1; // onderaan
-            aantalDQ++;
           }
           perOnderdeel.push({
             onderdeel,
@@ -111,7 +110,7 @@ export default function Einduitslag() {
             percentage: Number(percentage.toFixed(2))
           });
         } else {
-          // Geen score = DQ
+          // Niet gestart = DQ
           aantalDQ++;
           perOnderdeel.push({
             onderdeel,
@@ -122,6 +121,7 @@ export default function Einduitslag() {
           });
         }
 
+        if (dq) aantalDQ++;
         totaalPunten += punten;
         percentages[onderdeel] = Number(percentage.toFixed(2));
       });
@@ -144,47 +144,54 @@ export default function Einduitslag() {
       if (a.totaalPunten !== b.totaalPunten) return b.totaalPunten - a.totaalPunten;
       // Ex equo! Tiebreakers:
       // 1. Dressuurpercentage
-      if (b.percentages.Dressuur !== a.percentages.Dressuur) {
-        return b.percentages.Dressuur - a.percentages.Dressuur;
+      if ((b.percentages.Dressuur ?? 0) !== (a.percentages.Dressuur ?? 0)) {
+        return (b.percentages.Dressuur ?? 0) - (a.percentages.Dressuur ?? 0);
       }
       // 2. Stijltrailpercentage
-      if (b.percentages.Stijltrail !== a.percentages.Stijltrail) {
-        return b.percentages.Stijltrail - a.percentages.Stijltrail;
+      if ((b.percentages.Stijltrail ?? 0) !== (a.percentages.Stijltrail ?? 0)) {
+        return (b.percentages.Stijltrail ?? 0) - (a.percentages.Stijltrail ?? 0);
       }
-      // 3. Speedtrailpercentage (alleen vanaf WE2)
+      // 3. Speedtrailpercentage (alleen als het onderdeel bestaat in deze klasse)
       if (
         onderdelen.includes("Speedtrail") &&
-        b.percentages.Speedtrail !== a.percentages.Speedtrail
+        (b.percentages.Speedtrail ?? 0) !== (a.percentages.Speedtrail ?? 0)
       ) {
-        return b.percentages.Speedtrail - a.percentages.Speedtrail;
+        return (b.percentages.Speedtrail ?? 0) - (a.percentages.Speedtrail ?? 0);
       }
       // 4. Nog steeds gelijk: ex aequo
       return 0;
     });
 
-    // Plaatsen en ex equo-markering
+    // Plaatsen en ex equo-markering (correcte blokken)
     let eindresultaat = [];
     let plek = 1;
-    for (let i = 0; i < deelnemers.length; i++) {
-      let exaequo = false;
-      if (
-        i > 0 &&
-        deelnemers[i].aantalDQ === deelnemers[i - 1].aantalDQ &&
-        deelnemers[i].totaalPunten === deelnemers[i - 1].totaalPunten &&
-        deelnemers[i].percentages.Dressuur === deelnemers[i - 1].percentages.Dressuur &&
-        deelnemers[i].percentages.Stijltrail === deelnemers[i - 1].percentages.Stijltrail &&
+    let i = 0;
+    while (i < deelnemers.length) {
+      // Zoek alle ex-aequo's vanaf i
+      let groep = [deelnemers[i]];
+      while (
+        i + groep.length < deelnemers.length &&
+        deelnemers[i].aantalDQ === deelnemers[i + groep.length].aantalDQ &&
+        deelnemers[i].totaalPunten === deelnemers[i + groep.length].totaalPunten &&
+        (deelnemers[i].percentages.Dressuur ?? 0) === (deelnemers[i + groep.length].percentages.Dressuur ?? 0) &&
+        (deelnemers[i].percentages.Stijltrail ?? 0) === (deelnemers[i + groep.length].percentages.Stijltrail ?? 0) &&
         (
-          !onderdelen.includes("Speedtrail") ||
-          deelnemers[i].percentages.Speedtrail === deelnemers[i - 1].percentages.Speedtrail
+          (!onderdelen.includes("Speedtrail")) ||
+          (deelnemers[i].percentages.Speedtrail ?? 0) === (deelnemers[i + groep.length].percentages.Speedtrail ?? 0)
         )
       ) {
-        exaequo = true;
+        groep.push(deelnemers[i + groep.length]);
       }
-      eindresultaat.push({
-        ...deelnemers[i],
-        plek: plek + (exaequo ? "*" : ""),
-      });
-      if (!exaequo) plek = i + 1 + 1;
+      // Sterretje als ex aequo (groep > 1)
+      let plekLabel = groep.length > 1 ? plek + "*" : plek + "";
+      for (let j = 0; j < groep.length; j++) {
+        eindresultaat.push({
+          ...groep[j],
+          plek: plekLabel
+        });
+      }
+      plek += groep.length;
+      i += groep.length;
     }
 
     return { eindresultaat, onderdelen };
