@@ -66,13 +66,6 @@ export default function ScoreInvoer() {
     );
   }
 
-  function getMaxScore() {
-    if (selectedProef) {
-      return selectedProef.max_score || "";
-    }
-    return "";
-  }
-
   function getRuitersVoorKlasse() {
     return ruiters.filter((r) => r.klasse === selectedKlasse);
   }
@@ -197,7 +190,7 @@ export default function ScoreInvoer() {
         {/* Link naar einduitslag */}
         <div style={{ marginBottom: 12, textAlign: "right" }}>
           <Link
-            to="/score/einduitslag"
+            to="/einduitslag"
             style={{
               color: "#3a8bfd",
               fontWeight: 700,

@@ -13,7 +13,6 @@ export default function ScoreTabs() {
   const isEinduitslag = location.pathname.includes("/score/einduitslag");
 
   return (
-    <div style={{textAlign: "center", fontWeight: 900, color: "red"}}>TEST REGEL SCOREINVOER</div>
 
     <div>
       <div style={{

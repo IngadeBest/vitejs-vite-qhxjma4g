@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
 import { HashRouter as Router, Routes, Route, Link } from "react-router-dom";
-import { supabase } from "./supabaseClient";
 import ProefInstellingen from "./ProefInstellingen";
-import ScoreTabs from "./ScoreTabs";
+import ScoreInvoer from "./ScoreInvoer";
+import Einduitslag from "./Einduitslag";
+import { useState, useEffect } from "react";
+import { supabase } from "./supabaseClient";
 
 // ----- Styling kleuren -----
 const kleuren = {
@@ -12,7 +13,7 @@ const kleuren = {
   wit: "#fff",
 };
 
-// ----- RuiterInvoer-component (direct in App.jsx) -----
+// ----- RuiterInvoer-component -----
 function RuiterInvoer() {
   const [ruiters, setRuiters] = useState([]);
   const [form, setForm] = useState({
@@ -298,14 +299,18 @@ export default function App() {
         <Link to="/proeven" style={{ marginLeft: 22, color: kleuren.accent, fontWeight: 700 }}>
           Proeven
         </Link>
-        <Link to="/score" style={{ marginLeft: 22, color: kleuren.accent, fontWeight: 700 }}>
-          Score & Einduitslag
+        <Link to="/score-invoer" style={{ marginLeft: 22, color: kleuren.accent, fontWeight: 700 }}>
+          Score-invoer
+        </Link>
+        <Link to="/einduitslag" style={{ marginLeft: 22, color: kleuren.accent, fontWeight: 700 }}>
+          Einduitslag
         </Link>
       </nav>
       <Routes>
         <Route path="/" element={<RuiterInvoer />} />
         <Route path="/proeven" element={<ProefInstellingen />} />
-        <Route path="/score/*" element={<ScoreTabs />} />
+        <Route path="/score-invoer" element={<ScoreInvoer />} />
+        <Route path="/einduitslag" element={<Einduitslag />} />
       </Routes>
     </Router>
   );
