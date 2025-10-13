@@ -1,8 +1,8 @@
 import { HashRouter as Router, Routes, Route, Link } from "react-router-dom";
-import RuiterInvoer from "./RuiterInvoer";
-import ProefInstellingen from "./ProefInstellingen";
-import ScoreInvoer from "./ScoreInvoer";
-import Einduitslag from "./Einduitslag";
+import RuiterInvoer from "./features/ruiters/pages/RuiterInvoer";
+import ProefInstellingen from "./features/proeven/pages/ProefInstellingen";
+import ScoreInvoer from "./features/scoring/pages/ScoreInvoer";
+import Einduitslag from "./features/einduitslag/pages/Einduitslag";
 
 const kleuren = {
   hoofd: "#204574",
