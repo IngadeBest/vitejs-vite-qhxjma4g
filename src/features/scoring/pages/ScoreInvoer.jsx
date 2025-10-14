@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from "@/lib/supabaseClient";
 
 // Helper: 'mm:ss:hh' (of 'mm:ss') => seconden (float)
 function parseTimeString(str) {
