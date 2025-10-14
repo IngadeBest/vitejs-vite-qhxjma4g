@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useWedstrijden } from "./hooks/useWedstrijden";
 
 const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
@@ -10,64 +11,67 @@ const KLASSEN = [
 ];
 
 export default function InschrijfFormulier() {
+  const { items: wedstrijden, loading } = useWedstrijden(false);
+
   const [form, setForm] = useState({
-    wedstrijd: "",
+    wedstrijd_id: "",
     klasse: "",
     ruiter: "",
     paard: "",
     email: "",
     telefoon: "",
-    voorkeur_tijd: "",
+    omroeper: "",
     opmerkingen: "",
   });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
   const disabled = useMemo(() => {
-    return !form.ruiter || !form.paard || !form.klasse || !form.wedstrijd;
+    return !form.ruiter || !form.paard || !form.klasse || !form.wedstrijd_id;
   }, [form]);
-
-  async function bewaarLocalFallback(data) {
-    const key = "wp_inschrijvingen";
-    const cur = JSON.parse(localStorage.getItem(key) || "[]");
-    cur.push({ ...data, id: "local-" + Date.now() });
-    localStorage.setItem(key, JSON.stringify(cur));
-  }
 
   async function onSubmit(e) {
     e.preventDefault();
     setBusy(true);
     setMsg("");
+
+    const wedstrijdObj = wedstrijden.find(w => w.id === form.wedstrijd_id);
     const payload = {
-      wedstrijd: form.wedstrijd,
+      wedstrijd_id: form.wedstrijd_id,
+      wedstrijd: wedstrijdObj ? wedstrijdObj.naam : null, // denormalized voor leesbaarheid
       klasse: form.klasse,
       ruiter: form.ruiter,
       paard: form.paard,
       email: form.email || null,
       telefoon: form.telefoon || null,
-      voorkeur_tijd: form.voorkeur_tijd || null,
+      voorkeur_tijd: null, // geen voorkeuren hier
+      omroeper: form.omroeper || null,
       opmerkingen: form.opmerkingen || null,
     };
+
     try {
-      if (!supabase) throw new Error("Geen supabase client");
       const { error } = await supabase.from("inschrijvingen").insert(payload);
       if (error) throw error;
       setMsg("Inschrijving opgeslagen ✔️");
+      setForm(s => ({ ...s, ruiter:"", paard:"", email:"", telefoon:"", omroeper:"", opmerkingen:"" }));
     } catch (err) {
-      await bewaarLocalFallback(payload);
-      setMsg("Opgeslagen in lokale opslag (offline) ✔️");
+      setMsg("Fout bij opslaan: " + (err?.message || String(err)));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: 740, margin: "24px auto" }}>
-      <h2>Inschrijven</h2>
-      <p style={{ color:"#555" }}>Vul hieronder de gegevens in. Deze inschrijvingen kun je vervolgens op de pagina <b>Startlijst</b> omzetten naar een startvolgorde en exporteren naar de <b>Protocollen</b>.</p>
-      <form onSubmit={onSubmit} style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: "10px 12px", alignItems:"center" }}>
+    <div style={{ maxWidth: 760, margin: "24px auto" }}>
+      <h2>Inschrijven (beheer)</h2>
+      <p style={{ color:"#555" }}>Kies wedstrijd uit de database en voeg inschrijvingen toe. Geen offline opslag meer.</p>
+
+      <form onSubmit={onSubmit} style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "10px 12px", alignItems:"center" }}>
         <label>Wedstrijd*</label>
-        <input value={form.wedstrijd} onChange={(e)=>setForm(s=>({...s, wedstrijd:e.target.value}))} placeholder="Bijv. WE De Driesporen 29-06-2025" />
+        <select value={form.wedstrijd_id} onChange={(e)=>setForm(s=>({...s, wedstrijd_id:e.target.value}))} disabled={loading}>
+          <option value="">{loading ? "Laden..." : "— kies wedstrijd —"}</option>
+          {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ""}</option>)}
+        </select>
 
         <label>Klasse*</label>
         <select value={form.klasse} onChange={(e)=>setForm(s=>({...s, klasse:e.target.value}))}>
@@ -87,8 +91,8 @@ export default function InschrijfFormulier() {
         <label>Telefoon</label>
         <input value={form.telefoon} onChange={(e)=>setForm(s=>({...s, telefoon:e.target.value}))} />
 
-        <label>Voorkeur starttijd</label>
-        <input placeholder="Bijv. na 11:00 ivm paard" value={form.voorkeur_tijd} onChange={(e)=>setForm(s=>({...s, voorkeur_tijd:e.target.value}))} />
+        <label>Tekst voor omroeper</label>
+        <textarea rows={3} value={form.omroeper} onChange={(e)=>setForm(s=>({...s, omroeper:e.target.value}))} />
 
         <label>Opmerkingen</label>
         <textarea rows={3} value={form.opmerkingen} onChange={(e)=>setForm(s=>({...s, opmerkingen:e.target.value}))} />
@@ -98,11 +102,6 @@ export default function InschrijfFormulier() {
       </form>
 
       {msg && <div style={{ marginTop: 12, padding: 10, background:"#f6ffed", border:"1px solid #b7eb8f", borderRadius: 8 }}>{msg}</div>}
-
-      <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
-        <a href="#/startlijst"><button>Ga naar Startlijst</button></a>
-        <a href="#/protocollen"><button>Ga naar Protocollen</button></a>
-      </div>
     </div>
   );
 }

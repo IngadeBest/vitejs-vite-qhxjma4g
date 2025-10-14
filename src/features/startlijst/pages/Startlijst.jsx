@@ -1,5 +1,6 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 
 const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
@@ -16,22 +17,25 @@ function toCSV(rows) {
 }
 
 export default function Startlijst() {
-  const [filters, setFilters] = useState({ wedstrijd: "", klasse: "" });
-    const [items, setItems] = useState([]);
+  const { items: wedstrijden, loading: loadingWed } = useWedstrijden(false);
+  const [filters, setFilters] = useState({ wedstrijd_id: "", klasse: "" });
+  const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
   const dragIndex = useRef(null);
 
-  const disabled = useMemo(() => !filters.wedstrijd || !filters.klasse, [filters]);
+  const disabled = useMemo(() => !filters.wedstrijd_id || !filters.klasse, [filters]);
 
   async function load() {
     setBusy(true);
+    setMsg("");
     try {
-      if (!supabase) throw new Error("No supabase");
       const { data, error } = await supabase
         .from("inschrijvingen")
         .select("*")
-        .eq("wedstrijd", filters.wedstrijd)
+        .eq("wedstrijd_id", filters.wedstrijd_id)
         .eq("klasse", filters.klasse)
+        .order("startnummer", { ascending: true, nullsFirst: true })
         .order("created_at", { ascending: true });
       if (error) throw error;
       const mapped = (data || []).map((d, i) => ({
@@ -41,16 +45,9 @@ export default function Startlijst() {
         opmerkingen: d.opmerkingen || "",
       }));
       setItems(mapped);
+      setMsg(`Loaded ${mapped.length} inschrijving(en).`);
     } catch (e) {
-      const all = JSON.parse(localStorage.getItem("wp_inschrijvingen") || "[]");
-      const filtered = all.filter(x => x.wedstrijd === filters.wedstrijd && x.klasse === filters.klasse);
-      const mapped = filtered.map((d, i) => ({
-        id: d.id, ruiter: d.ruiter, paard: d.paard,
-        startnummer: d.startnummer || i + 1,
-        voorkeur_tijd: d.voorkeur_tijd || "",
-        opmerkingen: d.opmerkingen || "",
-      }));
-      setItems(mapped);
+      setMsg("Fout bij laden: " + (e?.message || String(e)));
     } finally {
       setBusy(false);
     }
@@ -74,6 +71,23 @@ export default function Startlijst() {
     });
     dragIndex.current = null;
   };
+
+  async function saveStartnummers() {
+    setBusy(true);
+    setMsg("");
+    try {
+      // bulk updates
+      const updates = items.map(it => ({ id: it.id, startnummer: it.startnummer }));
+      // Supabase bulk upsert (needs primary key)
+      const { error } = await supabase.from("inschrijvingen").upsert(updates, { onConflict: "id" });
+      if (error) throw error;
+      setMsg("Startnummers opgeslagen ✔️");
+    } catch (e) {
+      setMsg("Opslaan mislukt: " + (e?.message || String(e)));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function pushToProtocollen() {
     const rows = items.map(x => ({
@@ -103,20 +117,26 @@ export default function Startlijst() {
       <h2>Startlijst</h2>
       <div style={{ display:"grid", gridTemplateColumns:"200px 1fr", gap:"10px 12px", alignItems:"center" }}>
         <label>Wedstrijd*</label>
-        <input value={filters.wedstrijd} onChange={(e)=>setFilters(s=>({...s, wedstrijd:e.target.value}))} placeholder="Exacte naam, zelfde als bij inschrijven" />
+        <select value={filters.wedstrijd_id} onChange={(e)=>setFilters(s=>({...s, wedstrijd_id:e.target.value}))} disabled={loadingWed}>
+          <option value="">{loadingWed ? "Laden..." : "— kies wedstrijd —"}</option>
+          {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ""}</option>)}
+        </select>
         <label>Klasse*</label>
         <select value={filters.klasse} onChange={(e)=>setFilters(s=>({...s, klasse:e.target.value}))}>
           <option value="">— kies klasse —</option>
           {KLASSEN.map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
         </select>
         <div></div>
-        <div style={{ display:"flex", gap:8 }}>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
           <button onClick={load} disabled={disabled || busy}>{busy ? "Laden..." : "Laden"}</button>
           <button onClick={resequence} disabled={!items.length}>Her-nummeren</button>
+          <button onClick={saveStartnummers} disabled={!items.length || busy}>Opslaan startnummers</button>
           <button onClick={exportCSV} disabled={!items.length}>Exporteer CSV</button>
           <button onClick={pushToProtocollen} disabled={!items.length}>Push naar Protocollen</button>
         </div>
       </div>
+
+      {msg && <div style={{ marginTop: 8, color:"#444" }}>{msg}</div>}
 
       <div style={{ marginTop: 16 }}>
         {items.length === 0 ? (
