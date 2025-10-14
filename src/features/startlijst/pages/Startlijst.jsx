@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 
 const KLASSEN = [
-  { code: "", label: "Alle klassen" },
+  { code: "",   label: "Alle klassen" },
   { code: "we0", label: "Introductieklasse (WE0)" },
   { code: "we1", label: "WE1" },
   { code: "we2", label: "WE2" },
@@ -12,16 +12,24 @@ const KLASSEN = [
   { code: "we4", label: "WE4" },
 ];
 
+const KLASSEN_EDIT = KLASSEN.filter(k => k.code !== ""); // voor de rij-editor
+
 export default function Startlijst() {
   const { items: wedstrijden, loading: loadingWed } = useWedstrijden(false);
   const [sp] = useSearchParams();
   const qId = sp.get("wedstrijdId") || "";
 
   const [selectedWedstrijdId, setSelectedWedstrijdId] = useState(qId);
-  const [klasse, setKlasse] = useState("");
-  const [rows, setRows] = useState([]);
+  const [klasseFilter, setKlasseFilter] = useState("");
+  const [beheer, setBeheer] = useState(false);
+
+  const [rows, setRows] = useState([]);         // ruwe DB-rows
+  const [editRows, setEditRows] = useState([]); // bewerkbare kopie
+  const [changed, setChanged] = useState(new Set()); // id's met wijzigingen
+
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [msg, setMsg] = useState("");
 
   const gekozen = useMemo(
     () => wedstrijden.find((w) => w.id === selectedWedstrijdId) || null,
@@ -31,10 +39,11 @@ export default function Startlijst() {
   const fetchRows = useCallback(async () => {
     setBusy(true);
     setErr("");
-    setRows([]);
+    setMsg("");
     try {
       if (!selectedWedstrijdId) {
-        setBusy(false);
+        setRows([]);
+        setEditRows([]);
         return;
       }
       let q = supabase
@@ -44,27 +53,30 @@ export default function Startlijst() {
         .order("startnummer", { ascending: true, nullsFirst: true })
         .order("created_at", { ascending: true });
 
-      if (klasse) q = q.eq("klasse", klasse);
+      if (klasseFilter) q = q.eq("klasse", klasseFilter);
 
       const { data, error } = await q;
       if (error) throw error;
+
       setRows(data || []);
+      setEditRows((data || []).map(r => ({ ...r })));
+      setChanged(new Set());
     } catch (e) {
       setErr(e?.message || String(e));
     } finally {
       setBusy(false);
     }
-  }, [selectedWedstrijdId, klasse]);
+  }, [selectedWedstrijdId, klasseFilter]);
 
   useEffect(() => {
     fetchRows();
   }, [fetchRows]);
 
-  // Realtime (als Realtime aanstaat in Supabase)
+  // Realtime updates (verversen bij wijzigingen, ook als iemand anders iets toevoegt)
   useEffect(() => {
     if (!selectedWedstrijdId) return;
     const channel = supabase
-      .channel("rt_startlijst")
+      .channel("rt_startlijst_beheer")
       .on(
         "postgres_changes",
         {
@@ -81,11 +93,126 @@ export default function Startlijst() {
     };
   }, [selectedWedstrijdId, fetchRows]);
 
+  const markChanged = (id) => {
+    setChanged(prev => new Set(prev).add(id));
+    setMsg("");
+  };
+
+  const onCellChange = (id, field, value) => {
+    setEditRows(list => list.map(r => r.id === id ? { ...r, [field]: value } : r));
+    markChanged(id);
+  };
+
+  const moveRow = (idx, dir) => {
+    setEditRows(list => {
+      const next = [...list];
+      const j = idx + dir;
+      if (j < 0 || j >= next.length) return list;
+      const tmp = next[idx];
+      next[idx] = next[j];
+      next[j] = tmp;
+      return next;
+    });
+  };
+
+  const renumber = () => {
+    setEditRows(list => list.map((r, i) => ({ ...r, startnummer: i + 1 })));
+    // markeer alles gewijzigd
+    setChanged(new Set(editRows.map(r => r.id)));
+    setMsg("Startnummers hernummerd (nog niet opgeslagen).");
+  };
+
+  const saveChanges = async () => {
+    if (!changed.size) {
+      setMsg("Geen wijzigingen om op te slaan.");
+      return;
+    }
+    setBusy(true);
+    setErr("");
+    setMsg("");
+    try {
+      const toSave = editRows
+        .filter(r => changed.has(r.id))
+        .map(r => ({
+          id: r.id,
+          wedstrijd_id: r.wedstrijd_id,
+          klasse: r.klasse || null,
+          ruiter: r.ruiter || null,
+          paard: r.paard || null,
+          email: r.email || null,
+          omroeper: r.omroeper || null,
+          opmerkingen: r.opmerkingen || null,
+          startnummer: r.startnummer != null && r.startnummer !== "" ? Number(r.startnummer) : null,
+        }));
+
+      const { error } = await supabase.from("inschrijvingen").upsert(toSave, { onConflict: "id" });
+      if (error) throw error;
+
+      setMsg(`Wijzigingen opgeslagen ✔️ (${toSave.length})`);
+      setChanged(new Set());
+      await fetchRows();
+    } catch (e) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const addRow = async () => {
+    if (!selectedWedstrijdId) return;
+    setBusy(true);
+    setErr("");
+    setMsg("");
+    try {
+      // nieuwe lege inschrijving (klasse mag je boven kiezen, maar is vaak per onderdeel later
+      const { error } = await supabase.from("inschrijvingen").insert({
+        wedstrijd_id: selectedWedstrijdId,
+        klasse: klasseFilter || null,
+        ruiter: "",
+        paard: "",
+        email: "",
+        startnummer: (rows.length ? (Math.max(...rows.map(r => r.startnummer || 0)) + 1) : 1)
+      });
+      if (error) throw error;
+      await fetchRows();
+      setMsg("Nieuwe inschrijving toegevoegd ✔️");
+    } catch (e) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteRow = async (id) => {
+    if (!id) return;
+    if (!confirm("Weet je zeker dat je deze inschrijving wilt verwijderen?")) return;
+    setBusy(true);
+    setErr("");
+    setMsg("");
+    try {
+      const { error } = await supabase.from("inschrijvingen").delete().eq("id", id);
+      if (error) throw error;
+      await fetchRows();
+      setMsg("Inschrijving verwijderd ✔️");
+    } catch (e) {
+      // Tip geven als delete policy ontbreekt
+      if (String(e?.message || "").toLowerCase().includes("not allowed") || String(e?.message || "").toLowerCase().includes("policy")) {
+        setErr("Verwijderen is door RLS/policy geblokkeerd. Zie de SQL-tip onderaan om delete toe te staan.");
+      } else {
+        setErr(e?.message || String(e));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const visible = editRows; // na filter is al in query gedaan
+
   return (
-    <div style={{ maxWidth: 1100, margin: "24px auto" }}>
+    <div style={{ maxWidth: 1200, margin: "24px auto" }}>
       <h2>Startlijst</h2>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 8, alignItems: "center" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto auto auto", gap: 8, alignItems: "end" }}>
         <div>
           <label style={{ display: "block", fontSize: 12, color: "#666" }}>Wedstrijd</label>
           <select
@@ -104,8 +231,8 @@ export default function Startlijst() {
         </div>
 
         <div>
-          <label style={{ display: "block", fontSize: 12, color: "#666" }}>Klasse</label>
-          <select value={klasse} onChange={(e) => setKlasse(e.target.value)} style={{ width: "100%" }}>
+          <label style={{ display: "block", fontSize: 12, color: "#666" }}>Klasse (filter)</label>
+          <select value={klasseFilter} onChange={(e) => setKlasseFilter(e.target.value)} style={{ width: "100%" }}>
             {KLASSEN.map((k) => (
               <option key={k.code || "all"} value={k.code}>
                 {k.label}
@@ -114,19 +241,24 @@ export default function Startlijst() {
           </select>
         </div>
 
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "#666" }}>Inschrijvingen</label>
-          <div style={{ fontWeight: 700, padding: "8px 0" }}>{rows.length}</div>
-        </div>
+        <label style={{ display: "flex", gap: 8, alignItems: "center", userSelect: "none" }}>
+          <input type="checkbox" checked={beheer} onChange={(e) => setBeheer(e.target.checked)} />
+          Beheer-modus
+        </label>
 
-        <div style={{ alignSelf: "end" }}>
-          <button onClick={fetchRows} disabled={busy || !selectedWedstrijdId}>
-            {busy ? "Vernieuwen..." : "Vernieuw"}
+        <button onClick={fetchRows} disabled={busy || !selectedWedstrijdId}>
+          {busy ? "Vernieuwen..." : "Vernieuw"}
+        </button>
+
+        {beheer && (
+          <button onClick={saveChanges} disabled={busy || !selectedWedstrijdId || !changed.size}>
+            {busy ? "Opslaan..." : `Opslaan (${changed.size || 0})`}
           </button>
-        </div>
+        )}
       </div>
 
       {err && <div style={{ marginTop: 12, color: "crimson" }}>{String(err)}</div>}
+      {msg && <div style={{ marginTop: 12, color: "#0a7", fontWeight: 600 }}>{msg}</div>}
 
       {!selectedWedstrijdId && (
         <div style={{ marginTop: 16, color: "#555" }}>
@@ -136,48 +268,143 @@ export default function Startlijst() {
       )}
 
       {selectedWedstrijdId && (
-        <div style={{ marginTop: 16 }}>
-          <table width="100%" cellPadding={8} style={{ borderCollapse: "collapse", fontSize: 14 }}>
-            <thead>
-              <tr style={{ background: "#f7f7f7" }}>
-                <th align="left" style={{ borderBottom: "1px solid #eee" }}>#</th>
-                <th align="left" style={{ borderBottom: "1px solid #eee" }}>Ruiter</th>
-                <th align="left" style={{ borderBottom: "1px solid #eee" }}>Paard</th>
-                <th align="left" style={{ borderBottom: "1px solid #eee" }}>Klasse</th>
-                <th align="left" style={{ borderBottom: "1px solid #eee" }}>Email</th>
-                <th align="left" style={{ borderBottom: "1px solid #eee" }}>Opmerkingen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, idx) => (
-                <tr key={r.id} style={{ borderTop: "1px solid #f0f0f0" }}>
-                  <td>{r.startnummer ?? idx + 1}</td>
-                  <td>{r.ruiter}</td>
-                  <td>{r.paard}</td>
-                  <td>{r.klasse || "—"}</td>
-                  <td>{r.email || "—"}</td>
-                  <td>{r.opmerkingen || "—"}</td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={6} style={{ color: "#777", padding: "18px 8px" }}>
-                    Nog geen inschrijvingen voor deze selectie.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+        <>
+          <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ fontSize: 12, color: "#666" }}>
+              <b>Aantal inschrijvingen:</b> {visible.length}
+            </div>
+            {beheer && (
+              <>
+                <button onClick={addRow} disabled={busy}>Nieuwe inschrijving</button>
+                <button onClick={renumber} disabled={busy || visible.length === 0}>Startnummers hernummeren 1..n</button>
+              </>
+            )}
+          </div>
 
-      {!!gekozen && (
-        <div style={{ marginTop: 12, fontSize: 12, color: "#666" }}>
-          Formulier-link voor ruiters:{" "}
-          <code>
-            {location.origin}/#/formulier?wedstrijdId={gekozen.id}
-          </code>
-        </div>
+          <div style={{ marginTop: 8 }}>
+            <table width="100%" cellPadding={6} style={{ borderCollapse: "collapse", fontSize: 14 }}>
+              <thead>
+                <tr style={{ background: "#f7f7f7" }}>
+                  <th align="left" style={{ borderBottom: "1px solid #eee", width: 60 }}>#</th>
+                  <th align="left" style={{ borderBottom: "1px solid #eee" }}>Ruiter</th>
+                  <th align="left" style={{ borderBottom: "1px solid #eee" }}>Paard</th>
+                  <th align="left" style={{ borderBottom: "1px solid #eee", width: 160 }}>Klasse</th>
+                  <th align="left" style={{ borderBottom: "1px solid #eee" }}>Email</th>
+                  <th align="left" style={{ borderBottom: "1px solid #eee" }}>Omroeper</th>
+                  <th align="left" style={{ borderBottom: "1px solid #eee" }}>Opmerkingen</th>
+                  {beheer && <th align="center" style={{ borderBottom: "1px solid #eee", width: 120 }}>Acties</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((r, idx) => (
+                  <tr key={r.id} style={{ borderTop: "1px solid #f0f0f0" }}>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {beheer ? (
+                        <input
+                          type="number"
+                          value={r.startnummer ?? ""}
+                          onChange={(e) => onCellChange(r.id, "startnummer", e.target.value)}
+                          style={{ width: 64 }}
+                        />
+                      ) : (r.startnummer ?? idx + 1)}
+                    </td>
+
+                    <td>
+                      {beheer ? (
+                        <input
+                          value={r.ruiter || ""}
+                          onChange={(e) => onCellChange(r.id, "ruiter", e.target.value)}
+                          style={{ width: "100%" }}
+                        />
+                      ) : (r.ruiter || "—")}
+                    </td>
+
+                    <td>
+                      {beheer ? (
+                        <input
+                          value={r.paard || ""}
+                          onChange={(e) => onCellChange(r.id, "paard", e.target.value)}
+                          style={{ width: "100%" }}
+                        />
+                      ) : (r.paard || "—")}
+                    </td>
+
+                    <td>
+                      {beheer ? (
+                        <select
+                          value={r.klasse || ""}
+                          onChange={(e) => onCellChange(r.id, "klasse", e.target.value)}
+                          style={{ width: "100%" }}
+                        >
+                          <option value="">— kies klasse —</option>
+                          {KLASSEN_EDIT.map(k => (
+                            <option key={k.code} value={k.code}>{k.label}</option>
+                          ))}
+                        </select>
+                      ) : (r.klasse || "—")}
+                    </td>
+
+                    <td>
+                      {beheer ? (
+                        <input
+                          type="email"
+                          value={r.email || ""}
+                          onChange={(e) => onCellChange(r.id, "email", e.target.value)}
+                          style={{ width: "100%" }}
+                        />
+                      ) : (r.email || "—")}
+                    </td>
+
+                    <td>
+                      {beheer ? (
+                        <input
+                          value={r.omroeper || ""}
+                          onChange={(e) => onCellChange(r.id, "omroeper", e.target.value)}
+                          style={{ width: "100%" }}
+                          placeholder="Tekst voor omroeper"
+                        />
+                      ) : (r.omroeper || "—")}
+                    </td>
+
+                    <td>
+                      {beheer ? (
+                        <input
+                          value={r.opmerkingen || ""}
+                          onChange={(e) => onCellChange(r.id, "opmerkingen", e.target.value)}
+                          style={{ width: "100%" }}
+                        />
+                      ) : (r.opmerkingen || "—")}
+                    </td>
+
+                    {beheer && (
+                      <td align="center" style={{ whiteSpace: "nowrap" }}>
+                        <button onClick={() => moveRow(idx, -1)} disabled={idx === 0}>↑</button>{" "}
+                        <button onClick={() => moveRow(idx, +1)} disabled={idx === visible.length - 1}>↓</button>{" "}
+                        <button onClick={() => deleteRow(r.id)} style={{ color: "crimson" }}>Verwijderen</button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {visible.length === 0 && (
+                  <tr>
+                    <td colSpan={beheer ? 8 : 7} style={{ color: "#777", padding: "18px 8px" }}>
+                      Nog geen inschrijvingen voor deze selectie.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {!!gekozen && (
+            <div style={{ marginTop: 12, fontSize: 12, color: "#666" }}>
+              Formulier-link voor ruiters:{" "}
+              <code>
+                {location.origin}/#/formulier?wedstrijdId={gekozen.id}
+              </code>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
