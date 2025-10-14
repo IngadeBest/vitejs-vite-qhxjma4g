@@ -1,7 +1,7 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
-import { useWedstrijden } from "./hooks/useWedstrijden";
+import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 
 const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
@@ -15,11 +15,10 @@ export default function PublicInschrijven() {
   const { items: wedstrijden, loading } = useWedstrijden(true);
   const [sp] = useSearchParams();
   const qId = sp.get("wedstrijdId") || "";
-  const qKlasse = sp.get("klasse") || "";
 
   const [form, setForm] = useState({
     wedstrijd_id: qId || "",
-    klasse: qKlasse || "",
+    klasse: "",
     ruiter: "",
     paard: "",
     email: "",
@@ -57,7 +56,7 @@ export default function PublicInschrijven() {
       email: form.email,
       opmerkingen: form.opmerkingen || null,
       omroeper: form.omroeper || null,
-      voorkeur_tijd: null, // GEEN voorkeuren publiek
+      voorkeur_tijd: null,
     };
 
     try {
@@ -75,7 +74,7 @@ export default function PublicInschrijven() {
     return (
       <div style={{ maxWidth: 720, margin: "24px auto" }}>
         <h2>Dank je wel!</h2>
-        <p>We hebben je inschrijving ontvangen. Je staat in het systeem voor: <b>{gekozenWedstrijd?.naam || "—"}</b>.</p>
+        <p>Je inschrijving is ontvangen voor: <b>{gekozenWedstrijd?.naam || "—"}</b>.</p>
       </div>
     );
   }
@@ -93,14 +92,10 @@ export default function PublicInschrijven() {
         </select>
 
         <label>Klasse*</label>
-        {qKlasse ? (
-          <input value={form.klasse} disabled />
-        ) : (
-          <select value={form.klasse} onChange={(e)=>setForm(s=>({...s, klasse:e.target.value}))}>
-            <option value="">— kies klasse —</option>
-            {KLASSEN.map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
-          </select>
-        )}
+        <select value={form.klasse} onChange={(e)=>setForm(s=>({...s, klasse:e.target.value}))}>
+          <option value="">— kies klasse —</option>
+          {KLASSEN.map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
+        </select>
 
         <label>Ruiter (volledige naam)*</label>
         <input value={form.ruiter} onChange={(e)=>setForm(s=>({...s, ruiter:e.target.value}))} />

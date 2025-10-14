@@ -6,6 +6,7 @@ import ProtocolGenerator from "@/features/protocollen/pages/ProtocolGenerator";
 import PublicInschrijven from "@/features/inschrijven/pages/PublicInschrijven";
 import Tussenstand from "@/features/uitslag/pages/Tussenstand";
 import Einduitslag from "@/features/uitslag/pages/Einduitslag";
+import WedstrijdenBeheer from "@/features/wedstrijden/pages/WedstrijdenBeheer";
 
 const navStyle = ({ isActive }) => ({
   padding: "8px 10px",
@@ -21,13 +22,13 @@ export default function App() {
     <Router>
       <header style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:"1px solid #eee",position:"sticky",top:0,background:"#fff",zIndex:10}}>
         <div style={{fontWeight:800,fontSize:18,color:"#102754"}}>Working Point</div>
-        <nav style={{display:"flex",gap:10,marginLeft:"auto"}}>
+        <nav style={{display:"flex",gap:10,marginLeft:"auto",flexWrap:"wrap"}}>
           <NavLink to="/" style={navStyle} end>Inschrijven</NavLink>
           <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
           <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
           <NavLink to="/tussenstand" style={navStyle}>Tussenstand</NavLink>
           <NavLink to="/einduitslag" style={navStyle}>Einduitslag</NavLink>
-          {/* Publiek formulier link: #/formulier?wedstrijdId=<uuid>&klasse=we1 */}
+          <NavLink to="/wedstrijden" style={navStyle}>Wedstrijden</NavLink>
         </nav>
       </header>
       <Routes>
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/formulier" element={<PublicInschrijven />} />
         <Route path="/tussenstand" element={<Tussenstand />} />
         <Route path="/einduitslag" element={<Einduitslag />} />
+        <Route path="/wedstrijden" element={<WedstrijdenBeheer />} />
       </Routes>
     </Router>
   );
