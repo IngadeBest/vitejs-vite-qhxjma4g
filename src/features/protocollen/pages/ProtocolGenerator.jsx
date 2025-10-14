@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 
+/* Klassen & Onderdelen */
 const KLASSEN = [
   { code: "we0", labelKey: "WE0", naam: "Introductieklasse (WE0)", min: 6,  max: 8  },
   { code: "we1", labelKey: "WE1", naam: "WE1",                       min: 6,  max: 10 },
@@ -17,6 +18,7 @@ const ONDERDELEN = [
   { code: "speed", label: "Speedtrail" },
 ];
 
+/* Algemene punten (Stijltrail) */
 const ALG_PUNTEN_WE0_WE1 = [
   "Zuiverheid van de gangen en regelmatigheid van de bewegingen van het paard",
   "Schwung, dynamiek, elasticiteit van de overgangen, losheid van de rugspieren",
@@ -31,6 +33,7 @@ const ALG_PUNTEN_WE2PLUS = [
   "Zit en rijwijze van de ruiter, effectiviteit van de hulpen / Position and seat of the rider. Correct use and effectiveness of the aids.",
 ];
 
+/* PDF helpers */
 const BLUE = [16, 39, 84];
 const LIGHT_HEAD = [240, 243, 249];
 const BORDER = [223, 227, 235];
@@ -55,51 +58,90 @@ function titleBar(doc, title, subtitle) {
 }
 function infoBoxesSideBySide(doc, info) {
   const startY = 74;
-  autoTable(doc, { startY, head: [], body: [
-    ["Wedstrijd", info.wedstrijd_naam || ""],
-    ["Datum", info.datum || ""],
-    ["Jury", info.jury || ""],
-    ["Klasse", info.klasse_naam || info.klasse || ""],
-    ["Onderdeel", info.onderdeel_label || info.onderdeel || ""],
-  ], styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.2 }, theme: "grid",
-  margin: { left: MARGIN.left, right: 0 }, tableWidth: 300, columnStyles: { 0: { cellWidth: 100, fontStyle: "bold" }, 1: { cellWidth: "auto" } }, });
+  autoTable(doc, {
+    startY,
+    head: [],
+    body: [
+      ["Wedstrijd", info.wedstrijd_naam || ""],
+      ["Datum", info.datum || ""],
+      ["Jury", info.jury || ""],
+      ["Klasse", info.klasse_naam || info.klasse || ""],
+      ["Onderdeel", info.onderdeel_label || info.onderdeel || ""],
+    ],
+    styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.2 },
+    theme: "grid",
+    margin: { left: MARGIN.left, right: 0 },
+    tableWidth: 300,
+    columnStyles: { 0: { cellWidth: 100, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+  });
   const leftY = doc.lastAutoTable.finalY;
-  autoTable(doc, { startY, head: [], body: [
-    ["Ruiter", info.ruiter || ""],
-    ["Paard", info.paard || ""],
-    ["Startnummer", info.startnummer || ""],
-  ], styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.2 }, theme: "grid",
-  margin: { left: MARGIN.left + 320, right: 0 }, tableWidth: 220, columnStyles: { 0: { cellWidth: 90, fontStyle: "bold" }, 1: { cellWidth: "auto" } }, });
+  autoTable(doc, {
+    startY,
+    head: [],
+    body: [
+      ["Ruiter", info.ruiter || ""],
+      ["Paard", info.paard || ""],
+      ["Startnummer", info.startnummer || ""],
+    ],
+    styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.2 },
+    theme: "grid",
+    margin: { left: MARGIN.left + 320, right: 0 },
+    tableWidth: 220,
+    columnStyles: { 0: { cellWidth: 90, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+  });
   const rightY = doc.lastAutoTable.finalY;
   return Math.max(leftY, rightY);
 }
 function obstaclesTable(doc, items, startY) {
-  autoTable(doc, { startY, head: [["#", "Onderdeel / obstakel", "Heel", "Half", "Opmerking"]],
+  autoTable(doc, {
+    startY,
+    head: [["#", "Onderdeel / obstakel", "Heel", "Half", "Opmerking"]],
     body: (items || []).map((o, i) => [i + 1, o, "", "", ""]),
     styles: { fontSize: 10, cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, lineColor: BORDER, lineWidth: 0.2, valign: "top" },
     headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold" },
-    theme: "grid", margin: MARGIN,
-    columnStyles: { 0: { cellWidth: COL_NUM, halign: "center" }, 1: { cellWidth: COL_NAME }, 2: { cellWidth: COL_H, halign: "center" }, 3: { cellWidth: COL_HALF, halign: "center" }, 4: { cellWidth: "auto" }, },
+    theme: "grid",
+    margin: MARGIN,
+    columnStyles: {
+      0: { cellWidth: COL_NUM,  halign: "center" },
+      1: { cellWidth: COL_NAME },
+      2: { cellWidth: COL_H,    halign: "center" },
+      3: { cellWidth: COL_HALF, halign: "center" },
+      4: { cellWidth: "auto" },
+    },
   });
   return doc.lastAutoTable.finalY;
 }
 function generalPointsTable(doc, punten, startY, startIndex = 1) {
-  autoTable(doc, { startY, head: [["#", "Algemene punten", "Heel", "Half", "Opmerking"]],
+  autoTable(doc, {
+    startY,
+    head: [["#", "Algemene punten", "Heel", "Half", "Opmerking"]],
     body: punten.map((naam, i) => [startIndex + i, naam, "", "", ""]),
     styles: { fontSize: 10, cellPadding: { top: 5, right: 5, bottom: 12, left: 5 }, lineColor: BORDER, lineWidth: 0.2 },
     headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold" },
-    theme: "grid", margin: MARGIN,
-    columnStyles: { 0: { cellWidth: COL_NUM, halign: "center" }, 1: { cellWidth: COL_NAME }, 2: { cellWidth: COL_H, halign: "center" }, 3: { cellWidth: COL_HALF, halign: "center" }, 4: { cellWidth: "auto" }, },
+    theme: "grid",
+    margin: MARGIN,
+    columnStyles: {
+      0: { cellWidth: COL_NUM,  halign: "center" },
+      1: { cellWidth: COL_NAME },
+      2: { cellWidth: COL_H,    halign: "center" },
+      3: { cellWidth: COL_HALF, halign: "center" },
+      4: { cellWidth: "auto" },
+    },
   });
   return doc.lastAutoTable.finalY;
 }
 function totalsBox(doc, startY, maxPoints = null, extraLabel = null) {
   const totalLabel = maxPoints ? `Totaal (${maxPoints} max. punten)` : "Totaal";
-  autoTable(doc, { startY, head: [], body: [
-    ["Subtotaal", ""],
-    ["Puntenaftrek en reden", ""],
-    [extraLabel || totalLabel, ""],
-  ], styles: { fontSize: 10, cellPadding: 6, lineColor: BORDER, lineWidth: 0.2 }, theme: "grid", margin: MARGIN, columnStyles: { 0: { cellWidth: 220, fontStyle: "bold" }, 1: { cellWidth: "auto" } }, });
+  autoTable(doc, {
+    startY, head: [],
+    body: [
+      ["Subtotaal", ""],
+      ["Puntenaftrek en reden", ""],
+      [extraLabel || totalLabel, ""],
+    ],
+    styles: { fontSize: 10, cellPadding: 6, lineColor: BORDER, lineWidth: 0.2 },
+    theme: "grid", margin: MARGIN, columnStyles: { 0: { cellWidth: 220, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+  });
   return doc.lastAutoTable.finalY;
 }
 function signatureLine(doc) {
@@ -142,19 +184,24 @@ export default function ProtocolGenerator() {
     datum: new Date().toISOString().split("T")[0],
     jury: ""
   });
-  const selectedKlasse = useMemo(() => KLASSEN.find((k) => k.code === config.klasse) || null, [config.klasse]);
-  const selectedWedstrijd = useMemo(() => wedstrijden.find(w => w.id === config.wedstrijd_id) || null, [wedstrijden, config.wedstrijd_id]);
+  const selectedWedstrijd = useMemo(
+    () => wedstrijden.find(w => w.id === config.wedstrijd_id) || null,
+    [wedstrijden, config.wedstrijd_id]
+  );
 
+  // DB-config + items
   const [dbMsg, setDbMsg] = useState("");
   const [dbMax, setDbMax] = useState(null);
   const [items, setItems] = useState([]);
+
+  // Deelnemers (CSV) + preview index + preview URL
   const [csvRows, setCsvRows] = useState([]);
   const [selectIndex, setSelectIndex] = useState(0);
   const [pdfUrl, setPdfUrl] = useState(null);
+  useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
 
-  React.useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
-
-  React.useEffect(() => {
+  // Proefconfig ophalen
+  useEffect(() => {
     let alive = true;
     (async () => {
       setDbMsg(""); setDbMax(null); setItems([]);
@@ -184,6 +231,7 @@ export default function ProtocolGenerator() {
     return () => { alive = false; };
   }, [config.wedstrijd_id, config.klasse, config.onderdeel]);
 
+  // CSV helpers
   function csvToRows(text) {
     const sep = text.includes(";") && !text.includes(",") ? ";" : ",";
     const lines = text.replace(/\r/g, "").split("\n").filter(l => l.trim().length);
@@ -225,7 +273,7 @@ export default function ProtocolGenerator() {
     r.readAsText(file, "utf-8");
   };
 
-  const protocollen = React.useMemo(() =>
+  const protocollen = useMemo(() =>
     csvRows.map((d, idx) => ({
       onderdeel: config.onderdeel,
       klasse: config.klasse,
@@ -242,24 +290,25 @@ export default function ProtocolGenerator() {
     })),
   [csvRows, config, selectedWedstrijd, dbMax]);
 
-  const [selectIndex, setSelectIndex] = useState(0);
-  const [pdfUrl, setPdfUrl] = useState(null);
-
+  // PDF actions
   const previewPdf = () => {
-    const p = protocollen[selectIndex];
+    if (!protocollen.length) return;
+    const p = protocollen[selectIndex] || protocollen[0];
     const blob = makePdfBlob(p, items);
     const url = URL.createObjectURL(blob);
     setPdfUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
   };
   const openNewTab = () => {
-    const p = protocollen[selectIndex];
+    if (!protocollen.length) return;
+    const p = protocollen[selectIndex] || protocollen[0];
     const blob = makePdfBlob(p, items);
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank", "noopener,noreferrer");
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
   const downloadSingle = () => {
-    const p = protocollen[selectIndex];
+    if (!protocollen.length) return;
+    const p = protocollen[selectIndex] || protocollen[0];
     const blob = makePdfBlob(p, items);
     const a = document.createElement("a");
     const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_").slice(0, 40);
@@ -269,6 +318,7 @@ export default function ProtocolGenerator() {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
   const downloadBatch = () => {
+    if (!protocollen.length) return;
     const doc = new jsPDF({ unit: "pt", format: "A4" });
     protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items); });
     doc.save(`protocollen_${config.onderdeel}.pdf`);
@@ -408,55 +458,6 @@ export default function ProtocolGenerator() {
     </>
   );
 
-  const protocollen = React.useMemo(() =>
-    csvRows.map((d, idx) => ({
-      onderdeel: config.onderdeel,
-      klasse: config.klasse,
-      klasse_naam: KLASSEN.find((k) => k.code === config.klasse)?.naam || config.klasse,
-      wedstrijd_id: config.wedstrijd_id,
-      wedstrijd_naam: selectedWedstrijd?.naam || "",
-      datum: config.datum || "",
-      jury: config.jury || "",
-      startnummer: d.startnummer || String(idx + 1),
-      ruiter: d.ruiter || "",
-      paard: d.paard || "",
-      max_score: dbMax,
-      onderdeel_label: ONDERDELEN.find(o=>o.code===config.onderdeel)?.label || config.onderdeel
-    })),
-  [csvRows, config, selectedWedstrijd, dbMax]);
-
-  const [selectIndex2, setSelectIndex2] = useState(0);
-  const [pdfUrl2, setPdfUrl2] = useState(null);
-
-  const previewPdf = () => {
-    const p = protocollen[selectIndex2];
-    const blob = makePdfBlob(p, items);
-    const url = URL.createObjectURL(blob);
-    setPdfUrl2(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
-  };
-  const openNewTab = () => {
-    const p = protocollen[selectIndex2];
-    const blob = makePdfBlob(p, items);
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank", "noopener,noreferrer");
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-  };
-  const downloadSingle = () => {
-    const p = protocollen[selectIndex2];
-    const blob = makePdfBlob(p, items);
-    const a = document.createElement("a");
-    const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_").slice(0, 40);
-    a.href = URL.createObjectURL(blob);
-    a.download = `${safe(p.onderdeel)}-${safe(p.startnummer)}-${safe(p.ruiter)}-${safe(p.paard)}.pdf`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  };
-  const downloadBatch = () => {
-    const doc = new jsPDF({ unit: "pt", format: "A4" });
-    protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items); });
-    doc.save(`protocollen_${config.onderdeel}.pdf`);
-  };
-
   const viewStap3 = (
     <>
       <Header />
@@ -465,7 +466,7 @@ export default function ProtocolGenerator() {
         <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", margin:"8px 0 16px" }}>
           <button onClick={downloadBatch}>Download batch PDF</button>
           <span style={{ display:"inline-flex", gap:8, alignItems:"center" }}>
-            <select value={selectIndex2} onChange={(e)=>setSelectIndex2(Number(e.target.value))}>
+            <select value={selectIndex} onChange={(e)=>setSelectIndex(Number(e.target.value))}>
               {protocollen.map((p,i)=>(<option key={i} value={i}>{p.startnummer} – {p.ruiter} – {p.paard}</option>))}
             </select>
             <button onClick={downloadSingle}>Download gekozen protocol</button>
@@ -474,7 +475,7 @@ export default function ProtocolGenerator() {
           </span>
           <a href="#/startlijst"><button>Terug naar Startlijst</button></a>
         </div>
-        {pdfUrl2 && <iframe src={pdfUrl2} title="PDF preview" style={{ width:"100%", height:"680px", border:"1px solid #ccc", borderRadius:8 }} />}
+        {pdfUrl && <iframe src={pdfUrl} title="PDF preview" style={{ width:"100%", height:"680px", border:"1px solid #ccc", borderRadius:8 }} />}
       </div>
     </>
   );
