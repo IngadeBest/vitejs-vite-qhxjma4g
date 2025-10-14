@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function WedstrijdDashboard() {
   const [entries, setEntries] = useState([]);
