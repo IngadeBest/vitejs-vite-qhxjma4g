@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from "@/lib/supabaseClient";
 
 const klasses = ["WE Intro", "WE1", "WE2", "WE3", "WE4"];
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
