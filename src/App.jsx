@@ -1,81 +1,33 @@
-import { HashRouter as Router, Routes, Route, Link } from "react-router-dom";
-import RuiterInvoer from "./features/ruiters/pages/RuiterInvoer";
-import ProefInstellingen from "./features/proeven/pages/ProefInstellingen";
-import ScoreInvoer from "./features/scoring/pages/ScoreInvoer";
-import Einduitslag from "./features/einduitslag/pages/Einduitslag";
+import React from "react";
+import { HashRouter as Router, Routes, Route, NavLink } from "react-router-dom";
+import InschrijfFormulier from "@/features/inschrijven/pages/InschrijfFormulier";
+import Startlijst from "@/features/startlijst/pages/Startlijst";
+import ProtocolGenerator from "@/features/protocollen/pages/ProtocolGenerator";
 
-const kleuren = {
-  hoofd: "#204574",
-  accent: "#3a8bfd",
-  achtergrond: "#f5f7fb",
-  wit: "#fff",
-};
+const navStyle = ({ isActive }) => ({
+  padding: "8px 10px",
+  borderRadius: 8,
+  textDecoration: "none",
+  color: isActive ? "#fff" : "#2b6cb0",
+  background: isActive ? "#2b6cb0" : "transparent",
+  fontWeight: 700
+});
 
 export default function App() {
   return (
     <Router>
-      <header
-        style={{
-          background: "#fff",
-          borderBottom: `3px solid ${kleuren.accent}`,
-          textAlign: "center",
-          padding: "24px 0 10px 0",
-          marginBottom: 0,
-          boxShadow: "0 1px 6px #20457412",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 42,
-            verticalAlign: "middle",
-            color: kleuren.accent,
-            marginRight: 12,
-            display: "inline-block",
-          }}
-        >
-          🐴
-        </span>
-        <span
-          style={{
-            fontSize: 28,
-            fontWeight: 900,
-            color: kleuren.hoofd,
-            letterSpacing: 1.6,
-            textTransform: "uppercase",
-            verticalAlign: "middle",
-            fontFamily: "system-ui, sans-serif",
-          }}
-        >
-          WorkingPoint
-        </span>
+      <header style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:"1px solid #eee",position:"sticky",top:0,background:"#fff",zIndex:10}}>
+        <div style={{fontWeight:800,fontSize:18,color:"#102754"}}>Working Point</div>
+        <nav style={{display:"flex",gap:10,marginLeft:"auto"}}>
+          <NavLink to="/" style={navStyle} end>Inschrijven</NavLink>
+          <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
+          <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
+        </nav>
       </header>
-      <nav
-        style={{
-          padding: "1rem",
-          borderBottom: "1px solid #ccc",
-          textAlign: "center",
-          marginBottom: 18,
-          background: "#fff",
-        }}
-      >
-        <Link to="/" style={{ color: kleuren.accent, fontWeight: 700 }}>
-          Ruiters
-        </Link>
-        <Link to="/proeven" style={{ marginLeft: 22, color: kleuren.accent, fontWeight: 700 }}>
-          Proeven
-        </Link>
-        <Link to="/score-invoer" style={{ marginLeft: 22, color: kleuren.accent, fontWeight: 700 }}>
-          Score-invoer
-        </Link>
-        <Link to="/einduitslag" style={{ marginLeft: 22, color: kleuren.accent, fontWeight: 700 }}>
-          Einduitslag
-        </Link>
-      </nav>
       <Routes>
-        <Route path="/" element={<RuiterInvoer />} />
-        <Route path="/proeven" element={<ProefInstellingen />} />
-        <Route path="/score-invoer" element={<ScoreInvoer />} />
-        <Route path="/einduitslag" element={<Einduitslag />} />
+        <Route path="/" element={<InschrijfFormulier />} />
+        <Route path="/startlijst" element={<Startlijst />} />
+        <Route path="/protocollen" element={<ProtocolGenerator />} />
       </Routes>
     </Router>
   );

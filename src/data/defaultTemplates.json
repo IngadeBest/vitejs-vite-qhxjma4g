@@ -1,0 +1,73 @@
+{
+  "dressuur": {
+    "WE2": {
+      "sections": [
+        {
+          "title": "Dressuur – Onderdelen",
+          "columns": ["Onderdeel", "Score", "Opmerkingen"],
+          "rows": [
+            ["Aanspringen galop links", "", ""],
+            ["Overgang galop–draf", "", ""],
+            ["Slangevolte draf", "", ""],
+            ["Halthouden en groeten", "", ""]
+          ]
+        }
+      ]
+    },
+    "WE3": {
+      "sections": [
+        {
+          "title": "Dressuur – Onderdelen",
+          "columns": ["Onderdeel", "Score", "Opmerkingen"],
+          "rows": [
+            ["Cirkel verzameld draf", "", ""],
+            ["Schouderbinnenwaarts", "", ""],
+            ["Travers", "", ""]
+          ]
+        }
+      ]
+    },
+    "WE4": {
+      "sections": [
+        {
+          "title": "Dressuur – Onderdelen",
+          "columns": ["Onderdeel", "Score", "Opmerkingen"],
+          "rows": [
+            ["Galoppirouette", "", ""],
+            ["Wissels per sprong", "", ""],
+            ["Halve passade", "", ""]
+          ]
+        }
+      ]
+    }
+  },
+  "speed": {
+    "WE2": {
+      "sections": [
+        {
+          "title": "Speed – Hindernissen (tijd)",
+          "columns": ["#", "Onderdeel", "Tijd/Punten", "Opmerkingen"],
+          "rows": [[1, "Slalom", "", ""], [2, "3 vaten", "", ""], [3, "Brug", "", ""]]
+        }
+      ]
+    },
+    "WE3": {
+      "sections": [
+        {
+          "title": "Speed – Hindernissen (tijd)",
+          "columns": ["#", "Onderdeel", "Tijd/Punten", "Opmerkingen"],
+          "rows": [[1, "Belgang", "", ""], [2, "Parallelslalom", "", ""], [3, "Garrocha", "", ""]]
+        }
+      ]
+    },
+    "WE4": {
+      "sections": [
+        {
+          "title": "Speed – Hindernissen (tijd)",
+          "columns": ["#", "Onderdeel", "Tijd/Punten", "Opmerkingen"],
+          "rows": [[1, "Kledingstuk omhangen", "", ""], [2, "Round pen", "", ""], [3, "Tafel met kan", "", ""]]
+        }
+      ]
+    }
+  }
+}
