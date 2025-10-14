@@ -2,6 +2,7 @@
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import ScoreInvoer from "./ScoreInvoer";
 import Einduitslag from "./Einduitslag";
+import { supabase } from "@/lib/supabaseClient";
 
 const kleuren = {
   hoofd: "#204574",
