@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -97,8 +96,9 @@ export default function Formulier() {
       if (e1) throw e1;
       const inserted = rows?.[0];
 
+      // STUUR MAIL NAAR JOUW PHP ENDPOINT:
       try {
-        const resp = await fetch("/api/notifyOrganisator", {
+        const resp = await fetch("https://jouwdomein.nl/notifyOrganisator.php", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
