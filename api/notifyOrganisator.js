@@ -1,13 +1,23 @@
+// api/notifyOrganisator.js
+// Serverless (Vercel) e-mail via JOUW SMTP server met nodemailer.
+// Zet deze ENV in Vercel Project → Settings → Environment Variables:
+// SMTP_HOST, SMTP_PORT (587 of 465), SMTP_USER, SMTP_PASS, SMTP_FROM ("WE Inschrijvingen <no-reply@workingpoint.nl>"),
+// ORGANISATOR_EMAIL_DEFAULT (fallback). Optioneel: SMTP_SECURE=true voor poort 465, SMTP_TLS_REJECT_UNAUTH=false bij self-signed certs.
+
+import nodemailer from "nodemailer";
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function nl2br(s) { return String(s).replace(/\n/g, "<br/>"); }
 
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") return res.status(405).send("Method not allowed");
-    const body = req.body || {};
     const {
-      organisator_email,
-      wedstrijd_id, wedstrijd_naam,
+      organisator_email, wedstrijd_id, wedstrijd_naam,
       klasse, ruiter, paard, email, opmerkingen, omroeper, startnummer
-    } = body;
+    } = req.body || {};
 
     const to = organisator_email || process.env.ORGANISATOR_EMAIL_DEFAULT;
     if (!to) return res.status(200).send("No organizer email configured; skipping.");
@@ -27,33 +37,27 @@ export default async function handler(req, res) {
       </div>
     `;
 
-    const resp = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from: "WE Inschrijvingen <no-reply@resend.dev>",
-        to: [to],
-        subject,
-        html
-      })
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: (process.env.SMTP_SECURE === "true") || Number(process.env.SMTP_PORT) === 465,
+      auth: (process.env.SMTP_USER && process.env.SMTP_PASS) ? {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      } : undefined,
+      tls: (process.env.SMTP_TLS_REJECT_UNAUTH === "false") ? { rejectUnauthorized: false } : undefined,
     });
 
-    if (!resp.ok) {
-      const txt = await resp.text();
-      return res.status(500).send(`Resend error: ${txt}`);
-    }
-    return res.status(200).send("OK");
-  } catch (e) {
-    return res.status(500).send(String(e));
-  }
-}
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || "WE Inschrijvingen <no-reply@workingpoint.nl>",
+      to,
+      subject,
+      html,
+      replyTo: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : undefined,
+    });
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>\"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function nl2br(s) {
-  return String(s).replace(/\n/g, "<br/>");
+    res.status(200).send("OK");
+  } catch (e) {
+    res.status(500).send(String(e));
+  }
 }
