@@ -238,7 +238,7 @@ export default function Formulier() {
 
           <div style={{ marginBottom: 12 }}>
             <label>Opmerkingen (optioneel)</label>
-            <textarea value={form.opmerkingen} onChange={(e)=>set("opmerkingen", e.target.value)} placeholder="Bijv. speciale wensen / opmerkingen (geen starttijd-voorkeur a.u.b.)" />
+            <textarea value={form.opmerkingen} onChange={(e)=>set("opmerkingen", e.target.value)} placeholder="Bijv. speciale wensen / opmerkingen" />
           </div>
 
           <button className="btn" type="submit" disabled={busy}>
