@@ -88,6 +88,7 @@ export default function Formulier() {
         omroeper: form.omroeper?.trim() || null
       };
 
+      // Sla inschrijving op (DB-trigger kent automatisch startnummer toe)
       const { data: rows, error: e1 } = await supabase
         .from("inschrijvingen")
         .insert(payload)
@@ -96,9 +97,9 @@ export default function Formulier() {
       if (e1) throw e1;
       const inserted = rows?.[0];
 
-      // STUUR MAIL NAAR JOUW PHP ENDPOINT:
+      // Stuur mail naar jouw PHP endpoint op workingpoint.nl
       try {
-        const resp = await fetch("https://jouwdomein.nl/notifyOrganisator.php", {
+        const resp = await fetch("https://workingpoint.nl/notifyOrganisator.php", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
