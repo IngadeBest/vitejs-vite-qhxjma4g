@@ -99,7 +99,8 @@ export default function Formulier() {
 
       // Stuur mail naar jouw PHP endpoint op workingpoint.nl
       try {
-        const resp = await fetch("https://workingpoint.nl/notifyOrganisator.php", {
+        const resp = await fetch("/api/notifyOrganisator", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({...}) });
+, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
