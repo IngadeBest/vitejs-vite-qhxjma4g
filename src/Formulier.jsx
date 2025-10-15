@@ -1,12 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-const KLASSEN = [
+// Alle mogelijke klassen; code 'we2p' = WE2+
+const KLASSEN_ALL = [
   { code: "we0", label: "Introductieklasse (WE0)" },
   { code: "we1", label: "WE1" },
   { code: "we2", label: "WE2" },
+  { code: "we2p", label: "WE2+" },
   { code: "we3", label: "WE3" },
   { code: "we4", label: "WE4" },
+];
+
+const CATS = [
+  { code: "senior", label: "Senioren" },
+  { code: "yr",     label: "Young Riders" },
+  { code: "junior", label: "Junioren" },
 ];
 
 function useQuery() {
@@ -25,9 +33,12 @@ export default function Formulier() {
   const [wedstrijden, setWedstrijden] = useState([]);
   const [loadingWed, setLoadingWed] = useState(true);
 
+  const [allowed, setAllowed] = useState([]); // klassen toegestaan voor gekozen wedstrijd
+
   const [form, setForm] = useState({
     wedstrijd_id: qWedstrijdId || "",
     klasse: "",
+    categorie: "senior",
     ruiter: "",
     paard: "",
     email: "",
@@ -61,9 +72,38 @@ export default function Formulier() {
     return () => { alive = false; };
   }, []);
 
+  const gekozenWedstrijdId = form.wedstrijd_id || qWedstrijdId;
+
+  // Haal per-wedstrijd toegestane klassen op
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!gekozenWedstrijdId) { setAllowed([]); return; }
+      const { data, error } = await supabase
+        .from("wedstrijd_klassen")
+        .select("klasse")
+        .eq("wedstrijd_id", gekozenWedstrijdId);
+      if (!alive) return;
+      if (error) {
+        // fallback: geen beperking
+        setAllowed([]);
+      } else {
+        setAllowed((data || []).map(r => r.klasse));
+      }
+    })();
+    return () => { alive = false; };
+  }, [gekozenWedstrijdId]);
+
+  // Toon alleen klassen die voor deze wedstrijd open staan (of alle, als er geen mapping is)
+  const klassenToShow = useMemo(() => {
+    if (!allowed || allowed.length === 0) return KLASSEN_ALL;
+    const set = new Set(allowed);
+    return KLASSEN_ALL.filter(k => set.has(k.code));
+  }, [allowed]);
+
   const gekozen = useMemo(
-    () => wedstrijden.find(w => w.id === (form.wedstrijd_id || qWedstrijdId)) || null,
-    [wedstrijden, form.wedstrijd_id, qWedstrijdId]
+    () => wedstrijden.find(w => w.id === gekozenWedstrijdId) || null,
+    [wedstrijden, gekozenWedstrijdId]
   );
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -72,15 +112,17 @@ export default function Formulier() {
     e.preventDefault();
     setBusy(true); setOk(""); setErr("");
     try {
-      if (!form.wedstrijd_id && !qWedstrijdId) throw new Error("Kies eerst een wedstrijd.");
+      if (!gekozenWedstrijdId) throw new Error("Kies eerst een wedstrijd.");
       if (!form.klasse) throw new Error("Kies een klasse.");
+      if (!form.categorie) throw new Error("Kies een categorie.");
       if (!form.ruiter?.trim()) throw new Error("Vul de naam van de ruiter in.");
       if (!form.paard?.trim()) throw new Error("Vul de naam van het paard in.");
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) throw new Error("Vul een geldig e-mailadres in.");
 
       const payload = {
-        wedstrijd_id: qWedstrijdId || form.wedstrijd_id,
+        wedstrijd_id: gekozenWedstrijdId,
         klasse: form.klasse,
+        categorie: form.categorie,
         ruiter: form.ruiter.trim(),
         paard: form.paard.trim(),
         email: form.email.trim(),
@@ -88,7 +130,7 @@ export default function Formulier() {
         omroeper: form.omroeper?.trim() || null
       };
 
-      // Sla inschrijving op (DB-trigger kent automatisch startnummer toe)
+      // Opslaan (trigger kent startnummer toe)
       const { data: rows, error: e1 } = await supabase
         .from("inschrijvingen")
         .insert(payload)
@@ -97,16 +139,16 @@ export default function Formulier() {
       if (e1) throw e1;
       const inserted = rows?.[0];
 
-      // Stuur mail naar jouw PHP endpoint op workingpoint.nl
+      // Mail naar organisator
       try {
-        const resp = await fetch("/api/notifyOrganisator", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({...}) });
-, {
+        const resp = await fetch("/api/notifyOrganisator", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             wedstrijd_id: payload.wedstrijd_id,
             wedstrijd_naam: gekozen?.naam || null,
             klasse: payload.klasse,
+            categorie: payload.categorie,
             ruiter: payload.ruiter,
             paard: payload.paard,
             email: payload.email,
@@ -134,11 +176,6 @@ export default function Formulier() {
 
   return (
     <div className="container">
-      <div className="top">
-        <h1>Inschrijven</h1>
-        <div className="spacer">Working Equitation</div>
-      </div>
-
       <div className="card">
         <form onSubmit={onSubmit}>
           {!qWedstrijdId && (
@@ -156,7 +193,6 @@ export default function Formulier() {
                   </option>
                 ))}
               </select>
-              <small className="mut">Tip: deel de link als <code>?wedstrijdId=&lt;uuid&gt;</code> om deze keuze te verbergen.</small>
             </div>
           )}
 
@@ -165,10 +201,15 @@ export default function Formulier() {
               <label>Klasse *</label>
               <select value={form.klasse} onChange={(e) => set("klasse", e.target.value)} required>
                 <option value="">— kies klasse —</option>
-                {KLASSEN.map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
+                {klassenToShow.map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
               </select>
             </div>
-            <div></div>
+            <div>
+              <label>Categorie *</label>
+              <select value={form.categorie} onChange={(e) => set("categorie", e.target.value)} required>
+                {CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+              </select>
+            </div>
           </div>
 
           <div className="row" style={{ marginBottom: 12 }}>
@@ -208,12 +249,6 @@ export default function Formulier() {
           {err && <div className="msg-err">{err}</div>}
         </form>
       </div>
-
-      <hr className="sep" />
-
-      <small className="mut">
-        Door in te schrijven ga je akkoord met verwerking van je gegevens t.b.v. de wedstrijdorganisatie.
-      </small>
     </div>
   );
 }
