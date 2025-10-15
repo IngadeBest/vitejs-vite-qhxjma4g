@@ -1,9 +1,4 @@
 // api/notifyOrganisator.js
-// Serverless (Vercel) e-mail via JOUW SMTP server met nodemailer.
-// Zet deze ENV in Vercel Project → Settings → Environment Variables:
-// SMTP_HOST, SMTP_PORT (587 of 465), SMTP_USER, SMTP_PASS, SMTP_FROM ("WE Inschrijvingen <no-reply@workingpoint.nl>"),
-// ORGANISATOR_EMAIL_DEFAULT (fallback). Optioneel: SMTP_SECURE=true voor poort 465, SMTP_TLS_REJECT_UNAUTH=false bij self-signed certs.
-
 import nodemailer from "nodemailer";
 
 function escapeHtml(s) {
@@ -14,10 +9,11 @@ function nl2br(s) { return String(s).replace(/\n/g, "<br/>"); }
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") return res.status(405).send("Method not allowed");
+    const body = req.body || {};
     const {
       organisator_email, wedstrijd_id, wedstrijd_naam,
       klasse, ruiter, paard, email, opmerkingen, omroeper, startnummer
-    } = req.body || {};
+    } = body;
 
     const to = organisator_email || process.env.ORGANISATOR_EMAIL_DEFAULT;
     if (!to) return res.status(200).send("No organizer email configured; skipping.");
@@ -48,7 +44,7 @@ export default async function handler(req, res) {
       tls: (process.env.SMTP_TLS_REJECT_UNAUTH === "false") ? { rejectUnauthorized: false } : undefined,
     });
 
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: process.env.SMTP_FROM || "WE Inschrijvingen <no-reply@workingpoint.nl>",
       to,
       subject,
@@ -56,8 +52,13 @@ export default async function handler(req, res) {
       replyTo: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : undefined,
     });
 
+    // Log voor debugging in Vercel (zichtbaar in project Logs)
+    console.log("notifyOrganisator sent", info && info.messageId);
+
     res.status(200).send("OK");
   } catch (e) {
-    res.status(500).send(String(e));
+    console.error("notifyOrganisator error:", e);
+    // Stuur een compacte foutmelding terug (zonder gevoelige details)
+    res.status(500).send("MAIL_ERROR: " + (e && e.code ? e.code : "unknown"));
   }
 }
