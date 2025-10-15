@@ -1,12 +1,20 @@
-# React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# Inschrijven – Standalone
 
-Currently, two official plugins are available:
+Los formulier om ruiters te laten inschrijven, met opslag in Supabase en e-mail naar de organisator.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Env
+Maak `.env` gebaseerd op `.env.example` (voor Vite) en zet in Vercel project:
+- `RESEND_API_KEY`
+- `ORGANISATOR_EMAIL_DEFAULT` (optioneel)
 
-## Expanding the ESLint configuration
+## SQL
+Voer `SQL/006_wedstrijden_organisator_email.sql` uit als je per-wedstrijd een organiser-email wilt opslaan.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Dev
+npm i
+npm run dev
+
+## Gebruik
+- Zonder query: gebruiker kiest wedstrijd in dropdown.
+- Met query: `?wedstrijdId=<uuid>` verbergt dropdown.
