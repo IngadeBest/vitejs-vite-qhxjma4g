@@ -31,6 +31,40 @@ export default function App() {
           <NavLink to="/wedstrijden" style={navStyle}>Wedstrijden</NavLink>
         </nav>
       </header>
+      // src/App.jsx
+import React from "react";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import DomainRedirect from "@/DomainRedirect";
+
+// PAS DEZE IMPORTS AAN naar jouw padnamen:
+import Formulier from "@/features/inschrijven/pages/Formulier";
+import Startlijst from "@/features/startlijst/pages/Startlijst";
+// import ... eventuele andere beheerpagina’s
+
+export default function App() {
+  return (
+    <HashRouter>
+      {/* Domeinlogica: cross-domain routering */}
+      <DomainRedirect />
+
+      <Routes>
+        {/* Formulier-route (alleen zichtbaar op MAIN domein; DomainRedirect bewaakt dit) */}
+        <Route path="/formulier" element={<Formulier />} />
+
+        {/* Beheer-routes (alleen zichtbaar op APP domein; DomainRedirect bewaakt dit) */}
+        <Route path="/startlijst" element={<Startlijst />} />
+        {/* <Route path="/einduitslag" element={<Einduitslag />} /> */}
+        {/* <Route path="/protocollen" element={<ProtocolGenerator />} /> */}
+        {/* ...meer beheer-routes... */}
+
+        {/* Fallback: laat neutraal naar /formulier gaan (DomainRedirect stuurt op app.* door naar /startlijst) */}
+        <Route path="*" element={<Navigate to="/formulier" replace />} />
+      </Routes>
+    </HashRouter>
+  );
+}
+
       <Routes>
         <Route path="/" element={<InschrijfFormulier />} />
         <Route path="/startlijst" element={<Startlijst />} />
