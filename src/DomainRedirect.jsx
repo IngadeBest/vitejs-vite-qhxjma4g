@@ -24,14 +24,13 @@ export default function DomainRedirect() {
 
     const buildUrl = (domain, targetPath, targetQuery = "") => {
       const base = `https://${domain}`;
-      return isHashMode ? `${base}/#${targetPath}${targetQuery}`    // HashRouter
-                        : `${base}${targetPath}${targetQuery}`;     // BrowserRouter
+      return isHashMode ? `${base}/#${targetPath}${targetQuery}` : `${base}${targetPath}${targetQuery}`;
     };
 
-    // APP-domein: root => /startlijst (intern), /formulier => cross naar MAIN
+    // APP: root => /startlijst (intern), /formulier => cross naar MAIN
     if (APP_DOMAINS.has(host)) {
       if (path === "/") {
-        nav("/startlijst", { replace: true });      // blijf op app.*
+        nav("/startlijst", { replace: true });
         return;
       }
       if (path.startsWith("/formulier")) {
@@ -41,17 +40,17 @@ export default function DomainRedirect() {
       return;
     }
 
-    // MAIN-domein: root => /formulier (intern), anders cross naar app.*
+    // MAIN: root => /formulier (intern), anders cross naar APP
     if (MAIN_DOMAINS.has(host)) {
       if (path === "/") {
-        nav("/formulier", { replace: true });       // blijf op main
+        nav("/formulier", { replace: true });
         return;
       }
       if (!path.startsWith("/formulier")) {
         window.location.replace(buildUrl("app.workingpoint.nl", path, query));
         return;
       }
-      return; // /formulier is OK op main
+      return;
     }
   }, [pathname, search, nav]);
 
