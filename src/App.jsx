@@ -2,13 +2,38 @@ import React from "react";
 import { HashRouter as Router, Routes, Route, NavLink, Navigate } from "react-router-dom";
 import DomainRedirect from "@/DomainRedirect";
 
-// Jouw pagina’s
+// Pagina’s
 import PublicInschrijven from "@/features/inschrijven/pages/PublicInschrijven";
 import Startlijst from "@/features/startlijst/pages/Startlijst";
 import ProtocolGenerator from "@/features/protocollen/pages/ProtocolGenerator";
 import Tussenstand from "@/features/uitslag/pages/Tussenstand";
 import Einduitslag from "@/features/uitslag/pages/Einduitslag";
 import WedstrijdenBeheer from "@/features/wedstrijden/pages/WedstrijdenBeheer";
+
+// --- Route guards: extra slot op elke route ---
+const isAppHost = () =>
+  typeof window !== "undefined" && window.location.hostname.startsWith("app.");
+
+function OnlyMain({ children }) {
+  if (isAppHost()) {
+    // iemand probeert formulier op app.* -> cross naar main
+    window.location.replace("https://workingpoint.nl/#/formulier");
+    return null;
+  }
+  return children;
+}
+
+function OnlyApp({ children }) {
+  if (!isAppHost()) {
+    // iemand probeert beheer op main -> cross naar app.*
+    const hash = typeof window !== "undefined" ? window.location.hash : "#/startlijst";
+    const path = hash.startsWith("#/") ? hash.slice(1) : "/startlijst";
+    window.location.replace(`https://app.workingpoint.nl/#${path}`);
+    return null;
+  }
+  return children;
+}
+// ------------------------------------------------
 
 const navStyle = ({ isActive }) => ({
   padding: "8px 10px",
@@ -20,9 +45,11 @@ const navStyle = ({ isActive }) => ({
 });
 
 export default function App() {
+  const onApp = isAppHost();
+
   return (
     <Router>
-      {/* Domein-afhankelijke routering */}
+      {/* Domein-afhankelijke routering (zachte redirect) */}
       <DomainRedirect />
 
       <header
@@ -40,8 +67,17 @@ export default function App() {
       >
         <div style={{ fontWeight: 800, fontSize: 18, color: "#102754" }}>Working Point</div>
         <nav style={{ display: "flex", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
-          {/* LET OP: inschrijven linkt naar /formulier (niet naar /) */}
-          <NavLink to="/formulier" style={navStyle}>Inschrijven</NavLink>
+          {/* Op app.* linkt Inschrijven direct naar main-domein om elke twijfel te voorkomen */}
+          {onApp ? (
+            <a href="https://workingpoint.nl/#/formulier" style={navStyle({ isActive: false })}>
+              Inschrijven
+            </a>
+          ) : (
+            <NavLink to="/formulier" style={navStyle}>
+              Inschrijven
+            </NavLink>
+          )}
+
           <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
           <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
           <NavLink to="/tussenstand" style={navStyle}>Tussenstand</NavLink>
@@ -51,17 +87,59 @@ export default function App() {
       </header>
 
       <Routes>
-        {/* MAIN-domein */}
-        <Route path="/formulier" element={<PublicInschrijven />} />
+        {/* MAIN-domein (alleen hier renderen) */}
+        <Route
+          path="/formulier"
+          element={
+            <OnlyMain>
+              <PublicInschrijven />
+            </OnlyMain>
+          }
+        />
 
-        {/* APP-domein */}
-        <Route path="/startlijst" element={<Startlijst />} />
-        <Route path="/protocollen" element={<ProtocolGenerator />} />
-        <Route path="/tussenstand" element={<Tussenstand />} />
-        <Route path="/einduitslag" element={<Einduitslag />} />
-        <Route path="/wedstrijden" element={<WedstrijdenBeheer />} />
+        {/* APP-domein (alleen hier renderen) */}
+        <Route
+          path="/startlijst"
+          element={
+            <OnlyApp>
+              <Startlijst />
+            </OnlyApp>
+          }
+        />
+        <Route
+          path="/protocollen"
+          element={
+            <OnlyApp>
+              <ProtocolGenerator />
+            </OnlyApp>
+          }
+        />
+        <Route
+          path="/tussenstand"
+          element={
+            <OnlyApp>
+              <Tussenstand />
+            </OnlyApp>
+          }
+        />
+        <Route
+          path="/einduitslag"
+          element={
+            <OnlyApp>
+              <Einduitslag />
+            </OnlyApp>
+          }
+        />
+        <Route
+          path="/wedstrijden"
+          element={
+            <OnlyApp>
+              <WedstrijdenBeheer />
+            </OnlyApp>
+          }
+        />
 
-        {/* Fallback: neutraal naar /formulier; DomainRedirect stuurt op app.* direct door naar /startlijst */}
+        {/* Neutrale fallback; DomainRedirect + guards zetten je vanzelf op juiste domein */}
         <Route path="*" element={<Navigate to="/formulier" replace />} />
       </Routes>
     </Router>
