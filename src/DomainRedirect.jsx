@@ -1,4 +1,3 @@
-// src/DomainRedirect.jsx
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -6,9 +5,6 @@ import { useLocation, useNavigate } from "react-router-dom";
  * Eén project, twee domeinen:
  * - MAIN: workingpoint.nl / www.workingpoint.nl  -> alleen /formulier
  * - APP : app.workingpoint.nl                    -> beheer; root => /startlijst
- *
- * Werkt met HashRouter & BrowserRouter.
- * Minimalistisch om redirect-loops te voorkomen.
  */
 export default function DomainRedirect() {
   const nav = useNavigate();
@@ -29,14 +25,13 @@ export default function DomainRedirect() {
     };
 
     if (APP.has(host)) {
-      // Op app.*: root => /startlijst (intern), /formulier => cross naar main
-      if (path === "/") {
+      if (path === "/") {                       // app.* => startlijst
         if (isHash ? window.location.hash !== "#/startlijst" : true) {
           nav("/startlijst", { replace: true });
         }
         return;
       }
-      if (path.startsWith("/formulier")) {
+      if (path.startsWith("/formulier")) {      // formulier hoort op main
         const target = url("workingpoint.nl", "/formulier", query);
         if (window.location.href !== target) window.location.replace(target);
         return;
@@ -45,14 +40,13 @@ export default function DomainRedirect() {
     }
 
     if (MAIN.has(host)) {
-      // Op main: root => /formulier (intern), andere paden => cross naar app.*
-      if (path === "/") {
+      if (path === "/") {                       // main => formulier
         if (isHash ? window.location.hash !== "#/formulier" : true) {
           nav("/formulier", { replace: true });
         }
         return;
       }
-      if (!path.startsWith("/formulier")) {
+      if (!path.startsWith("/formulier")) {     // beheer hoort op app.*
         const target = url("app.workingpoint.nl", path, query);
         if (window.location.href !== target) window.location.replace(target);
         return;
