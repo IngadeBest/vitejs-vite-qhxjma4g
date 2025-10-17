@@ -3,11 +3,12 @@ import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 /**
- * Domeinregels:
- * - MAIN (workingpoint.nl / www.workingpoint.nl): alleen /formulier
- * - APP  (app.workingpoint.nl): alle beheer-routes; root => /startlijst
+ * Eén project, twee domeinen:
+ * - MAIN: workingpoint.nl / www.workingpoint.nl  -> alleen /formulier
+ * - APP : app.workingpoint.nl                    -> beheer; root => /startlijst
  *
- * Werkt met HashRouter én BrowserRouter.
+ * Werkt met HashRouter & BrowserRouter.
+ * Minimalistisch om redirect-loops te voorkomen.
  */
 export default function DomainRedirect() {
   const nav = useNavigate();
@@ -15,42 +16,47 @@ export default function DomainRedirect() {
 
   useEffect(() => {
     const host = window.location.hostname;
-    const isHashMode = window.location.hash?.startsWith("#/");
     const path = pathname || "/";
     const query = search || "";
+    const isHash = window.location.hash?.startsWith("#/");
 
-    const MAIN_DOMAINS = new Set(["workingpoint.nl", "www.workingpoint.nl"]);
-    const APP_DOMAINS  = new Set(["app.workingpoint.nl"]);
+    const MAIN = new Set(["workingpoint.nl", "www.workingpoint.nl"]);
+    const APP  = new Set(["app.workingpoint.nl"]);
 
-    const buildUrl = (domain, targetPath, targetQuery = "") => {
+    const url = (domain, p, q = "") => {
       const base = `https://${domain}`;
-      return isHashMode ? `${base}/#${targetPath}${targetQuery}` : `${base}${targetPath}${targetQuery}`;
+      return isHash ? `${base}/#${p}${q}` : `${base}${p}${q}`;
     };
 
-    // APP: root => /startlijst (intern), /formulier => cross naar MAIN
-    if (APP_DOMAINS.has(host)) {
+    if (APP.has(host)) {
+      // Op app.*: root => /startlijst (intern), /formulier => cross naar main
       if (path === "/") {
-        nav("/startlijst", { replace: true });
+        if (isHash ? window.location.hash !== "#/startlijst" : true) {
+          nav("/startlijst", { replace: true });
+        }
         return;
       }
       if (path.startsWith("/formulier")) {
-        window.location.replace(buildUrl("workingpoint.nl", "/formulier", query));
+        const target = url("workingpoint.nl", "/formulier", query);
+        if (window.location.href !== target) window.location.replace(target);
         return;
       }
       return;
     }
 
-    // MAIN: root => /formulier (intern), anders cross naar APP
-    if (MAIN_DOMAINS.has(host)) {
+    if (MAIN.has(host)) {
+      // Op main: root => /formulier (intern), andere paden => cross naar app.*
       if (path === "/") {
-        nav("/formulier", { replace: true });
+        if (isHash ? window.location.hash !== "#/formulier" : true) {
+          nav("/formulier", { replace: true });
+        }
         return;
       }
       if (!path.startsWith("/formulier")) {
-        window.location.replace(buildUrl("app.workingpoint.nl", path, query));
+        const target = url("app.workingpoint.nl", path, query);
+        if (window.location.href !== target) window.location.replace(target);
         return;
       }
-      return;
     }
   }, [pathname, search, nav]);
 
