@@ -25,13 +25,14 @@ export default function DomainRedirect() {
     };
 
     if (APP.has(host)) {
-      if (path === "/") {                       // app.* => startlijst
+      // Op app.*: root => /startlijst (intern), /formulier => cross naar main
+      if (path === "/") {
         if (isHash ? window.location.hash !== "#/startlijst" : true) {
           nav("/startlijst", { replace: true });
         }
         return;
       }
-      if (path.startsWith("/formulier")) {      // formulier hoort op main
+      if (path.startsWith("/formulier")) {
         const target = url("workingpoint.nl", "/formulier", query);
         if (window.location.href !== target) window.location.replace(target);
         return;
@@ -40,13 +41,14 @@ export default function DomainRedirect() {
     }
 
     if (MAIN.has(host)) {
-      if (path === "/") {                       // main => formulier
+      // Op main: root => /formulier (intern), andere paden => cross naar app.*
+      if (path === "/") {
         if (isHash ? window.location.hash !== "#/formulier" : true) {
           nav("/formulier", { replace: true });
         }
         return;
       }
-      if (!path.startsWith("/formulier")) {     // beheer hoort op app.*
+      if (!path.startsWith("/formulier")) {
         const target = url("app.workingpoint.nl", path, query);
         if (window.location.href !== target) window.location.replace(target);
         return;

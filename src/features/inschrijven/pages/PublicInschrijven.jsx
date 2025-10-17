@@ -4,11 +4,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { notifyOrganisator } from "@/lib/notifyOrganisator";
 
+// Klassen incl. WE2+
 const KLASSEN = [
   { code: "we0",  label: "Introductieklasse (WE0)" },
   { code: "we1",  label: "WE1" },
   { code: "we2",  label: "WE2" },
-  { code: "we2p", label: "WE2+" },
+  { code: "we2+", label: "WE2+" },
   { code: "we3",  label: "WE3" },
   { code: "we4",  label: "WE4" },
 ];
@@ -65,16 +66,18 @@ export default function PublicInschrijven() {
       email: form.email?.trim(),
       opmerkingen: form.opmerkingen?.trim() || null,
       omroeper: form.omroeper?.trim() || null,
-      voorkeur_tijd: null,
+      voorkeur_tijd: null, // bewust niet in gebruik
     };
 
     try {
+      // Opslaan
       const { error } = await supabase.from("inschrijvingen").insert(payload);
       if (error) throw error;
 
+      // Mail organisator (via env of wedstrijd.organistor_email)
       try {
         await notifyOrganisator({
-          wedstrijd: gekozenWedstrijd, // { id, naam, organisator_email } indien aanwezig
+          wedstrijd: gekozenWedstrijd,   // { id, naam, organisator_email } indien beschikbaar
           inschrijving: { ...payload },
         });
       } catch (mailErr) {
