@@ -1,9 +1,7 @@
-// src/App.jsx
 import React from "react";
 import { HashRouter as Router, Routes, Route, NavLink, Navigate } from "react-router-dom";
 import DomainRedirect from "@/DomainRedirect";
 
-// Pagina's
 import PublicInschrijven from "@/features/inschrijven/pages/PublicInschrijven";
 import Startlijst from "@/features/startlijst/pages/Startlijst";
 
@@ -22,35 +20,20 @@ export default function App() {
 
   return (
     <Router>
-      {/* Domein-afhankelijke routering */}
       <DomainRedirect />
 
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "12px 16px",
-          borderBottom: "1px solid #eee",
-          position: "sticky",
-          top: 0,
-          background: "#fff",
-          zIndex: 10,
-        }}
-      >
-        <div style={{ fontWeight: 800, fontSize: 18, color: "#102754" }}>
-          Working Point
-        </div>
+      <header style={{
+        display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
+        borderBottom: "1px solid #eee", position: "sticky", top: 0, background: "#fff", zIndex: 10,
+      }}>
+        <div style={{ fontWeight: 800, fontSize: 18, color: "#102754" }}>Working Point</div>
         <nav style={{ display: "flex", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
-          {/* Op app.* linkt inschrijven altijd naar het main-domein */}
           {onApp ? (
             <a href="https://workingpoint.nl/#/formulier" style={navStyle({ isActive: false })}>
               Inschrijven
             </a>
           ) : (
-            <NavLink to="/formulier" style={navStyle}>
-              Inschrijven
-            </NavLink>
+            <NavLink to="/formulier" style={navStyle}>Inschrijven</NavLink>
           )}
           <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
         </nav>
