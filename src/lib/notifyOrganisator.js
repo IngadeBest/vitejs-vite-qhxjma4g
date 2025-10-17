@@ -1,19 +1,20 @@
-export async function notifyOrganisator(data) {
-  const resp = await fetch("/api/notifyOrganisator", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-    redirect: "error" // breek hard af als er tóch een 30x redirect dreigt
-  });
-
-  if (!resp.ok) {
-    const msg = await safeJson(resp);
-    throw new Error(`Mail failed: ${resp.status} ${msg?.error ?? ""}`);
+export async function notifyOrganisator(payload) {
+  try {
+    const res = await fetch('/api/notifyOrganisator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        wedstrijd_id: payload?.inschrijving?.wedstrijd_id || payload?.wedstrijd?.id || null,
+        wedstrijd_naam: payload?.wedstrijd?.naam || null,
+        organisator_email: payload?.wedstrijd?.organisator_email || null,
+        ...payload?.inschrijving,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    console.log('notifyOrganisator response:', res.status, json);
+    return { ok: res.ok, status: res.status, body: json };
+  } catch (e) {
+    console.warn('notifyOrganisator fetch failed:', e);
+    return { ok: false, error: String(e) };
   }
-
-  return resp.json();
-}
-
-async function safeJson(r) {
-  try { return await r.json(); } catch { return null; }
 }

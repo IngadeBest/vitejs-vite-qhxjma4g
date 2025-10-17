@@ -1,4 +1,3 @@
-// src/DomainRedirect.jsx
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -27,8 +26,9 @@ export default function DomainRedirect() {
       return { path: p || "/", query: q ? `?${q}` : "" };
     };
 
-    const path  = isHashMode ? parseHash().path  : (window.location.pathname || "/");
-    const query = isHashMode ? parseHash().query : (window.location.search   || "");
+    const { path, query } = isHashMode
+      ? parseHash()
+      : { path: window.location.pathname || "/", query: window.location.search || "" };
 
     const MAIN = new Set(["workingpoint.nl", "www.workingpoint.nl"]);
     const APP  = new Set(["app.workingpoint.nl"]);
