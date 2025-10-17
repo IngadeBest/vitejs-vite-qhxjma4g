@@ -1,25 +1,4 @@
 {
-  "redirects": [
-    {
-      "source": "/",
-      "has": [{ "type": "host", "value": "app.workingpoint.nl" }],
-      "destination": "/#/startlijst",
-      "permanent": false
-    },
-    {
-      "source": "/formulier",
-      "has": [{ "type": "host", "value": "app.workingpoint.nl" }],
-      "destination": "https://workingpoint.nl/#/formulier",
-      "permanent": false
-    },
-    {
-      "source": "/((?!formulier).*)",
-      "has": [
-        { "type": "host", "value": "workingpoint.nl" },
-        { "type": "host", "value": "www.workingpoint.nl" }
-      ],
-      "destination": "https://app.workingpoint.nl/$1",
-      "permanent": false
-    }
-  ]
+  "cleanUrls": true,
+  "trailingSlash": false
 }
