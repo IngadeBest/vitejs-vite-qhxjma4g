@@ -66,18 +66,16 @@ export default function PublicInschrijven() {
       email: form.email?.trim(),
       opmerkingen: form.opmerkingen?.trim() || null,
       omroeper: form.omroeper?.trim() || null,
-      voorkeur_tijd: null, // bewust niet in gebruik
+      voorkeur_tijd: null,
     };
 
     try {
-      // Opslaan
       const { error } = await supabase.from("inschrijvingen").insert(payload);
       if (error) throw error;
 
-      // Mail organisator (via env of wedstrijd.organistor_email)
       try {
         await notifyOrganisator({
-          wedstrijd: gekozenWedstrijd,   // { id, naam, organisator_email } indien beschikbaar
+          wedstrijd: gekozenWedstrijd, // { id, naam, organisator_email } (optioneel)
           inschrijving: { ...payload },
         });
       } catch (mailErr) {
