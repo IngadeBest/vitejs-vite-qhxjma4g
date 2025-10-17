@@ -4,7 +4,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { notifyOrganisator } from "@/lib/notifyOrganisator";
 
-// Klassen incl. WE2+ (we2p)
 const KLASSEN = [
   { code: "we0",  label: "Introductieklasse (WE0)" },
   { code: "we1",  label: "WE1" },
@@ -70,14 +69,12 @@ export default function PublicInschrijven() {
     };
 
     try {
-      // Opslaan
       const { error } = await supabase.from("inschrijvingen").insert(payload);
       if (error) throw error;
 
-      // Mail organisator (env of wedstrijd.Organisator_email)
       try {
         await notifyOrganisator({
-          wedstrijd: gekozenWedstrijd, // { id, naam, organisator_email }
+          wedstrijd: gekozenWedstrijd, // { id, naam, organisator_email } indien aanwezig
           inschrijving: { ...payload },
         });
       } catch (mailErr) {
@@ -146,14 +143,8 @@ export default function PublicInschrijven() {
           value={form.categorie}
           onChange={(e) => setForm((s) => ({ ...s, categorie: e.target.value }))}
         >
-          {[
-            { code: "senior", label: "Senioren" },
-            { code: "yr", label: "Young Riders" },
-            { code: "junior", label: "Junioren" },
-          ].map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.label}
-            </option>
+          {CATS.map((c) => (
+            <option key={c.code} value={c.code}>{c.label}</option>
           ))}
         </select>
 
