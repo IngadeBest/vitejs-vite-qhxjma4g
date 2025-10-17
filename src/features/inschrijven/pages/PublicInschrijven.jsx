@@ -4,16 +4,23 @@ import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { notifyOrganisator } from "@/lib/notifyOrganisator";
 
+// Klassen incl. WE2+ (we2p)
 const KLASSEN = [
-  { code: "we0", label: "Introductieklasse (WE0)" },
-  { code: "we1", label: "WE1" },
-  { code: "we2", label: "WE2" },
-  { code: "we3", label: "WE3" },
-  { code: "we4", label: "WE4" },
+  { code: "we0",  label: "Introductieklasse (WE0)" },
+  { code: "we1",  label: "WE1" },
+  { code: "we2",  label: "WE2" },
+  { code: "we2p", label: "WE2+" },
+  { code: "we3",  label: "WE3" },
+  { code: "we4",  label: "WE4" },
+];
+
+const CATS = [
+  { code: "senior", label: "Senioren" },
+  { code: "yr",     label: "Young Riders" },
+  { code: "junior", label: "Junioren" },
 ];
 
 export default function PublicInschrijven() {
-  // true = alleen inschrijfbare wedstrijden (zoals je hook dat regelt)
   const { items: wedstrijden, loading } = useWedstrijden(true);
   const [sp] = useSearchParams();
   const qId = sp.get("wedstrijdId") || "";
@@ -21,13 +28,13 @@ export default function PublicInschrijven() {
   const [form, setForm] = useState({
     wedstrijd_id: qId || "",
     klasse: "",
+    categorie: "senior",
     ruiter: "",
     paard: "",
     email: "",
     omroeper: "",
     opmerkingen: "",
   });
-
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
@@ -38,8 +45,8 @@ export default function PublicInschrijven() {
   );
 
   const disabled = useMemo(() => {
-    if (!form.ruiter || !form.paard || !form.email) return true;
     if (!form.wedstrijd_id || !form.klasse) return true;
+    if (!form.ruiter || !form.paard || !form.email) return true;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return true;
     return false;
   }, [form]);
@@ -52,33 +59,31 @@ export default function PublicInschrijven() {
 
     const payload = {
       wedstrijd_id: form.wedstrijd_id,
-      wedstrijd: gekozenWedstrijd ? gekozenWedstrijd.naam : null, // laat staan als je kolom 'wedstrijd' ook bewaart
       klasse: form.klasse,
+      categorie: form.categorie,
       ruiter: form.ruiter?.trim(),
       paard: form.paard?.trim(),
       email: form.email?.trim(),
       opmerkingen: form.opmerkingen?.trim() || null,
       omroeper: form.omroeper?.trim() || null,
-      voorkeur_tijd: null, // expliciet niet gebruiken
+      voorkeur_tijd: null,
     };
 
     try {
-      // 1) Opslaan
+      // Opslaan
       const { error } = await supabase.from("inschrijvingen").insert(payload);
       if (error) throw error;
 
-      // 2) Mail organisator (helper logt altijd de respons in de console)
+      // Mail organisator (env of wedstrijd.Organisator_email)
       try {
         await notifyOrganisator({
-          wedstrijd: gekozenWedstrijd, // { id, naam, organisator_email } indien beschikbaar
+          wedstrijd: gekozenWedstrijd, // { id, naam, organisator_email }
           inschrijving: { ...payload },
         });
       } catch (mailErr) {
-        // Mail-fout blokkeert de inschrijving niet
         console.warn("notifyOrganisator error:", mailErr);
       }
 
-      // 3) Bevestigingsscherm
       setDone(true);
     } catch (e) {
       setErr(e?.message || String(e));
@@ -93,10 +98,7 @@ export default function PublicInschrijven() {
         <h2>Dank je wel!</h2>
         <p>
           Je inschrijving is ontvangen
-          {gekozenWedstrijd?.naam ? (
-            <> voor <b>{gekozenWedstrijd.naam}</b></>
-          ) : null}
-          .
+          {gekozenWedstrijd?.naam ? <> voor <b>{gekozenWedstrijd.naam}</b></> : null}.
         </p>
         <p>Je ontvangt binnenkort een bevestiging van inschrijving per e-mail.</p>
       </div>
@@ -104,20 +106,13 @@ export default function PublicInschrijven() {
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: "24px auto" }}>
+    <div style={{ maxWidth: 760, margin: "24px auto" }}>
       <h2>Inschrijfformulier Ruiters</h2>
-      <p style={{ color: "#555" }}>
-        Velden met * zijn verplicht. Er is geen voorkeur starttijd veld.
-      </p>
+      <p style={{ color: "#555" }}>Velden met * zijn verplicht. Er is geen voorkeur starttijd veld.</p>
 
       <form
         onSubmit={onSubmit}
-        style={{
-          display: "grid",
-          gridTemplateColumns: "220px 1fr",
-          gap: "10px 12px",
-          alignItems: "center",
-        }}
+        style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "10px 12px", alignItems: "center" }}
       >
         <label>Wedstrijd*</label>
         <select
@@ -125,9 +120,7 @@ export default function PublicInschrijven() {
           onChange={(e) => setForm((s) => ({ ...s, wedstrijd_id: e.target.value }))}
           disabled={loading || !!qId}
         >
-          <option value="">
-            {loading ? "Laden..." : "— kies wedstrijd —"}
-          </option>
+          <option value="">{loading ? "Laden..." : "— kies een wedstrijd —"}</option>
           {wedstrijden.map((w) => (
             <option key={w.id} value={w.id}>
               {w.naam} {w.datum ? `(${w.datum})` : ""}
@@ -148,16 +141,34 @@ export default function PublicInschrijven() {
           ))}
         </select>
 
+        <label>Categorie*</label>
+        <select
+          value={form.categorie}
+          onChange={(e) => setForm((s) => ({ ...s, categorie: e.target.value }))}
+        >
+          {[
+            { code: "senior", label: "Senioren" },
+            { code: "yr", label: "Young Riders" },
+            { code: "junior", label: "Junioren" },
+          ].map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+
         <label>Ruiter (volledige naam)*</label>
         <input
           value={form.ruiter}
           onChange={(e) => setForm((s) => ({ ...s, ruiter: e.target.value }))}
+          placeholder="Naam ruiter"
         />
 
         <label>Paard*</label>
         <input
           value={form.paard}
           onChange={(e) => setForm((s) => ({ ...s, paard: e.target.value }))}
+          placeholder="Naam paard"
         />
 
         <label>E-mail*</label>
@@ -165,22 +176,23 @@ export default function PublicInschrijven() {
           type="email"
           value={form.email}
           onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-          placeholder="naam@voorbeeld.nl"
+          placeholder="jij@example.com"
         />
 
-        <label>Tekst voor omroeper</label>
+        <label>Tekst voor de omroeper (optioneel)</label>
         <textarea
           rows={4}
           value={form.omroeper}
           onChange={(e) => setForm((s) => ({ ...s, omroeper: e.target.value }))}
-          placeholder="Korte tekst voor de omroeper (ruiter & paard)."
+          placeholder="Korte introductie / bijzonderheden"
         />
 
-        <label>Opmerkingen voor de organisatie</label>
+        <label>Opmerkingen (optioneel)</label>
         <textarea
           rows={3}
           value={form.opmerkingen}
           onChange={(e) => setForm((s) => ({ ...s, opmerkingen: e.target.value }))}
+          placeholder="Bijv. speciale wensen / opmerkingen"
         />
 
         <div></div>
@@ -189,9 +201,7 @@ export default function PublicInschrijven() {
         </button>
       </form>
 
-      {err && (
-        <div style={{ marginTop: 12, color: "crimson" }}>{String(err)}</div>
-      )}
+      {err && <div style={{ marginTop: 12, color: "crimson" }}>{String(err)}</div>}
     </div>
   );
 }
