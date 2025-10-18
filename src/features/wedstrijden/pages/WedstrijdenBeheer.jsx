@@ -147,40 +147,75 @@ export default function WedstrijdenBeheer() {
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: "24px auto" }}>
-      <h2>Wedstrijden</h2>
+    <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: 24 }}>
+      <div style={{
+        maxWidth: 1000,
+        background: "#fff",
+        borderRadius: 12,
+        boxShadow: "0 6px 18px #20457422",
+        margin: "0 auto",
+        padding: "28px 24px",
+        fontFamily: "system-ui, sans-serif"
+      }}>
+        <h2 style={{ fontSize: 28, fontWeight: 900, color: "#204574", letterSpacing: 0.6, marginBottom: 18 }}>
+          Wedstrijden beheer
+        </h2>
 
-      <section style={{border:"1px solid #eee", borderRadius:12, padding:12, marginBottom:16}}>
-        <h3>Nieuwe wedstrijd</h3>
-        <div style={{display:"grid",gridTemplateColumns:"160px 1fr 1fr 1fr", gap:8}}>
-          <input placeholder="Naam*" value={nieuw.naam} onChange={(e)=>setNieuw(s=>({...s, naam:e.target.value}))}/>
-          <input type="date" value={nieuw.datum} onChange={(e)=>setNieuw(s=>({...s, datum:e.target.value}))}/>
-          <input placeholder="Locatie" value={nieuw.locatie} onChange={(e)=>setNieuw(s=>({...s, locatie:e.target.value}))}/>
-          <input placeholder="Organisator e-mail" value={nieuwEmail} onChange={(e)=>setNieuwEmail(e.target.value)}/>
-          <select value={nieuw.status} onChange={(e)=>setNieuw(s=>({...s, status:e.target.value}))}>
-            <option value="open">open</option>
-            <option value="gesloten">gesloten</option>
-            <option value="archief">archief</option>
-          </select>
-        </div>
-        <div style={{marginTop:8}}>
-          <button onClick={addWedstrijd} disabled={!nieuw.naam}>Aanmaken</button>
-        </div>
-      </section>
-
-      <section style={{border:"1px solid #eee", borderRadius:12, padding:12, marginTop:16}}>
-        <h3>Per-wedstrijd: toegestane klassen & categorieën</h3>
-        <p style={{color:'#555', marginTop:4}}>Kies welke klassen ruiters zich mogen opgeven voor deze wedstrijd. Per klasse kun je aangeven welke categorieën toegestaan zijn (senior / yr / junior).</p>
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-          <div>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-              <label style={{fontWeight:600}}>Toegestane klassen</label>
-              <div style={{display:'flex', gap:8}}>
-                <button type="button" onClick={()=>setAllowedKlassen(KLASSEN.map(k=>k.code))}>Selecteer alles</button>
-                <button type="button" onClick={()=>setAllowedKlassen([])}>Reset</button>
-              </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, marginBottom: 18 }}>
+          <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
+            <div style={{ fontWeight: 800, marginBottom: 8 }}>Nieuwe wedstrijd</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 1fr', gap: 8, alignItems: 'center' }}>
+              <input placeholder="Naam*" value={nieuw.naam} onChange={(e)=>setNieuw(s=>({...s, naam:e.target.value}))} />
+              <input type="date" value={nieuw.datum} onChange={(e)=>setNieuw(s=>({...s, datum:e.target.value}))} />
+              <input placeholder="Locatie" value={nieuw.locatie} onChange={(e)=>setNieuw(s=>({...s, locatie:e.target.value}))} />
+              <input placeholder="Organisator e-mail" value={nieuwEmail} onChange={(e)=>setNieuwEmail(e.target.value)} />
+              <select value={nieuw.status} onChange={(e)=>setNieuw(s=>({...s, status:e.target.value}))}>
+                <option value="open">open</option>
+                <option value="gesloten">gesloten</option>
+                <option value="archief">archief</option>
+              </select>
+              <div></div>
             </div>
-            <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:6}}>
+            <div style={{ marginTop: 10 }}>
+              <button onClick={addWedstrijd} disabled={!nieuw.naam}>Aanmaken</button>
+            </div>
+          </div>
+
+          <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
+            <div style={{ fontWeight: 800, marginBottom: 8 }}>Selecteer wedstrijd</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select value={selectedId} onChange={(e)=>setSelectedId(e.target.value)} disabled={loading} style={{ flex: 1 }}>
+                <option value="">{loading ? "Laden..." : "— kies wedstrijd —"}</option>
+                {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ""}</option>)}
+              </select>
+              <button onClick={copyLink} disabled={!gekozen}>Kopieer inschrijflink</button>
+            </div>
+            {gekozen && (
+              <div style={{ marginTop: 12, fontSize: 13, color: '#444' }}>
+                <div><b>{gekozen.naam}</b></div>
+                <div style={{ marginTop: 6 }}><b>Datum:</b> {gekozen.datum || "—"} · <b>Status:</b> {gekozen.status}</div>
+                <div style={{ marginTop:8 }}>
+                  <label style={{display:'block', fontSize:13, fontWeight:600, marginBottom:6}}>Organisator e-mail</label>
+                  <input
+                    type="email"
+                    placeholder="organisator@example.com"
+                    value={nieuwEmail}
+                    onChange={(e)=>setNieuwEmail(e.target.value)}
+                    style={{padding:6, borderRadius:6, border:'1px solid #ddd', width:'100%'}}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+          <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
+            <div style={{ fontWeight: 800, marginBottom: 8 }}>Toegestane klassen</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <button type="button" onClick={()=>setAllowedKlassen(KLASSEN.map(k=>k.code))}>Selecteer alles</button>
+              <button type="button" onClick={()=>setAllowedKlassen([])}>Reset</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {KLASSEN.map(k => {
                 const checked = allowedKlassen.includes(k.code);
                 return (
@@ -195,13 +230,13 @@ export default function WedstrijdenBeheer() {
             </div>
           </div>
 
-          <div>
-            <label style={{fontWeight:600}}>Categorieën per klasse</label>
-            <div style={{display:'flex', flexDirection:'column', gap:8, marginTop:6}}>
+          <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
+            <div style={{ fontWeight: 800, marginBottom: 8 }}>Categorieën per klasse</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {KLASSEN.map(k => (
-                <div key={k.code} style={{padding:4, border: '1px solid #eee', borderRadius:6}}>
-                  <div style={{fontSize:13, fontWeight:600}}>{k.label}</div>
-                  <div style={{display:'flex', gap:8, marginTop:6, flexWrap:'wrap'}}>
+                <div key={k.code} style={{ padding: 8, border: '1px solid #f0f6ff', borderRadius: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{k.label}</div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                     <label style={{display:'flex', alignItems:'center', gap:6}}>
                       <input type="checkbox" checked={!!(klasseCategorieen[k.code] && klasseCategorieen[k.code].includes('senior'))} onChange={(e)=>{
                         setKlasseCategorieen(s => {
@@ -229,7 +264,7 @@ export default function WedstrijdenBeheer() {
                         });
                       }} /> <span style={{fontSize:13}}>Junior</span>
                     </label>
-                    <div style={{marginLeft:'auto'}}>
+                    <div style={{ marginLeft: 'auto' }}>
                       <button type="button" onClick={()=>setKlasseCategorieen(s => ({ ...s, [k.code]: ['senior','yr','junior'] }))}>Alles</button>
                       <button type="button" onClick={()=>setKlasseCategorieen(s => ({ ...s, [k.code]: [] }))}>Reset</button>
                     </div>
@@ -240,7 +275,7 @@ export default function WedstrijdenBeheer() {
           </div>
         </div>
 
-        <div style={{marginTop:8}}>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginBottom: 8 }}>
           <button onClick={saveWedstrijdConfig} disabled={!gekozen}>Opslaan instellingen</button>
         </div>
       </section>
