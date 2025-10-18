@@ -278,7 +278,7 @@ export default function WedstrijdenBeheer() {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginBottom: 8 }}>
           <button onClick={saveWedstrijdConfig} disabled={!gekozen}>Opslaan instellingen</button>
         </div>
-      </section>
+      
 
       <section style={{border:"1px solid #eee", borderRadius:12, padding:12, marginBottom:16}}>
         <h3>Beheer bestaande wedstrijd</h3>
