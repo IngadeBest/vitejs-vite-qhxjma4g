@@ -17,6 +17,8 @@ const KLASSEN = [
   { code: "we2p", label: "WE2+" },
   { code: "we3",  label: "WE3" },
   { code: "we4",  label: "WE4" },
+  { code: "yr",   label: "Young Riders" },
+  { code: "junior", label: "Junioren" },
 ];
 const KLASSEN_EDIT = KLASSEN.filter(k => k.code !== "");
 
@@ -508,286 +510,183 @@ export default function Startlijst() {
 
   return (
     <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: 28 }}>
-      <div style={{ maxWidth: 900, background: '#fff', borderRadius: 16, boxShadow: '0 6px 24px #20457422', margin: '0 auto', padding: '30px 28px', fontFamily: 'system-ui, sans-serif' }}>
-        <h2 style={{ fontSize: 28, fontWeight: 900, color: '#204574', marginBottom: 14 }}>Startlijst per klasse</h2>
+      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 340px', gap: 18 }}>
+        <main style={{ background: '#fff', borderRadius: 16, boxShadow: '0 6px 24px #20457422', padding: '30px 28px', fontFamily: 'system-ui, sans-serif' }}>
+          <h2 style={{ fontSize: 28, fontWeight: 900, color: '#204574', marginBottom: 14 }}>Startlijst per klasse</h2>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr auto auto auto",
-            gap: 8,
-            alignItems: "end",
-          }}
-        >
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "#666" }}>
-            Wedstrijd
-          </label>
-          <select
-            value={selectedWedstrijdId}
-            onChange={(e) => setSelectedWedstrijdId(e.target.value)}
-            disabled={loadingWed}
-            style={{ width: "100%" }}
-          >
-            <option value="">{loadingWed ? "Laden..." : "— kies wedstrijd —"}</option>
-            {wedstrijden.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.naam} {w.datum ? `(${w.datum})` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "#666" }}>
-            Klasse (filter)
-          </label>
-          <select
-            value={klasseFilter}
-            onChange={(e) => setKlasseFilter(e.target.value)}
-            style={{ width: "100%" }}
-          >
-            {KLASSEN.map((k) => (
-              <option key={k.code || "all"} value={k.code}>
-                {k.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* categorie filter removed */}
-
-        <label
-          style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-            userSelect: "none",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={beheer}
-            onChange={(e) => setBeheer(e.target.checked)}
-          />
-          Beheer-modus
-        </label>
-
-        <Button onClick={fetchRows} disabled={busy || !selectedWedstrijdId}>
-          {busy ? "Vernieuwen..." : "Vernieuw"}
-        </Button>
-
-        <Button onClick={() => handleExportExcel('__all__')} disabled={!selectedWedstrijdId}>
-          Export hele startlijst (Excel)
-        </Button>
-
-        {beheer && (
-          <Button
-            onClick={saveChanges}
-            disabled={busy || !selectedWedstrijdId || !changed.size}
-          >
-            {busy ? "Opslaan..." : `Opslaan (${changed.size || 0})`}
-          </Button>
-        )}
-      </div>
-
-  {err && <Alert type="error">{String(err)}</Alert>}
-  {msg && <Alert type={String(msg).toLowerCase().includes('fout') ? 'error' : 'success'}>{msg}</Alert>}
-
-      {!selectedWedstrijdId && (
-        <div style={{ marginTop: 16, color: "#555" }}>
-          Kies hierboven een wedstrijd om de startlijst te tonen. Tip: je kunt ook direct naar{" "}
-          <code>#/startlijst?wedstrijdId=&lt;uuid&gt;</code> linken.
-        </div>
-      )}
-
-      {selectedWedstrijdId && (
-        <>
-          <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ fontSize: 12, color: "#666" }}>
-              <b>Aantal inschrijvingen:</b> {visible.length}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto auto auto', gap: 8, alignItems: 'end' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Wedstrijd</label>
+              <select value={selectedWedstrijdId} onChange={(e)=>setSelectedWedstrijdId(e.target.value)} disabled={loadingWed} style={{ width: '100%' }}>
+                <option value="">{loadingWed ? 'Laden...' : '— kies wedstrijd —'}</option>
+                {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ''}</option>)}
+              </select>
             </div>
-            {beheer && (
-              <>
-                <Button onClick={addRow} disabled={busy} variant="secondary">Nieuwe inschrijving</Button>
-                <Button onClick={renumber} disabled={busy || visible.length === 0} variant="secondary">
-                  Startnummers hernummeren
-                </Button>
-              </>
-            )}
+
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Klasse (filter)</label>
+              <select value={klasseFilter} onChange={(e)=>setKlasseFilter(e.target.value)} style={{ width: '100%' }}>
+                {KLASSEN.map(k => <option key={k.code || 'all'} value={k.code}>{k.label}</option>)}
+              </select>
+            </div>
+
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', userSelect: 'none' }}>
+              <input type="checkbox" checked={beheer} onChange={(e)=>setBeheer(e.target.checked)} /> Beheer-modus
+            </label>
+
+            <Button onClick={fetchRows} disabled={busy || !selectedWedstrijdId}>{busy ? 'Vernieuwen...' : 'Vernieuw'}</Button>
+            <Button onClick={()=>handleExportExcel('__all__')} disabled={!selectedWedstrijdId}>Export hele startlijst (Excel)</Button>
+            {beheer && <Button onClick={saveChanges} disabled={busy || !selectedWedstrijdId || !changed.size}>{busy ? 'Opslaan...' : `Opslaan (${changed.size||0})`}</Button>}
           </div>
 
-          <div style={{ marginTop: 8, display: 'grid', gap: 18 }}>
-            {/* Schedule/config panel */}
-            <div style={{ background: '#f8fbff', padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Dressuur start (HH:MM)</label>
-                  <input value={scheduleConfig.dressuurStart} onChange={e=>setScheduleConfig(s=>({...s, dressuurStart: e.target.value}))} placeholder="09:00" />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Interval (min)</label>
-                  <input type="number" value={scheduleConfig.interval} onChange={e=>setScheduleConfig(s=>({...s, interval: Number(e.target.value) || 7}))} style={{ width: 80 }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Trail offset (min)</label>
-                  <input type="number" value={scheduleConfig.trailOffset} onChange={e=>setScheduleConfig(s=>({...s, trailOffset: Number(e.target.value)||0}))} style={{ width: 80 }} />
-                </div>
-                <div style={{ marginLeft: 'auto' }}>
-                  <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Pauzes</label>
-                  <small style={{ color: '#666' }}>Voeg pauzes toe via beheer-mode (na welke start; minuten)</small>
-                </div>
+          {err && <Alert type="error">{String(err)}</Alert>}
+          {msg && <Alert type={String(msg).toLowerCase().includes('fout') ? 'error' : 'success'}>{msg}</Alert>}
+
+          {!selectedWedstrijdId && (
+            <div style={{ marginTop: 16, color: '#555' }}>Kies hierboven een wedstrijd om de startlijst te tonen. Tip: je kunt ook direct naar <code>#/startlijst?wedstrijdId=&lt;uuid&gt;</code> linken.</div>
+          )}
+
+          {selectedWedstrijdId && (
+            <>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ fontSize: 12, color: '#666' }}><b>Aantal inschrijvingen:</b> {visible.length}</div>
+                {beheer && (<><Button onClick={addRow} disabled={busy} variant="secondary">Nieuwe inschrijving</Button><Button onClick={renumber} disabled={busy || visible.length === 0} variant="secondary">Startnummers hernummeren</Button></>)}
               </div>
-              <div style={{ marginTop: 8, fontSize: 13, color: '#234' }}>
-                <b>Info:</b> {scheduleConfig.trailInfo || 'Stel hierboven de dressuur starttijd, interval en trail offset in.'}
-              </div>
-            </div>
-            {(klasseOrder || []).map(klasseCode => {
-              const items = grouped.get(klasseCode) || [];
-              return (
-                <div key={klasseCode}
-                  draggable={true}
-                  onDragStart={(e)=>{ e.dataTransfer.setData('text/plain', klasseCode); e.dataTransfer.effectAllowed='move'; setDraggingId(klasseCode); }}
-                  onDragOver={(e)=>e.preventDefault()}
-                  onDrop={(e)=>{ e.preventDefault(); const code = e.dataTransfer.getData('text/plain'); if (code) {
-                    // move dropped class to this index
-                    const from = klasseOrder.indexOf(code);
-                    const to = klasseOrder.indexOf(klasseCode);
-                    if (from !== -1 && to !== -1 && from !== to) {
-                      const copy = [...klasseOrder];
-                      const [it] = copy.splice(from,1);
-                      copy.splice(to, 0, it);
-                      setKlasseOrder(copy);
-                    }
-                  } setDraggingId(null); }}
-                  style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff', boxShadow: draggingId === klasseCode ? '0 10px 30px rgba(12,40,80,0.08)' : '0 6px 18px rgba(12,40,80,0.04)', cursor: 'grab' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                    <div style={{ fontWeight: 800, fontSize: 16 }}>{KLASSEN_EDIT.find(k => k.code === klasseCode)?.label || (klasseCode === 'onbekend' ? 'Onbekend' : klasseCode)}</div>
-                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <Button title="Verplaats klasse omhoog" onClick={() => moveClass(klasseCode, -1)} variant="secondary">↑</Button>
-                      <Button title="Verplaats klasse omlaag" onClick={() => moveClass(klasseCode, 1)} variant="secondary">↓</Button>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <Button onClick={() => handleExportExcel(klasseCode)} variant="secondary">Export Excel</Button>
-                        <Button onClick={() => handleExportPDF(klasseCode)} variant="secondary">Export PDF</Button>
-                        <Button onClick={() => handleExportAfbeelding(klasseCode)} variant="secondary">Export afbeelding</Button>
-                      </div>
+
+              <div style={{ marginTop: 8, display: 'grid', gap: 18 }}>
+                {/* Schedule/config panel */}
+                <div style={{ background: '#f8fbff', padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Dressuur start (HH:MM)</label>
+                      <input value={scheduleConfig.dressuurStart} onChange={e=>setScheduleConfig(s=>({...s, dressuurStart: e.target.value}))} placeholder="09:00" />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Interval (min)</label>
+                      <input type="number" value={scheduleConfig.interval} onChange={e=>setScheduleConfig(s=>({...s, interval: Number(e.target.value) || 7}))} style={{ width: 80 }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Trail offset (min)</label>
+                      <input type="number" value={scheduleConfig.trailOffset} onChange={e=>setScheduleConfig(s=>({...s, trailOffset: Number(e.target.value)||0}))} style={{ width: 80 }} />
+                    </div>
+                    <div style={{ marginLeft: 'auto' }}>
+                      <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Pauzes</label>
+                      <small style={{ color: '#666' }}>Voeg pauzes toe via beheer-mode (na welke start; minuten)</small>
                     </div>
                   </div>
+                  <div style={{ marginTop: 8, fontSize: 13, color: '#234' }}><b>Info:</b> {scheduleConfig.trailInfo || 'Stel hierboven de dressuur starttijd, interval en trail offset in.'}</div>
+                </div>
 
-                    <div ref={el => refs.current[klasseCode] = el}>
-                    <table width="100%" cellPadding={6} style={{ borderCollapse: 'collapse', fontSize: 14, background: '#fafdff', borderRadius: 8 }}>
-                      <thead>
-                        <tr style={{ background: '#dfeffd', color: '#174174' }}>
-                          {visibleCols.starttijd && <th style={{ borderBottom: '1px solid #e0edf8', width: 110, padding: 8 }}>Starttijd</th>}
-                          {visibleCols.startnummer && <th style={{ borderBottom: '1px solid #e0edf8', width: 60, padding: 8 }}>#</th>}
-                          {visibleCols.ruiter && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Ruiter</th>}
-                          {visibleCols.paard && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Paard</th>}
-                          {visibleCols.klasse && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Klasse</th>}
-                          {visibleCols.starttijdTrail && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Starttijd Trail</th>}
-                          {beheer && <th style={{ borderBottom: '1px solid #e0edf8', width: 120, padding: 8 }}>Acties</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(() => {
-                          const times = computeStartTimes(items, klasseCode);
-                          return items.map((r, idx) => {
-                            const start = times[idx] || null;
-                            const trailStart = start ? new Date(start.getTime() + (Number(scheduleConfig.trailOffset || 0) * 60000)) : null;
-                            return (
-                              <tr key={r.id}
-                                draggable={false}
-                                onDragOver={onDragOver}
-                                onDragEnter={(e)=>onDragEnter(e, r.id)}
-                                onDragLeave={onDragLeave}
-                                onDrop={(e)=>onDrop(e, idx, klasseCode)}
-                                style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
-                                {visibleCols.starttijd && <td style={{ padding: 8 }}>{formatTime(start)}</td>}
-                                {visibleCols.startnummer && <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center', padding: 8 }}>{beheer ? (
-                                  <>
-                                    <button
-                                      aria-label="drag-handle"
-                                      draggable={beheer}
-                                      onDragStart={(e)=>onDragStart(e, r.id, klasseCode)}
-                                      onDragEnd={()=>{ setDraggingId(null); setDragOverId(null); }}
-                                      style={{ cursor: 'grab', padding: 6, borderRadius: 6, border: '1px solid #e6eefb', background: '#fafdff' }}
-                                    >
-                                      ≡
-                                    </button>
-                                    <input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} />
-                                  </>
-                                ) : (formatStartnummer(r) || (r.startnummer ?? idx + 1))}</td>}
-                                {visibleCols.ruiter && <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>}
-                                {visibleCols.paard && <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>}
-                                {visibleCols.klasse && <td style={{ padding: 8 }}>{r.klasse || '—'}</td>}
-                                {visibleCols.starttijdTrail && <td style={{ padding: 8 }}>{formatTime(trailStart)}</td>}
-                                {beheer && (
-                                  <td style={{ whiteSpace: 'nowrap', padding: 8 }}>
-                                    <Button onClick={()=>{/* noop: explicit move via drag/drop preferred */}} variant="secondary">↕️</Button>
-                                    <Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button>
-                                  </td>
-                                )}
-                              </tr>
-                            );
-                          });
-                        })()}
-                        {items.length === 0 && (
-                          <tr><td colSpan={beheer ? 6 : 5} style={{ color: '#777', padding: '18px 8px' }}>Nog geen inschrijvingen voor deze klasse.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-
-                    {beheer && (
-                      <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: '#fcfeff', border: '1px dashed #e6f2ff' }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Pauzes voor {KLASSEN_EDIT.find(k=>k.code===klasseCode)?.label || klasseCode}</div>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                          <small style={{ color: '#666' }}>Huidige pauzes:</small>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {(pauses[klasseCode] || []).map((p, i) => (
-                            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                              <div style={{ fontSize: 13 }}>Na {p.afterIndex} starts — {p.minutes} min</div>
-                              <Button variant="secondary" onClick={()=>{
-                                setPauses(prev => {
-                                  const copy = { ...(prev || {}) };
-                                  copy[klasseCode] = (copy[klasseCode] || []).filter((_,idx)=>idx !== i);
-                                  return copy;
-                                });
-                              }}>Verwijder</Button>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <input type="number" placeholder="Na (count)" id={`pause-after-${klasseCode}`} style={{ width: 100 }} />
-                          <input type="number" placeholder="Minuten" id={`pause-min-${klasseCode}`} style={{ width: 100 }} />
-                          <Button onClick={()=>{
-                            const elA = document.getElementById(`pause-after-${klasseCode}`);
-                            const elM = document.getElementById(`pause-min-${klasseCode}`);
-                            const after = Number(elA?.value || 0);
-                            const minutes = Number(elM?.value || 0);
-                            if (!Number.isFinite(after) || !Number.isFinite(minutes)) return;
-                            setPauses(prev => {
-                              const copy = { ...(prev || {}) };
-                              copy[klasseCode] = copy[klasseCode] || [];
-                              copy[klasseCode].push({ afterIndex: after, minutes });
-                              return copy;
-                            });
-                            if (elA) elA.value = '';
-                            if (elM) elM.value = '';
-                          }}>Voeg pauze toe</Button>
+                {(klasseOrder || []).map(klasseCode => {
+                  const items = grouped.get(klasseCode) || [];
+                  return (
+                    <div key={klasseCode} draggable={true} onDragStart={(e)=>{ e.dataTransfer.setData('text/plain', klasseCode); e.dataTransfer.effectAllowed='move'; setDraggingId(klasseCode); }} onDragOver={(e)=>e.preventDefault()} onDrop={(e)=>{ e.preventDefault(); const code = e.dataTransfer.getData('text/plain'); if (code) { const from = klasseOrder.indexOf(code); const to = klasseOrder.indexOf(klasseCode); if (from !== -1 && to !== -1 && from !== to) { const copy = [...klasseOrder]; const [it] = copy.splice(from,1); copy.splice(to, 0, it); setKlasseOrder(copy); } } setDraggingId(null); }} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff', boxShadow: draggingId === klasseCode ? '0 10px 30px rgba(12,40,80,0.08)' : '0 6px 18px rgba(12,40,80,0.04)', cursor: 'grab' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <div style={{ fontWeight: 800, fontSize: 16 }}>{KLASSEN_EDIT.find(k => k.code === klasseCode)?.label || (klasseCode === 'onbekend' ? 'Onbekend' : klasseCode)}</div>
+                        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <Button title="Verplaats klasse omhoog" onClick={() => moveClass(klasseCode, -1)} variant="secondary">↑</Button>
+                          <Button title="Verplaats klasse omlaag" onClick={() => moveClass(klasseCode, 1)} variant="secondary">↓</Button>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Button onClick={() => handleExportExcel(klasseCode)} variant="secondary">Export Excel</Button>
+                            <Button onClick={() => handleExportPDF(klasseCode)} variant="secondary">Export PDF</Button>
+                            <Button onClick={() => handleExportAfbeelding(klasseCode)} variant="secondary">Export afbeelding</Button>
+                          </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
-          {/* Removed public formulier link: ruiters should use the public site directly */}
-        </>
-      )}
+                      <div ref={el => refs.current[klasseCode] = el}>
+                        <table width="100%" cellPadding={6} style={{ borderCollapse: 'collapse', fontSize: 14, background: '#fafdff', borderRadius: 8 }}>
+                          <thead>
+                            <tr style={{ background: '#dfeffd', color: '#174174' }}>
+                              {visibleCols.starttijd && <th style={{ borderBottom: '1px solid #e0edf8', width: 110, padding: 8 }}>Starttijd</th>}
+                              {visibleCols.startnummer && <th style={{ borderBottom: '1px solid #e0edf8', width: 60, padding: 8 }}>#</th>}
+                              {visibleCols.ruiter && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Ruiter</th>}
+                              {visibleCols.paard && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Paard</th>}
+                              {visibleCols.klasse && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Klasse</th>}
+                              {visibleCols.starttijdTrail && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Starttijd Trail</th>}
+                              {beheer && <th style={{ borderBottom: '1px solid #e0edf8', width: 120, padding: 8 }}>Acties</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(() => {
+                              const times = computeStartTimes(items, klasseCode);
+                              return items.map((r, idx) => {
+                                const start = times[idx] || null;
+                                const trailStart = start ? new Date(start.getTime() + (Number(scheduleConfig.trailOffset || 0) * 60000)) : null;
+                                return (
+                                  <tr key={r.id} draggable={false} onDragOver={onDragOver} onDragEnter={(e)=>onDragEnter(e, r.id)} onDragLeave={onDragLeave} onDrop={(e)=>onDrop(e, idx, klasseCode)} style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
+                                    {visibleCols.starttijd && <td style={{ padding: 8 }}>{formatTime(start)}</td>}
+                                    {visibleCols.startnummer && <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center', padding: 8 }}>{beheer ? (<><button aria-label="drag-handle" draggable={beheer} onDragStart={(e)=>onDragStart(e, r.id, klasseCode)} onDragEnd={()=>{ setDraggingId(null); setDragOverId(null); }} style={{ cursor: 'grab', padding: 6, borderRadius: 6, border: '1px solid #e6eefb', background: '#fafdff' }}>≡</button><input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} /></>) : (formatStartnummer(r) || (r.startnummer ?? idx + 1))}</td>}
+                                    {visibleCols.ruiter && <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>}
+                                    {visibleCols.paard && <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>}
+                                    {visibleCols.klasse && <td style={{ padding: 8 }}>{KLASSEN.find(k=>k.code === (r.klasse || ''))?.label || (r.klasse || '—')}</td>}
+                                    {visibleCols.starttijdTrail && <td style={{ padding: 8 }}>{formatTime(trailStart)}</td>}
+                                    {beheer && (<td style={{ whiteSpace: 'nowrap', padding: 8 }}><Button onClick={()=>{/* noop */}} variant="secondary">↕️</Button><Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button></td>)}
+                                  </tr>
+                                );
+                              });
+                            })()}
+                            {items.length === 0 && (<tr><td colSpan={beheer ? 6 : 5} style={{ color: '#777', padding: '18px 8px' }}>Nog geen inschrijvingen voor deze klasse.</td></tr>)}
+                          </tbody>
+                        </table>
+
+                        {beheer && (
+                          <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: '#fcfeff', border: '1px dashed #e6f2ff' }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Pauzes voor {KLASSEN_EDIT.find(k=>k.code===klasseCode)?.label || klasseCode}</div>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}><small style={{ color: '#666' }}>Huidige pauzes:</small></div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {(pauses[klasseCode] || []).map((p, i) => (
+                                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                  <div style={{ fontSize: 13 }}>Na {p.afterIndex} starts — {p.minutes} min</div>
+                                  <Button variant="secondary" onClick={()=>{ setPauses(prev => { const copy = { ...(prev || {}) }; copy[klasseCode] = (copy[klasseCode] || []).filter((_,idx)=>idx !== i); return copy; }); }}>Verwijder</Button>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <input type="number" placeholder="Na (count)" id={`pause-after-${klasseCode}`} style={{ width: 100 }} />
+                              <input type="number" placeholder="Minuten" id={`pause-min-${klasseCode}`} style={{ width: 100 }} />
+                              <Button onClick={()=>{ const elA = document.getElementById(`pause-after-${klasseCode}`); const elM = document.getElementById(`pause-min-${klasseCode}`); const after = Number(elA?.value || 0); const minutes = Number(elM?.value || 0); if (!Number.isFinite(after) || !Number.isFinite(minutes)) return; setPauses(prev => { const copy = { ...(prev || {}) }; copy[klasseCode] = copy[klasseCode] || []; copy[klasseCode].push({ afterIndex: after, minutes }); return copy; }); if (elA) elA.value = ''; if (elM) elM.value = ''; }}>Voeg pauze toe</Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </main>
+
+        <aside style={{ background: '#fff', borderRadius: 12, padding: 14, border: '1px solid #eef6ff' }}>
+          <h3 style={{ marginTop: 0 }}>Preview & uitleg</h3>
+          <p style={{ color: '#444', marginTop: 6 }}>Trail offset geeft aan hoeveel minuten na de dressuur-starttijd de trail begint voor die start. Pauzes voegen extra minuten toe op de planning na een gegeven positie.</p>
+          <div style={{ marginTop: 8, fontWeight: 700 }}>Huidige instellingen</div>
+          <div style={{ fontSize: 13, color: '#333', marginTop: 6 }}>Dressuur start: <b>{scheduleConfig.dressuurStart || '—'}</b><br/>Interval: <b>{scheduleConfig.interval} min</b><br/>Trail offset: <b>{scheduleConfig.trailOffset} min</b></div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 700 }}>Voorbeeld export (eerste klasse)</div>
+            <div style={{ marginTop: 8 }}>
+              {(() => {
+                const first = (klasseOrder || [])[0];
+                if (!first) return <div style={{ color: '#777' }}>Geen klasse geselecteerd</div>;
+                const items = grouped.get(first) || [];
+                const times = computeStartTimes(items, first);
+                return (
+                  <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+                    <thead><tr><th style={{ textAlign: 'left' }}>#</th><th style={{ textAlign: 'left' }}>Ruiter</th><th style={{ textAlign: 'left' }}>Starttijd</th><th style={{ textAlign: 'left' }}>Trail</th></tr></thead>
+                    <tbody>
+                      {items.slice(0,5).map((it, i) => (<tr key={it.id}><td>{formatStartnummer(it) || (it.startnummer || i+1)}</td><td>{it.ruiter || '—'}</td><td>{formatTime(times[i])}</td><td>{times[i] ? formatTime(new Date(times[i].getTime() + (Number(scheduleConfig.trailOffset||0)*60000))) : ''}</td></tr>))}
+                      {items.length === 0 && <tr><td colSpan={4} style={{ color: '#777' }}>Geen inschrijvingen</td></tr>}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
+  );
   );
 }
