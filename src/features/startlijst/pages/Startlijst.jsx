@@ -154,7 +154,7 @@ export default function Startlijst() {
     } finally {
       setBusy(false);
     }
-  }, [selectedWedstrijdId, klasseFilter, catFilter]);
+  }, [selectedWedstrijdId, klasseFilter]);
 
   useEffect(() => {
     fetchRows();
@@ -311,7 +311,7 @@ export default function Startlijst() {
       const { error } = await supabase.from("inschrijvingen").insert({
         wedstrijd_id: selectedWedstrijdId,
         klasse: klasseFilter || null,
-        categorie: catFilter || "senior", // default
+        categorie: null,
         ruiter: "",
         paard: "",
         email: "",
