@@ -448,17 +448,18 @@ export default function Startlijst() {
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: "32px auto", padding: '0 16px' }}>
-      <h2>Startlijst</h2>
+    <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: 28 }}>
+      <div style={{ maxWidth: 900, background: '#fff', borderRadius: 16, boxShadow: '0 6px 24px #20457422', margin: '0 auto', padding: '30px 28px', fontFamily: 'system-ui, sans-serif' }}>
+        <h2 style={{ fontSize: 28, fontWeight: 900, color: '#204574', marginBottom: 14 }}>Startlijst per klasse</h2>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr auto auto auto",
-          gap: 8,
-          alignItems: "end",
-        }}
-      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr auto auto auto",
+            gap: 8,
+            alignItems: "end",
+          }}
+        >
         <div>
           <label style={{ display: "block", fontSize: 12, color: "#666" }}>
             Wedstrijd
@@ -606,17 +607,17 @@ export default function Startlijst() {
                   </div>
 
                   <div ref={el => refs.current[klasseCode] = el}>
-                    <table width="100%" cellPadding={6} style={{ borderCollapse: 'collapse', fontSize: 14 }}>
+                    <table width="100%" cellPadding={6} style={{ borderCollapse: 'collapse', fontSize: 14, background: '#fafdff', borderRadius: 8 }}>
                       <thead>
-                        <tr style={{ background: '#f7f7f7' }}>
-                          <th style={{ borderBottom: '1px solid #eee', width: 60, padding: 8 }}>#</th>
-                          <th style={{ borderBottom: '1px solid #eee', padding: 8 }}>Ruiter</th>
-                          <th style={{ borderBottom: '1px solid #eee', padding: 8 }}>Paard</th>
-                          <th style={{ borderBottom: '1px solid #eee', width: 160, padding: 8 }}>Categorie</th>
-                          <th style={{ borderBottom: '1px solid #eee', padding: 8 }}>Email</th>
-                          <th style={{ borderBottom: '1px solid #eee', padding: 8 }}>Omroeper</th>
-                          <th style={{ borderBottom: '1px solid #eee', padding: 8 }}>Opmerkingen</th>
-                          {beheer && <th style={{ borderBottom: '1px solid #eee', width: 120, padding: 8 }}>Acties</th>}
+                        <tr style={{ background: '#dfeffd', color: '#174174' }}>
+                          <th style={{ borderBottom: '1px solid #e0edf8', width: 60, padding: 8 }}>#</th>
+                          <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Ruiter</th>
+                          <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Paard</th>
+                          <th style={{ borderBottom: '1px solid #e0edf8', width: 160, padding: 8 }}>Categorie</th>
+                          <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Email</th>
+                          <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Omroeper</th>
+                          <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Opmerkingen</th>
+                          {beheer && <th style={{ borderBottom: '1px solid #e0edf8', width: 120, padding: 8 }}>Acties</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -675,6 +676,7 @@ export default function Startlijst() {
           {/* Removed public formulier link: ruiters should use the public site directly */}
         </>
       )}
+      </div>
     </div>
   );
 }
