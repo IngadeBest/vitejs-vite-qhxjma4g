@@ -30,6 +30,32 @@ body {
   min-height: 100vh;
 }
 
+/* WorkingPoint UI tokens */
+.wp-btn {
+  background: #2b6cb0; /* blue */
+  color: #fff;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+  font-weight: 700;
+  cursor: pointer;
+}
+.wp-btn.secondary { background: #f3f6fb; color: #213547; border: 1px solid #dbeafe; }
+.wp-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.wp-input { border: 1px solid #e6edf3; padding: 0.45rem 0.6rem; border-radius: 6px; width: 100%; }
+.wp-input:focus { outline: 3px solid rgba(43,108,176,0.15); }
+.wp-card { background: #fff; border: 1px solid #eef2f6; border-radius: 8px; padding: 16px; box-shadow: 0 6px 18px rgba(16,39,84,0.04); margin-bottom: 16px; }
+.wp-card.info { background: #f0f7ff; border-color: #dbeeff; }
+
+/* Tables used in Uitslagen */
+.wp-table { width: 100%; border-collapse: collapse; }
+.wp-table th, .wp-table td { padding: 10px 12px; border-top: 1px solid #eef2f6; }
+.wp-table thead th { background: #f7f9fb; position: sticky; top: 0; z-index: 2; text-align: left; }
+.wp-table tbody tr:hover { background: #fbfdff; }
+.wp-table tbody td[align="right"] { text-align: right; }
+
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;

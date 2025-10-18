@@ -1,3 +1,4 @@
-export function Input(props) {
-  return <input className="border rounded px-2 py-1 w-full" {...props} />;
+export function Input({ className = '', ...props }) {
+  const cls = `wp-input ${className}`.trim();
+  return <input className={cls} {...props} />;
 }

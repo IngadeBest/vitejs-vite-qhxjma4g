@@ -83,12 +83,12 @@ export default function Tussenstand() {
         {rows.length === 0 ? (
           <div style={{ color:"#666" }}>Nog geen scores voor deze selectie.</div>
         ) : (
-          <table width="100%" cellPadding={8} style={{ borderCollapse:"collapse" }}>
+          <table className="wp-table" cellPadding={8}>
             <thead>
-              <tr style={{ background:"#f7f7f7" }}>
-                <th align="left">Pl.</th>
-                <th align="left">Ruiter</th>
-                <th align="left">Paard</th>
+              <tr>
+                <th>Pl.</th>
+                <th>Ruiter</th>
+                <th>Paard</th>
                 <th align="right">Dressuur</th>
                 <th align="right">Stijl</th>
                 <th align="right">Speed</th>

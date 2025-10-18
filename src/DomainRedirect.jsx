@@ -8,7 +8,7 @@ import { useLocation } from "react-router-dom";
  *
  * Werkt met HashRouter (leest pad uit window.location.hash).
  * - Op MAIN: root => /formulier, alles behalve /formulier|/contact => door naar APP
- * - Op APP : root => /startlijst, /formulier|/contact => door naar MAIN
+ * - Op APP : root => /startlijst, /contact => door naar MAIN (wijziging: /formulier blijft op app.* voor beheer)
  */
 export default function DomainRedirect() {
   const mounted = useRef(false);
@@ -42,12 +42,13 @@ export default function DomainRedirect() {
     };
 
     if (APP.has(host)) {
-      // Op app.*: root => /startlijst; /formulier|/contact => naar MAIN
+      // Op app.*: root => /startlijst; /contact => naar MAIN
+      // Let op: /formulier blijft op app.* zodat beheer de InschrijfFormulier kan tonen.
       if (path === "/") {
         if (hash !== "#/startlijst") window.location.replace("#/startlijst");
         return;
       }
-      if (path.startsWith("/formulier") || path.startsWith("/contact")) {
+      if (path.startsWith("/contact")) {
         go("workingpoint.nl", path, query);
         return;
       }
