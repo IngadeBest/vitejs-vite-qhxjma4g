@@ -55,6 +55,12 @@ body {
 .wp-table tbody tr:hover { background: #fbfdff; }
 .wp-table tbody td[align="right"] { text-align: right; }
 
+/* Alerts */
+.wp-alert { border-radius: 8px; padding: 10px 12px; margin-top: 12px; font-weight: 600; }
+.wp-alert-success { background: #f6ffed; border: 1px solid #b7eb8f; color: #235124; }
+.wp-alert-error { background: #fff1f0; border: 1px solid #ffa39e; color: #610b0b; }
+.wp-alert-info { background: #f0f7ff; border: 1px solid #dbeeff; color: #083344; }
+
 
 h1 {
   font-size: 3.2em;

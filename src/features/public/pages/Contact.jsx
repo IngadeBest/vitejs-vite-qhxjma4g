@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Alert } from "@/ui/alert";
 
 /**
  * Eenvoudig contactformulier:
@@ -126,7 +127,7 @@ export default function Contact() {
         </button>
       </form>
 
-      {err && <div style={{ marginTop: 12, color: "crimson" }}>{String(err)}</div>}
+  {err && <Alert type="error">{String(err)}</Alert>}
     </div>
   );
 }

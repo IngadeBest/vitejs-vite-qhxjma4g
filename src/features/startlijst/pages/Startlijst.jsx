@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
+import { Alert } from "@/ui/alert";
+import { Button } from "@/ui/button";
 
 // Klassen (incl. WE2+ = 'we2p')
 const KLASSEN = [
@@ -307,22 +309,22 @@ export default function Startlijst() {
           Beheer-modus
         </label>
 
-        <button onClick={fetchRows} disabled={busy || !selectedWedstrijdId}>
+        <Button onClick={fetchRows} disabled={busy || !selectedWedstrijdId}>
           {busy ? "Vernieuwen..." : "Vernieuw"}
-        </button>
+        </Button>
 
         {beheer && (
-          <button
+          <Button
             onClick={saveChanges}
             disabled={busy || !selectedWedstrijdId || !changed.size}
           >
             {busy ? "Opslaan..." : `Opslaan (${changed.size || 0})`}
-          </button>
+          </Button>
         )}
       </div>
 
-      {err && <div style={{ marginTop: 12, color: "crimson" }}>{String(err)}</div>}
-      {msg && <div style={{ marginTop: 12, color: "#0a7", fontWeight: 600 }}>{msg}</div>}
+  {err && <Alert type="error">{String(err)}</Alert>}
+  {msg && <Alert type={String(msg).toLowerCase().includes('fout') ? 'error' : 'success'}>{msg}</Alert>}
 
       {!selectedWedstrijdId && (
         <div style={{ marginTop: 16, color: "#555" }}>

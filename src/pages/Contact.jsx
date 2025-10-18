@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Alert } from "@/ui/alert";
 
 export default function Contact() {
   const [form, setForm] = useState({ naam: "", email: "", bericht: "" });
@@ -41,14 +42,10 @@ export default function Contact() {
       </p>
 
       {done && (
-        <div style={{ margin: "12px 0", color: "#0a7", fontWeight: 600 }}>
-          Dank je! We hebben je bericht ontvangen en reageren zo snel mogelijk.
-        </div>
+        <Alert type="success">Dank je! We hebben je bericht ontvangen en reageren zo snel mogelijk.</Alert>
       )}
       {err && (
-        <div style={{ margin: "12px 0", color: "crimson" }}>
-          {String(err)}
-        </div>
+        <Alert type="error">{String(err)}</Alert>
       )}
 
       <form

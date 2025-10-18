@@ -6,6 +6,7 @@ import { notifyOrganisator } from "@/lib/notifyOrganisator";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Card } from "@/ui/card";
+import { Alert } from "@/ui/alert";
 
 // Klassen incl. WE2+
 const KLASSEN = [
@@ -212,7 +213,7 @@ export default function PublicInschrijven() {
       </form>
       </Card>
 
-      {err && <div style={{ marginTop: 12, color: "crimson" }}>{String(err)}</div>}
+  {err && <Alert type="error">{String(err)}</Alert>}
     </div>
   );
 }

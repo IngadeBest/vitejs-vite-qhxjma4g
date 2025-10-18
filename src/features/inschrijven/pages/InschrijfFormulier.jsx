@@ -4,6 +4,7 @@ import { useWedstrijden } from "./hooks/useWedstrijden";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Card } from "@/ui/card";
+import { Alert } from "@/ui/alert";
 
 const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
@@ -109,7 +110,7 @@ export default function InschrijfFormulier() {
       </form>
       </Card>
 
-      {msg && <div style={{ marginTop: 12, padding: 10, background:"#f6ffed", border:"1px solid #b7eb8f", borderRadius: 8 }}>{msg}</div>}
+  {msg && <Alert type={msg.startsWith('Fout') ? 'error' : 'success'}>{msg}</Alert>}
     </div>
   );
 }
