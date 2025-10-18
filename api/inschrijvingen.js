@@ -36,6 +36,7 @@ export default async function handler(req, res) {
 
     const payload = {
       wedstrijd_id,
+      wedstrijd: b.wedstrijd || wedstrijd.naam || null, // denormalized name for readability
       klasse: b.klasse,
       categorie: b.categorie,
       ruiter: b.ruiter || null,
