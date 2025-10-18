@@ -448,7 +448,7 @@ export default function Startlijst() {
   }
 
   return (
-    <div style={{ maxWidth: 1200, margin: "24px auto" }}>
+    <div style={{ maxWidth: 1100, margin: "32px auto", padding: '0 16px' }}>
       <h2>Startlijst</h2>
 
       <div
@@ -564,10 +564,10 @@ export default function Startlijst() {
             </div>
             {beheer && (
               <>
-                <button onClick={addRow} disabled={busy}>Nieuwe inschrijving</button>
-                <button onClick={renumber} disabled={busy || visible.length === 0}>
+                <Button onClick={addRow} disabled={busy} variant="secondary">Nieuwe inschrijving</Button>
+                <Button onClick={renumber} disabled={busy || visible.length === 0} variant="secondary">
                   Startnummers hernummeren
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -576,16 +576,31 @@ export default function Startlijst() {
             {(klasseOrder || []).map(klasseCode => {
               const items = grouped.get(klasseCode) || [];
               return (
-                <div key={klasseCode} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff', boxShadow: '0 6px 18px rgba(12,40,80,0.04)' }}>
+                <div key={klasseCode}
+                  draggable={true}
+                  onDragStart={(e)=>{ e.dataTransfer.setData('text/plain', klasseCode); e.dataTransfer.effectAllowed='move'; setDraggingId(klasseCode); }}
+                  onDragOver={(e)=>e.preventDefault()}
+                  onDrop={(e)=>{ e.preventDefault(); const code = e.dataTransfer.getData('text/plain'); if (code) {
+                    // move dropped class to this index
+                    const from = klasseOrder.indexOf(code);
+                    const to = klasseOrder.indexOf(klasseCode);
+                    if (from !== -1 && to !== -1 && from !== to) {
+                      const copy = [...klasseOrder];
+                      const [it] = copy.splice(from,1);
+                      copy.splice(to, 0, it);
+                      setKlasseOrder(copy);
+                    }
+                  } setDraggingId(null); }}
+                  style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff', boxShadow: draggingId === klasseCode ? '0 10px 30px rgba(12,40,80,0.08)' : '0 6px 18px rgba(12,40,80,0.04)', cursor: 'grab' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                     <div style={{ fontWeight: 800, fontSize: 16 }}>{KLASSEN_EDIT.find(k => k.code === klasseCode)?.label || (klasseCode === 'onbekend' ? 'Onbekend' : klasseCode)}</div>
                     <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <button title="Verplaats klasse omhoog" onClick={() => moveClass(klasseCode, -1)} style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid #e6eefb', background: '#fff' }}>↑</button>
-                      <button title="Verplaats klasse omlaag" onClick={() => moveClass(klasseCode, 1)} style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid #e6eefb', background: '#fff' }}>↓</button>
+                      <Button title="Verplaats klasse omhoog" onClick={() => moveClass(klasseCode, -1)} variant="secondary">↑</Button>
+                      <Button title="Verplaats klasse omlaag" onClick={() => moveClass(klasseCode, 1)} variant="secondary">↓</Button>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => handleExportExcel(klasseCode)} style={{ padding: '6px 10px' }}>Export Excel</button>
-                        <button onClick={() => handleExportPDF(klasseCode)} style={{ padding: '6px 10px' }}>Export PDF</button>
-                        <button onClick={() => handleExportAfbeelding(klasseCode)} style={{ padding: '6px 10px' }}>Export afbeelding</button>
+                        <Button onClick={() => handleExportExcel(klasseCode)} variant="secondary">Export Excel</Button>
+                        <Button onClick={() => handleExportPDF(klasseCode)} variant="secondary">Export PDF</Button>
+                        <Button onClick={() => handleExportAfbeelding(klasseCode)} variant="secondary">Export afbeelding</Button>
                       </div>
                     </div>
                   </div>
@@ -640,8 +655,8 @@ export default function Startlijst() {
                             <td style={{ padding: 8 }}>{beheer ? <input value={r.opmerkingen || ''} onChange={(e)=>onCellChange(r.id, 'opmerkingen', e.target.value)} style={{ width: '100%' }} /> : (r.opmerkingen || '—')}</td>
                             {beheer && (
                               <td style={{ whiteSpace: 'nowrap', padding: 8 }}>
-                                <button onClick={()=>{/* noop: explicit move via drag/drop preferred */}}>↕️</button>
-                                <button onClick={()=>deleteRow(r.id)} style={{ color: 'crimson' }}>Verwijderen</button>
+                                <Button onClick={()=>{/* noop: explicit move via drag/drop preferred */}} variant="secondary">↕️</Button>
+                                <Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button>
                               </td>
                             )}
                           </tr>
