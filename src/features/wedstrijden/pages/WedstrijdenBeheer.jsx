@@ -7,8 +7,11 @@ const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
   { code: "we1", label: "WE1" },
   { code: "we2", label: "WE2" },
+  { code: "we2p", label: "WE2+" },
   { code: "we3", label: "WE3" },
   { code: "we4", label: "WE4" },
+  { code: "yr", label: "Young Riders" },
+  { code: "junior", label: "Junioren" },
 ];
 const ONDERDELEN = [
   { code: "dressuur", label: "Dressuur" },
@@ -22,6 +25,7 @@ export default function WedstrijdenBeheer() {
   // nieuw.organisator_email optionally
   const [nieuwEmail, setNieuwEmail] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [showNew, setShowNew] = useState(false);
   const gekozen = useMemo(() => wedstrijden.find(w => w.id === selectedId) || null, [selectedId, wedstrijden]);
 
   const [cfg, setCfg] = useState({
@@ -72,6 +76,8 @@ export default function WedstrijdenBeheer() {
     if (!gekozen) {
       setAllowedKlassen([]);
       setStartlijstConfig({ dressuurStart: '', interval: 7, trailOffset: 0, pauses: [] });
+      // keep the new-form collapsed when no selection
+      setShowNew(false);
       return;
     }
   // expected shape: gekozen.allowed_klassen (array)
@@ -172,23 +178,32 @@ export default function WedstrijdenBeheer() {
         </h2>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, marginBottom: 18 }}>
-          <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
-            <div style={{ fontWeight: 800, marginBottom: 8 }}>Nieuwe wedstrijd</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 1fr', gap: 8, alignItems: 'center' }}>
-              <input placeholder="Naam*" value={nieuw.naam} onChange={(e)=>setNieuw(s=>({...s, naam:e.target.value}))} />
-              <input type="date" value={nieuw.datum} onChange={(e)=>setNieuw(s=>({...s, datum:e.target.value}))} />
-              <input placeholder="Locatie" value={nieuw.locatie} onChange={(e)=>setNieuw(s=>({...s, locatie:e.target.value}))} />
-              <input placeholder="Organisator e-mail" value={nieuwEmail} onChange={(e)=>setNieuwEmail(e.target.value)} />
-              <select value={nieuw.status} onChange={(e)=>setNieuw(s=>({...s, status:e.target.value}))}>
-                <option value="open">open</option>
-                <option value="gesloten">gesloten</option>
-                <option value="archief">archief</option>
-              </select>
-              <div></div>
+          <div style={{ padding: 12 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ fontWeight: 800 }}>Nieuwe wedstrijd</div>
+              <div style={{ marginLeft: 'auto' }}>
+                <button onClick={()=>setShowNew(s=>!s)}>{showNew ? 'Verberg nieuw' : 'Nieuwe wedstrijd'}</button>
+              </div>
             </div>
-            <div style={{ marginTop: 10 }}>
-              <button onClick={addWedstrijd} disabled={!nieuw.naam}>Aanmaken</button>
-            </div>
+            {showNew && (
+              <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 1fr', gap: 8, alignItems: 'center' }}>
+                  <input placeholder="Naam*" value={nieuw.naam} onChange={(e)=>setNieuw(s=>({...s, naam:e.target.value}))} />
+                  <input type="date" value={nieuw.datum} onChange={(e)=>setNieuw(s=>({...s, datum:e.target.value}))} />
+                  <input placeholder="Locatie" value={nieuw.locatie} onChange={(e)=>setNieuw(s=>({...s, locatie:e.target.value}))} />
+                  <input placeholder="Organisator e-mail" value={nieuwEmail} onChange={(e)=>setNieuwEmail(e.target.value)} />
+                  <select value={nieuw.status} onChange={(e)=>setNieuw(s=>({...s, status:e.target.value}))}>
+                    <option value="open">open</option>
+                    <option value="gesloten">gesloten</option>
+                    <option value="archief">archief</option>
+                  </select>
+                  <div></div>
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <button onClick={addWedstrijd} disabled={!nieuw.naam}>Aanmaken</button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
@@ -250,7 +265,11 @@ export default function WedstrijdenBeheer() {
 
       
 
-      <ProefEditor cfg={cfg} setCfg={setCfg} saveProef={saveProef} gekozen={gekozen} />
+      {gekozen ? (
+        <ProefEditor cfg={cfg} setCfg={setCfg} saveProef={saveProef} gekozen={gekozen} />
+      ) : (
+        <div style={{ marginTop: 12, color: '#666' }}>Selecteer een bestaande wedstrijd om proeven toe te voegen.</div>
+      )}
 
       {msg && <div style={{ marginTop: 12, color: "#333" }}>{msg}</div>}
       {migrationSql && (
