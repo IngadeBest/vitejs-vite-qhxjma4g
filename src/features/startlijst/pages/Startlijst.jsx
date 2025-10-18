@@ -192,9 +192,42 @@ export default function Startlijst() {
   };
 
   const renumber = () => {
-    setEditRows(list => list.map((r, i) => ({ ...r, startnummer: i + 1 })));
-    // markeer alles gewijzigd
-    setChanged(new Set(editRows.map(r => r.id)));
+    // per-klasse renumber volgens schema: weX -> X01, X02, ... (WE1 -> 101, 102)
+    const getDigit = (code) => {
+      if (!code) return null;
+      const m = String(code).toLowerCase().match(/we(\d)/);
+      return m ? Number(m[1]) : null;
+    };
+    const byClass = new Map();
+    editRows.forEach(r => {
+      const k = r.klasse || 'onbekend';
+      if (!byClass.has(k)) byClass.set(k, []);
+      byClass.get(k).push(r);
+    });
+    // sort each group reliably
+    for (const [k, arr] of byClass.entries()) {
+      arr.sort((a,b)=>{
+        const aNum = a.startnummer == null ? Infinity : Number(a.startnummer);
+        const bNum = b.startnummer == null ? Infinity : Number(b.startnummer);
+        if (aNum !== bNum) return aNum - bNum;
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+    }
+    const newRows = editRows.map(r => {
+      const k = r.klasse || 'onbekend';
+      const arr = byClass.get(k) || [];
+      const idx = arr.findIndex(x => x.id === r.id);
+      const digit = getDigit(k);
+      if (digit != null && idx >= 0) {
+        const num = digit * 100 + (idx + 1);
+        return { ...r, startnummer: num };
+      }
+      // fallback: sequential across group
+      if (idx >= 0) return { ...r, startnummer: idx + 1 };
+      return r;
+    });
+    setEditRows(newRows);
+    setChanged(new Set(newRows.map(r => r.id)));
     setMsg("Startnummers hernummerd (nog niet opgeslagen).");
   };
 
@@ -221,6 +254,12 @@ export default function Startlijst() {
           opmerkingen: r.opmerkingen || null,
           startnummer: r.startnummer != null && r.startnummer !== "" ? Number(r.startnummer) : null,
         }));
+
+      // Validation: startnummers must be unique per wedstrijd and max 3 digits
+      const nums = toSave.map(s => s.startnummer).filter(n => n != null);
+      const dup = nums.find((n,i) => nums.indexOf(n) !== i);
+      if (dup) throw new Error('Startnummers moeten uniek zijn binnen de wedstrijd. Dubbel: ' + dup);
+      if (nums.some(n => Math.abs(Number(n)) > 999)) throw new Error('Startnummers mogen maximaal 3 cijfers bevatten (0-999).');
 
       const { error } = await supabase.from("inschrijvingen").upsert(toSave, { onConflict: "id" });
       if (error) throw error;
@@ -308,6 +347,21 @@ export default function Startlijst() {
     }
     return map;
   }, [visible]);
+
+  function formatStartnummer(r) {
+    const raw = r?.startnummer;
+    const klasse = r?.klasse || '';
+    if (raw == null || raw === '') return '';
+    const num = Number(raw);
+    if (Number.isNaN(num)) return String(raw);
+    const m = String(klasse).toLowerCase().match(/we(\d)/);
+    const padded = String(num).padStart(3, '0');
+    if (m) {
+      const prefix = m[1];
+      return `WE${prefix} ${padded}`;
+    }
+    return padded;
+  }
 
   // Export helpers
   function handleExportExcel(klasseCode) {
@@ -485,7 +539,7 @@ export default function Startlijst() {
               <>
                 <button onClick={addRow} disabled={busy}>Nieuwe inschrijving</button>
                 <button onClick={renumber} disabled={busy || visible.length === 0}>
-                  Startnummers hernummeren 1..n
+                  Startnummers hernummeren
                 </button>
               </>
             )}
@@ -506,7 +560,7 @@ export default function Startlijst() {
                   </div>
 
                   <div ref={el => refs.current[klasseCode] = el}>
-                    <table width="100%" cellPadding={6} style={{ borderCollapse: 'collapse', fontSize: 14 }}>
+                    <table width="100%" cellPadding={6} style={{ borderCollapse: 'collapse', fontSize: 14, paddingLeft: 6 }}>
                       <thead>
                         <tr style={{ background: '#f7f7f7' }}>
                           <th style={{ borderBottom: '1px solid #eee', width: 60 }}>#</th>
@@ -541,7 +595,7 @@ export default function Startlijst() {
                                 </button>
                                 <input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} />
                               </>
-                            ) : (r.startnummer ?? idx + 1)}</td>
+                            ) : (formatStartnummer(r) || (r.startnummer ?? idx + 1))}</td>
                             <td>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>
                             <td>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>
                             <td>{beheer ? (
@@ -572,14 +626,7 @@ export default function Startlijst() {
             })}
           </div>
 
-          {!!gekozen && (
-            <div style={{ marginTop: 12, fontSize: 12, color: "#666" }}>
-              Formulier-link voor ruiters:{" "}
-              <code>
-                {location.origin}/#/formulier?wedstrijdId={gekozen.id}
-              </code>
-            </div>
-          )}
+          {/* Removed public formulier link: ruiters should use the public site directly */}
         </>
       )}
     </div>
