@@ -32,6 +32,9 @@ export default function WedstrijdenBeheer() {
   const [msg, setMsg] = useState("");
   const [allowedKlassen, setAllowedKlassen] = useState([]);
   const [klasseCategorieen, setKlasseCategorieen] = useState({});
+  const [migrationSql, setMigrationSql] = useState("");
+
+  const MIGRATION_SQL = `-- add allowed_klassen and klasse_categorieen to wedstrijden\nALTER TABLE IF EXISTS wedstrijden\n  ADD COLUMN IF NOT EXISTS allowed_klassen jsonb DEFAULT '[]'::jsonb,\n  ADD COLUMN IF NOT EXISTS klasse_categorieen jsonb DEFAULT '{}'::jsonb;`;
 
   async function addWedstrijd() {
     setMsg("");
@@ -127,9 +130,13 @@ export default function WedstrijdenBeheer() {
       }).eq("id", gekozen.id);
       if (error) throw error;
       setMsg("Wedstrijd instellingen opgeslagen ✔️");
+      setMigrationSql("");
     } catch (e) {
       // likely column doesn't exist — instruct admin to run DB migration
-      setMsg("Opslaan mislukt: " + (e?.message || String(e)) + " — controleer of de kolommen 'allowed_klassen' en 'klasse_categorieen' bestaan in de tabel 'wedstrijden'.");
+      const em = (e?.message || String(e));
+      const hint = "Controleer of de kolommen 'allowed_klassen' en 'klasse_categorieen' bestaan in de tabel 'wedstrijden'.";
+      setMsg("Opslaan mislukt: " + em + " — " + hint);
+      setMigrationSql(MIGRATION_SQL);
     }
   }
 
@@ -285,6 +292,16 @@ export default function WedstrijdenBeheer() {
       </section>
 
       {msg && <div style={{ marginTop: 12, color: "#333" }}>{msg}</div>}
+      {migrationSql && (
+        <section style={{marginTop:12, border:'1px dashed #e2e8f0', padding:12, borderRadius:8}}>
+          <h3 style={{marginTop:0}}>DB-migratie benodigd</h3>
+          <p style={{marginTop:4, color:'#555'}}>Kopieer onderstaande SQL en voer deze uit op je database (psql of Supabase SQL editor).</p>
+          <textarea readOnly rows={6} style={{width:'100%', fontFamily:'monospace', fontSize:13}} value={migrationSql}></textarea>
+          <div style={{marginTop:8}}>
+            <button onClick={()=>{ navigator.clipboard.writeText(migrationSql); setMsg('SQL gekopieerd naar Klembord'); }}>Kopieer SQL</button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
