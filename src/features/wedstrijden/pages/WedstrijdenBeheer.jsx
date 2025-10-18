@@ -149,7 +149,7 @@ export default function WedstrijdenBeheer() {
     }
   }
 
-  return (
+    return (
     <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: 24 }}>
       <div style={{
         maxWidth: 1000,
@@ -157,7 +157,7 @@ export default function WedstrijdenBeheer() {
         borderRadius: 12,
         boxShadow: "0 6px 18px #20457422",
         margin: "0 auto",
-        padding: "28px 24px",
+        padding: "32px 28px",
         fontFamily: "system-ui, sans-serif"
       }}>
         <h2 style={{ fontSize: 28, fontWeight: 900, color: "#204574", letterSpacing: 0.6, marginBottom: 18 }}>
@@ -186,12 +186,12 @@ export default function WedstrijdenBeheer() {
 
           <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
             <div style={{ fontWeight: 800, marginBottom: 8 }}>Selecteer wedstrijd</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <select value={selectedId} onChange={(e)=>setSelectedId(e.target.value)} disabled={loading} style={{ flex: 1 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select value={selectedId} onChange={(e)=>setSelectedId(e.target.value)} disabled={loading} style={{ flex: '1 1 auto', minWidth: 0 }}>
                 <option value="">{loading ? "Laden..." : "— kies wedstrijd —"}</option>
                 {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ""}</option>)}
               </select>
-              <button onClick={copyLink} disabled={!gekozen}>Kopieer inschrijflink</button>
+              <button onClick={copyLink} disabled={!gekozen} style={{ whiteSpace: 'nowrap' }}>Kopieer inschrijflink</button>
             </div>
             {gekozen && (
               <div style={{ marginTop: 12, fontSize: 13, color: '#444' }}>
@@ -283,32 +283,7 @@ export default function WedstrijdenBeheer() {
         </div>
       
 
-      <section style={{border:"1px solid #eee", borderRadius:12, padding:12, marginBottom:16}}>
-        <h3>Beheer bestaande wedstrijd</h3>
-        <div style={{display:"flex", gap:8, alignItems:"center"}}>
-          <select value={selectedId} onChange={(e)=>setSelectedId(e.target.value)} disabled={loading}>
-            <option value="">{loading ? "Laden..." : "— kies wedstrijd —"}</option>
-            {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ""}</option>)}
-          </select>
-          <button onClick={copyLink} disabled={!gekozen}>Kopieer inschrijflink</button>
-        </div>
-        {gekozen && (
-          <div style={{marginTop:12, fontSize:13, color:"#444"}}>
-            <div><b>Naam:</b> {gekozen.naam}</div>
-            <div><b>Datum:</b> {gekozen.datum || "—"} · <b>Status:</b> {gekozen.status}</div>
-            <div style={{marginTop:8}}>
-              <label style={{display:'block', fontSize:13, fontWeight:600, marginBottom:6}}>Organisator e-mail</label>
-              <input
-                type="email"
-                placeholder="organisator@example.com"
-                value={nieuwEmail}
-                onChange={(e)=>setNieuwEmail(e.target.value)}
-                style={{padding:6, borderRadius:6, border:'1px solid #ddd', width:320}}
-              />
-            </div>
-          </div>
-        )}
-      </section>
+      
 
       <section style={{border:"1px solid #eee", borderRadius:12, padding:12}}>
         <h3>Proeven & max scores</h3>
