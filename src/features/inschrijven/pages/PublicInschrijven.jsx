@@ -32,6 +32,8 @@ export default function PublicInschrijven() {
     wedstrijd_id: qId || "",
     klasse: "",
     categorie: "senior",
+    leeftijd_ruiter: "",
+    geslacht_paard: "",
     ruiter: "",
     paard: "",
     email: "",
@@ -65,6 +67,8 @@ export default function PublicInschrijven() {
   const disabled = useMemo(() => {
     if (!form.wedstrijd_id || !form.klasse) return true;
     if (!form.ruiter || !form.paard || !form.email) return true;
+    // leeftijd_ruiter is optional but if present must be a positive integer
+    if (form.leeftijd_ruiter && !/^[0-9]{1,3}$/.test(String(form.leeftijd_ruiter))) return true;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return true;
     return false;
   }, [form]);
@@ -79,6 +83,8 @@ export default function PublicInschrijven() {
       wedstrijd_id: form.wedstrijd_id,
       klasse: form.klasse,
       categorie: form.categorie,
+      leeftijd_ruiter: form.leeftijd_ruiter ? Number(form.leeftijd_ruiter) : null,
+      geslacht_paard: form.geslacht_paard || null,
       ruiter: form.ruiter?.trim(),
       paard: form.paard?.trim(),
       email: form.email?.trim(),
@@ -196,6 +202,17 @@ export default function PublicInschrijven() {
           onChange={(e) => setForm((s) => ({ ...s, paard: e.target.value }))}
           placeholder="Naam paard"
         />
+
+        <label htmlFor="geslacht_select">Geslacht paard</label>
+        <select id="geslacht_select" value={form.geslacht_paard} onChange={(e) => setForm((s) => ({ ...s, geslacht_paard: e.target.value }))}>
+          <option value="">— kies —</option>
+          <option value="merrie">Merrie</option>
+          <option value="ruin">Ruin</option>
+          <option value="hengst">Hengst</option>
+        </select>
+
+        <label htmlFor="leeftijd_input">Leeftijd ruiter (optioneel)</label>
+        <Input id="leeftijd_input" type="number" min="1" max="150" value={form.leeftijd_ruiter} onChange={(e)=>setForm(s=>({...s, leeftijd_ruiter: e.target.value}))} placeholder="Bijv. 32" />
 
         <label htmlFor="email_input">E-mail*</label>
         <Input

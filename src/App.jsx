@@ -9,6 +9,7 @@ import Startlijst from "@/features/startlijst/pages/Startlijst";
 import ProtocolGenerator from "@/features/protocollen/pages/ProtocolGenerator";
 import Einduitslag from "@/features/einduitslag/pages/Einduitslag";
 import Contact from "@/features/public/pages/Contact";
+import WedstrijdenBeheer from "@/features/wedstrijden/pages/WedstrijdenBeheer";
 
 const navStyle = ({ isActive }) => ({
   padding: "8px 10px",
@@ -59,10 +60,7 @@ function InnerApp() {
               <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
               <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
               <NavLink to="/uitslagen" style={navStyle}>Uitslagen</NavLink>
-              {/* Publiek (extern naar MAIN) */}
-              <a href="https://workingpoint.nl/#/formulier" style={navStyle({ isActive: false })}>
-                Inschrijven
-              </a>
+              <NavLink to="/wedstrijden" style={navStyle}>Wedstrijden</NavLink>
               <a href="https://workingpoint.nl/#/contact" style={navStyle({ isActive: false })}>
                 Contact
               </a>
@@ -82,10 +80,11 @@ function InnerApp() {
         <Route path="/formulier" element={onApp ? <InschrijfFormulier /> : <PublicInschrijven />} />
         <Route path="/contact" element={<Contact />} />
 
-        {/* Beheer */}
-        <Route path="/startlijst" element={<Startlijst />} />
-        <Route path="/protocollen" element={<ProtocolGenerator />} />
-        <Route path="/uitslagen" element={<Einduitslag />} />
+  {/* Beheer */}
+  <Route path="/startlijst" element={<Startlijst />} />
+  <Route path="/protocollen" element={<ProtocolGenerator />} />
+  <Route path="/uitslagen" element={<Einduitslag />} />
+  <Route path="/wedstrijden" element={<WedstrijdenBeheer />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/formulier" replace />} />
