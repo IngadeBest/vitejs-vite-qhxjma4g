@@ -17,9 +17,27 @@ export default function ProefEditor({ cfg, setCfg, saveProef, gekozen }) {
       const onderdeelLabel = cfg.onderdeel === 'dressuur' ? 'Dressuur' : (cfg.onderdeel === 'stijl' ? 'Stijltrail' : 'Speedtrail');
       const klasseLabel = (cfg.klasse || '').toUpperCase();
       const count = itemRows.length || 0;
-      // Suggest range for dressuur: e.g. 7-12 if count between 5-15 else single number
-      const range = count >= 2 && count <= 20 ? `${Math.max(1,count-2)}-${count+2}` : `${Math.max(1,count)}`;
-      const suggestion = `${onderdeelLabel} ${klasseLabel} ${range}`.trim();
+      // If wedstrijd datum available, format as dd-mm
+      let datePart = '';
+      try {
+        if (gekozen && gekozen.datum) {
+          const d = new Date(gekozen.datum);
+          if (!isNaN(d)) {
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            datePart = `${dd}-${mm}`;
+          }
+        }
+      } catch (_) { datePart = ''; }
+
+      let suggestion;
+      if (datePart) {
+        suggestion = `${onderdeelLabel} ${klasseLabel} ${datePart}`.trim();
+      } else {
+        // fallback to previous range-style suggestion
+        const range = count >= 2 && count <= 20 ? `${Math.max(1,count-2)}-${count+2}` : `${Math.max(1,count)}`;
+        suggestion = `${onderdeelLabel} ${klasseLabel} ${range}`.trim();
+      }
       setCfg(s => ({ ...s, proef_naam: suggestion }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
