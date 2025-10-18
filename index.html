@@ -7,6 +7,7 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>window.addEventListener('error', e=>{ try { document.body.style.background='#fff'; document.body.innerHTML = '<pre style="white-space:pre-wrap;color:#900;padding:16px">Runtime error: '+(e.error && e.error.stack ? e.error.stack : e.message)+'</pre>'; } catch(ex){} });</script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
