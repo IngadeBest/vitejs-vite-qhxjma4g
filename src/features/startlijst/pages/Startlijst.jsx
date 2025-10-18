@@ -1,9 +1,12 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { Alert } from "@/ui/alert";
 import { Button } from "@/ui/button";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 // Klassen (incl. WE2+ = 'we2p')
 const KLASSEN = [
@@ -44,6 +47,64 @@ export default function Startlijst() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
+  const refs = useRef({}); // per-klasse refs for export and PDF
+  const [draggingId, setDraggingId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
+  // Drag & drop handlers: allow reordering within the same klasse
+  function onDragStart(e, id, klasse) {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id, klasse }));
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingId(id);
+  }
+
+  function onDragOver(e) { e.preventDefault(); }
+
+  function onDragEnter(e, id) {
+    setDragOverId(id);
+  }
+
+  function onDragLeave(e) {
+    setDragOverId(null);
+  }
+
+  function onDrop(e, targetIndex, targetKlasse) {
+    e.preventDefault();
+    try {
+      const payload = JSON.parse(e.dataTransfer.getData('text/plain') || '{}');
+      const { id, klasse } = payload;
+      if (klasse !== targetKlasse) return; // only reorder within same klasse
+
+      // build class-specific list
+      const classItems = editRows.filter(r => (r.klasse || '') === targetKlasse).sort((a,b)=>{
+        const aNum = a.startnummer == null ? Infinity : Number(a.startnummer);
+        const bNum = b.startnummer == null ? Infinity : Number(b.startnummer);
+        return aNum - bNum || new Date(a.created_at) - new Date(b.created_at);
+      });
+
+      const moving = classItems.find(i => i.id === id);
+      if (!moving) return;
+      const without = classItems.filter(i => i.id !== id);
+      const nextClass = [...without.slice(0, targetIndex), moving, ...without.slice(targetIndex)];
+
+      // map back to global editRows, update startnummer for items in this class
+      setEditRows(all => all.map(r => {
+        if ((r.klasse || '') !== targetKlasse) return r;
+        const idx = nextClass.findIndex(x => x.id === r.id);
+        return { ...r, startnummer: idx >= 0 ? idx + 1 : r.startnummer };
+      }));
+
+      // mark changed all affected ids
+      setChanged(prev => {
+        const next = new Set(prev);
+        nextClass.forEach(i => next.add(i.id));
+        return next;
+      });
+      setMsg('Startvolgorde aangepast (nog niet opgeslagen)');
+      setDraggingId(null);
+      setDragOverId(null);
+    } catch (err) { console.warn('drop parse failed', err); }
+  }
 
   const gekozen = useMemo(
     () => wedstrijden.find((w) => w.id === selectedWedstrijdId) || null,
@@ -228,6 +289,65 @@ export default function Startlijst() {
 
   const visible = editRows; // filtering gebeurt al in de query
 
+  // Group rows by klasse for per-klasse sections
+  const grouped = useMemo(() => {
+    const map = new Map();
+    visible.forEach(r => {
+      const k = r.klasse || 'onbekend';
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(r);
+    });
+    for (const [k, arr] of map.entries()) {
+      arr.sort((a,b)=>{
+        const aNum = a.startnummer == null ? Infinity : Number(a.startnummer);
+        const bNum = b.startnummer == null ? Infinity : Number(b.startnummer);
+        if (aNum !== bNum) return aNum - bNum;
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+      map.set(k, arr);
+    }
+    return map;
+  }, [visible]);
+
+  // Export helpers
+  function handleExportExcel(klasseCode) {
+    const items = grouped.get(klasseCode) || [];
+    const ws = XLSX.utils.json_to_sheet(
+      items.map(item => ({
+        Startnummer: item.startnummer || '',
+        Ruiter: item.ruiter,
+        Paard: item.paard,
+        Categorie: item.categorie,
+        Email: item.email,
+        Omroeper: item.omroeper,
+        Opmerkingen: item.opmerkingen,
+      }))
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, klasseCode || 'Onbekend');
+    XLSX.writeFile(wb, `Startlijst_${klasseCode || 'onbekend'}.xlsx`);
+  }
+
+  async function handleExportPDF(klasseCode) {
+    const el = refs.current[klasseCode];
+    if (!el) return;
+    const canvas = await html2canvas(el, { backgroundColor: '#fff', scale: 2 });
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: [canvas.width, canvas.height + 60] });
+    pdf.addImage(canvas, 'PNG', 10, 30, canvas.width - 20, canvas.height - 40);
+    pdf.text(`Startlijst ${klasseCode}`, 30, 20);
+    pdf.save(`Startlijst_${klasseCode}.pdf`);
+  }
+
+  async function handleExportAfbeelding(klasseCode) {
+    const el = refs.current[klasseCode];
+    if (!el) return;
+    const canvas = await html2canvas(el, { backgroundColor: '#fff', scale: 2 });
+    const link = document.createElement('a');
+    link.download = `Startlijst_${klasseCode}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
   return (
     <div style={{ maxWidth: 1200, margin: "24px auto" }}>
       <h2>Startlijst</h2>
@@ -349,135 +469,78 @@ export default function Startlijst() {
             )}
           </div>
 
-          <div style={{ marginTop: 8 }}>
-            <table width="100%" cellPadding={6} style={{ borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ background: "#f7f7f7" }}>
-                  <th align="left" style={{ borderBottom: "1px solid #eee", width: 60 }}>#</th>
-                  <th align="left" style={{ borderBottom: "1px solid #eee" }}>Ruiter</th>
-                  <th align="left" style={{ borderBottom: "1px solid #eee" }}>Paard</th>
-                  <th align="left" style={{ borderBottom: "1px solid #eee", width: 160 }}>Klasse</th>
-                  <th align="left" style={{ borderBottom: "1px solid #eee", width: 160 }}>Categorie</th>
-                  <th align="left" style={{ borderBottom: "1px solid #eee" }}>Email</th>
-                  <th align="left" style={{ borderBottom: "1px solid #eee" }}>Omroeper</th>
-                  <th align="left" style={{ borderBottom: "1px solid #eee" }}>Opmerkingen</th>
-                  {beheer && <th align="center" style={{ borderBottom: "1px solid #eee", width: 120 }}>Acties</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((r, idx) => (
-                  <tr key={r.id} style={{ borderTop: "1px solid #f0f0f0" }}>
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      {beheer ? (
-                        <input
-                          type="number"
-                          value={r.startnummer ?? ""}
-                          onChange={(e) => onCellChange(r.id, "startnummer", e.target.value)}
-                          style={{ width: 64 }}
-                        />
-                      ) : (r.startnummer ?? idx + 1)}
-                    </td>
+          <div style={{ marginTop: 8, display: 'grid', gap: 18 }}>
+            {[...grouped.keys()].map(klasseCode => {
+              const items = grouped.get(klasseCode) || [];
+              return (
+                <div key={klasseCode} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                    <div style={{ fontWeight: 800, fontSize: 16 }}>{KLASSEN_EDIT.find(k => k.code === klasseCode)?.label || (klasseCode === 'onbekend' ? 'Onbekend' : klasseCode)}</div>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                      <button onClick={() => handleExportExcel(klasseCode)}>Export Excel</button>
+                      <button onClick={() => handleExportPDF(klasseCode)}>Export PDF</button>
+                      <button onClick={() => handleExportAfbeelding(klasseCode)}>Export afbeelding</button>
+                    </div>
+                  </div>
 
-                    <td>
-                      {beheer ? (
-                        <input
-                          value={r.ruiter || ""}
-                          onChange={(e) => onCellChange(r.id, "ruiter", e.target.value)}
-                          style={{ width: "100%" }}
-                        />
-                      ) : (r.ruiter || "—")}
-                    </td>
-
-                    <td>
-                      {beheer ? (
-                        <input
-                          value={r.paard || ""}
-                          onChange={(e) => onCellChange(r.id, "paard", e.target.value)}
-                          style={{ width: "100%" }}
-                        />
-                      ) : (r.paard || "—")}
-                    </td>
-
-                    <td>
-                      {beheer ? (
-                        <select
-                          value={r.klasse || ""}
-                          onChange={(e) => onCellChange(r.id, "klasse", e.target.value)}
-                          style={{ width: "100%" }}
-                        >
-                          <option value="">— kies klasse —</option>
-                          {KLASSEN_EDIT.map(k => (
-                            <option key={k.code} value={k.code}>{k.label}</option>
-                          ))}
-                        </select>
-                      ) : (KLASSEN_EDIT.find(k => k.code === r.klasse)?.label || r.klasse || "—")}
-                    </td>
-
-                    <td>
-                      {beheer ? (
-                        <select
-                          value={r.categorie || ""}
-                          onChange={(e) => onCellChange(r.id, "categorie", e.target.value)}
-                          style={{ width: "100%" }}
-                        >
-                          <option value="">— kies categorie —</option>
-                          {CATS_EDIT.map(c => (
-                            <option key={c.code} value={c.code}>{c.label}</option>
-                          ))}
-                        </select>
-                      ) : (CAT_LABEL[r.categorie] || r.categorie || "—")}
-                    </td>
-
-                    <td>
-                      {beheer ? (
-                        <input
-                          type="email"
-                          value={r.email || ""}
-                          onChange={(e) => onCellChange(r.id, "email", e.target.value)}
-                          style={{ width: "100%" }}
-                        />
-                      ) : (r.email || "—")}
-                    </td>
-
-                    <td>
-                      {beheer ? (
-                        <input
-                          value={r.omroeper || ""}
-                          onChange={(e) => onCellChange(r.id, "omroeper", e.target.value)}
-                          style={{ width: "100%" }}
-                          placeholder="Tekst voor omroeper"
-                        />
-                      ) : (r.omroeper || "—")}
-                    </td>
-
-                    <td>
-                      {beheer ? (
-                        <input
-                          value={r.opmerkingen || ""}
-                          onChange={(e) => onCellChange(r.id, "opmerkingen", e.target.value)}
-                          style={{ width: "100%" }}
-                        />
-                      ) : (r.opmerkingen || "—")}
-                    </td>
-
-                    {beheer && (
-                      <td align="center" style={{ whiteSpace: "nowrap" }}>
-                        <button onClick={() => moveRow(idx, -1)} disabled={idx === 0}>↑</button>{" "}
-                        <button onClick={() => moveRow(idx, +1)} disabled={idx === visible.length - 1}>↓</button>{" "}
-                        <button onClick={() => deleteRow(r.id)} style={{ color: "crimson" }}>Verwijderen</button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {visible.length === 0 && (
-                  <tr>
-                    <td colSpan={beheer ? 9 : 8} style={{ color: "#777", padding: "18px 8px" }}>
-                      Nog geen inschrijvingen voor deze selectie.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  <div ref={el => refs.current[klasseCode] = el}>
+                    <table width="100%" cellPadding={6} style={{ borderCollapse: 'collapse', fontSize: 14 }}>
+                      <thead>
+                        <tr style={{ background: '#f7f7f7' }}>
+                          <th style={{ borderBottom: '1px solid #eee', width: 60 }}>#</th>
+                          <th style={{ borderBottom: '1px solid #eee' }}>Ruiter</th>
+                          <th style={{ borderBottom: '1px solid #eee' }}>Paard</th>
+                          <th style={{ borderBottom: '1px solid #eee', width: 160 }}>Categorie</th>
+                          <th style={{ borderBottom: '1px solid #eee' }}>Email</th>
+                          <th style={{ borderBottom: '1px solid #eee' }}>Omroeper</th>
+                          <th style={{ borderBottom: '1px solid #eee' }}>Opmerkingen</th>
+                          {beheer && <th style={{ borderBottom: '1px solid #eee', width: 120 }}>Acties</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((r, idx) => (
+                          <tr key={r.id}
+                            draggable={beheer}
+                            onDragStart={(e)=>onDragStart(e, r.id, klasseCode)}
+                            onDragOver={onDragOver}
+                            onDragEnter={(e)=>onDragEnter(e, r.id)}
+                            onDragLeave={onDragLeave}
+                            onDrop={(e)=>onDrop(e, idx, klasseCode)}
+                            style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1 }}>
+                            <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center' }}>{beheer ? (
+                              <>
+                                <button aria-label="handle" style={{ cursor: 'grab', padding: 4 }}>≡</button>
+                                <input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} />
+                              </>
+                            ) : (r.startnummer ?? idx + 1)}</td>
+                            <td>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>
+                            <td>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>
+                            <td>{beheer ? (
+                              <select value={r.categorie || ''} onChange={(e)=>onCellChange(r.id, 'categorie', e.target.value)} style={{ width: '100%' }}>
+                                <option value="">— kies categorie —</option>
+                                {CATS_EDIT.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+                              </select>
+                            ) : (CAT_LABEL[r.categorie] || r.categorie || '—')}</td>
+                            <td>{beheer ? <input type="email" value={r.email || ''} onChange={(e)=>onCellChange(r.id, 'email', e.target.value)} style={{ width: '100%' }} /> : (r.email || '—')}</td>
+                            <td>{beheer ? <input value={r.omroeper || ''} onChange={(e)=>onCellChange(r.id, 'omroeper', e.target.value)} style={{ width: '100%' }} placeholder="Tekst voor omroeper" /> : (r.omroeper || '—')}</td>
+                            <td>{beheer ? <input value={r.opmerkingen || ''} onChange={(e)=>onCellChange(r.id, 'opmerkingen', e.target.value)} style={{ width: '100%' }} /> : (r.opmerkingen || '—')}</td>
+                            {beheer && (
+                              <td style={{ whiteSpace: 'nowrap' }}>
+                                <button onClick={()=>{/* noop: explicit move via drag/drop preferred */}}>↕️</button>
+                                <button onClick={()=>deleteRow(r.id)} style={{ color: 'crimson' }}>Verwijderen</button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                        {items.length === 0 && (
+                          <tr><td colSpan={beheer ? 7 : 6} style={{ color: '#777', padding: '18px 8px' }}>Nog geen inschrijvingen voor deze klasse.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {!!gekozen && (
