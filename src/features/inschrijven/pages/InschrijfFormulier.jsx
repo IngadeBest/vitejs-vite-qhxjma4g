@@ -35,6 +35,13 @@ export default function InschrijfFormulier() {
     return !form.ruiter || !form.paard || !form.klasse || !form.wedstrijd_id;
   }, [form]);
 
+  const gekozenWedstrijd = useMemo(() => wedstrijden.find(w => w.id === form.wedstrijd_id) || null, [wedstrijden, form.wedstrijd_id]);
+
+  const allowedKlassenForWedstrijd = useMemo(() => {
+    if (!gekozenWedstrijd) return KLASSEN.map(k=>k.code);
+    return Array.isArray(gekozenWedstrijd.allowed_klassen) && gekozenWedstrijd.allowed_klassen.length ? gekozenWedstrijd.allowed_klassen : KLASSEN.map(k=>k.code);
+  }, [gekozenWedstrijd]);
+
   async function onSubmit(e) {
     e.preventDefault();
     setBusy(true);
@@ -55,6 +62,10 @@ export default function InschrijfFormulier() {
     };
 
     try {
+      // client-side validation: ensure class allowed for selected wedstrijd
+      if (gekozenWedstrijd && !allowedKlassenForWedstrijd.includes(payload.klasse)) {
+        throw new Error('Geselecteerde klasse is niet toegestaan voor deze wedstrijd.');
+      }
       const { error } = await supabase.from("inschrijvingen").insert(payload);
       if (error) throw error;
       setMsg("Inschrijving opgeslagen ✔️");

@@ -30,6 +30,8 @@ export default function WedstrijdenBeheer() {
   });
 
   const [msg, setMsg] = useState("");
+  const [allowedKlassen, setAllowedKlassen] = useState([]);
+  const [klasseCategorieen, setKlasseCategorieen] = useState({});
 
   async function addWedstrijd() {
     setMsg("");
@@ -55,6 +57,22 @@ export default function WedstrijdenBeheer() {
     navigator.clipboard.writeText(url);
     setMsg("Link gekopieerd: " + url);
   }
+
+  function syncConfigFromSelected() {
+    if (!gekozen) {
+      setAllowedKlassen([]);
+      setKlasseCategorieen({});
+      return;
+    }
+    // expected shape: gekozen.allowed_klassen (array) and gekozen.klasse_categorieen (object)
+    setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
+    setKlasseCategorieen(typeof gekozen.klasse_categorieen === 'object' && gekozen.klasse_categorieen ? gekozen.klasse_categorieen : {});
+  }
+
+  // when selected changes, populate local config
+  React.useEffect(() => {
+    syncConfigFromSelected();
+  }, [selectedId, wedstrijden]);
 
   async function saveProef() {
     setMsg("");
@@ -99,6 +117,22 @@ export default function WedstrijdenBeheer() {
     }
   }
 
+  async function saveWedstrijdConfig() {
+    setMsg("");
+    if (!gekozen) return setMsg("Kies eerst een wedstrijd.");
+    try {
+      const { error } = await supabase.from("wedstrijden").update({
+        allowed_klassen: allowedKlassen,
+        klasse_categorieen: klasseCategorieen
+      }).eq("id", gekozen.id);
+      if (error) throw error;
+      setMsg("Wedstrijd instellingen opgeslagen ✔️");
+    } catch (e) {
+      // likely column doesn't exist — instruct admin to run DB migration
+      setMsg("Opslaan mislukt: " + (e?.message || String(e)) + " — controleer of de kolommen 'allowed_klassen' en 'klasse_categorieen' bestaan in de tabel 'wedstrijden'.");
+    }
+  }
+
   return (
     <div style={{ maxWidth: 1100, margin: "24px auto" }}>
       <h2>Wedstrijden</h2>
@@ -117,6 +151,73 @@ export default function WedstrijdenBeheer() {
         </div>
         <div style={{marginTop:8}}>
           <button onClick={addWedstrijd} disabled={!nieuw.naam}>Aanmaken</button>
+        </div>
+      </section>
+
+      <section style={{border:"1px solid #eee", borderRadius:12, padding:12, marginTop:16}}>
+        <h3>Per-wedstrijd: toegestane klassen & categorieën</h3>
+        <p style={{color:'#555', marginTop:4}}>Kies welke klassen ruiters zich mogen opgeven voor deze wedstrijd. Per klasse kun je aangeven welke categorieën toegestaan zijn (senior / yr / junior).</p>
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+          <div>
+            <label style={{fontWeight:600}}>Toegestane klassen</label>
+            <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:6}}>
+              {KLASSEN.map(k => {
+                const checked = allowedKlassen.includes(k.code);
+                return (
+                  <label key={k.code} style={{display:'flex', alignItems:'center', gap:8}}>
+                    <input type="checkbox" checked={checked} onChange={(e)=>{
+                      setAllowedKlassen(s => e.target.checked ? [...s, k.code] : s.filter(x=>x!==k.code));
+                    }} />
+                    <span>{k.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label style={{fontWeight:600}}>Categorieën per klasse</label>
+            <div style={{display:'flex', flexDirection:'column', gap:8, marginTop:6}}>
+              {KLASSEN.map(k => (
+                <div key={k.code} style={{padding:6, border: '1px solid #eee', borderRadius:6}}>
+                  <div style={{fontSize:13, fontWeight:600}}>{k.label}</div>
+                  <div style={{display:'flex', gap:8, marginTop:6}}>
+                    <label style={{display:'flex', alignItems:'center', gap:6}}>
+                      <input type="checkbox" checked={!!(klasseCategorieen[k.code] && klasseCategorieen[k.code].includes('senior'))} onChange={(e)=>{
+                        setKlasseCategorieen(s => {
+                          const prev = s[k.code] || [];
+                          const next = e.target.checked ? Array.from(new Set([...prev, 'senior'])) : prev.filter(x=>x!=='senior');
+                          return { ...s, [k.code]: next };
+                        });
+                      }} /> Senior
+                    </label>
+                    <label style={{display:'flex', alignItems:'center', gap:6}}>
+                      <input type="checkbox" checked={!!(klasseCategorieen[k.code] && klasseCategorieen[k.code].includes('yr'))} onChange={(e)=>{
+                        setKlasseCategorieen(s => {
+                          const prev = s[k.code] || [];
+                          const next = e.target.checked ? Array.from(new Set([...prev, 'yr'])) : prev.filter(x=>x!=='yr');
+                          return { ...s, [k.code]: next };
+                        });
+                      }} /> Young Riders
+                    </label>
+                    <label style={{display:'flex', alignItems:'center', gap:6}}>
+                      <input type="checkbox" checked={!!(klasseCategorieen[k.code] && klasseCategorieen[k.code].includes('junior'))} onChange={(e)=>{
+                        setKlasseCategorieen(s => {
+                          const prev = s[k.code] || [];
+                          const next = e.target.checked ? Array.from(new Set([...prev, 'junior'])) : prev.filter(x=>x!=='junior');
+                          return { ...s, [k.code]: next };
+                        });
+                      }} /> Junior
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{marginTop:8}}>
+          <button onClick={saveWedstrijdConfig} disabled={!gekozen}>Opslaan instellingen</button>
         </div>
       </section>
 
