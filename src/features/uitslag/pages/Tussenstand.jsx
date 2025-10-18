@@ -10,6 +10,8 @@ const KLASSEN = [
   { code: "we2", label: "WE2" },
   { code: "we3", label: "WE3" },
   { code: "we4", label: "WE4" },
+  { code: "yr", label: "Young Riders" },
+  { code: "junior", label: "Junioren" },
 ];
 
 export default function Tussenstand() {

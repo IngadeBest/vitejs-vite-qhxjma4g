@@ -20,15 +20,7 @@ const KLASSEN = [
 ];
 const KLASSEN_EDIT = KLASSEN.filter(k => k.code !== "");
 
-// Categorieën (Senioren / Young Riders / Junioren)
-const CATS = [
-  { code: "",       label: "Alle categorieën" },
-  { code: "senior", label: "Senioren" },
-  { code: "yr",     label: "Young Riders" },
-  { code: "junior", label: "Junioren" },
-];
-const CATS_EDIT = CATS.filter(c => c.code !== "");
-const CAT_LABEL = Object.fromEntries(CATS_EDIT.map(c => [c.code, c.label]));
+// No categorie concept in this app version — kept for backward compatibility in DB
 
 export default function Startlijst() {
   const { items: wedstrijden, loading: loadingWed } = useWedstrijden(false);
@@ -37,7 +29,6 @@ export default function Startlijst() {
 
   const [selectedWedstrijdId, setSelectedWedstrijdId] = useState(qId);
   const [klasseFilter, setKlasseFilter] = useState("");
-  const [catFilter, setCatFilter] = useState("");
   const [beheer, setBeheer] = useState(false);
 
   const [rows, setRows] = useState([]);         // ruwe DB-rows
@@ -124,13 +115,12 @@ export default function Startlijst() {
       }
       let q = supabase
         .from("inschrijvingen")
-        .select("id, created_at, wedstrijd_id, klasse, categorie, ruiter, paard, email, startnummer, omroeper, opmerkingen")
+    .select("id, created_at, wedstrijd_id, klasse, categorie, ruiter, paard, email, startnummer, omroeper, opmerkingen")
         .eq("wedstrijd_id", selectedWedstrijdId)
         .order("startnummer", { ascending: true, nullsFirst: true })
         .order("created_at", { ascending: true });
 
-      if (klasseFilter) q = q.eq("klasse", klasseFilter);
-      if (catFilter) q = q.eq("categorie", catFilter);
+  if (klasseFilter) q = q.eq("klasse", klasseFilter);
 
       const { data, error } = await q;
       if (error) throw error;
@@ -496,22 +486,7 @@ export default function Startlijst() {
           </select>
         </div>
 
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "#666" }}>
-            Categorie (filter)
-          </label>
-          <select
-            value={catFilter}
-            onChange={(e) => setCatFilter(e.target.value)}
-            style={{ width: "100%" }}
-          >
-            {CATS.map((c) => (
-              <option key={c.code || "all"} value={c.code}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* categorie filter removed */}
 
         <label
           style={{
@@ -613,7 +588,6 @@ export default function Startlijst() {
                           <th style={{ borderBottom: '1px solid #e0edf8', width: 60, padding: 8 }}>#</th>
                           <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Ruiter</th>
                           <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Paard</th>
-                          <th style={{ borderBottom: '1px solid #e0edf8', width: 160, padding: 8 }}>Categorie</th>
                           <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Email</th>
                           <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Omroeper</th>
                           <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Opmerkingen</th>
@@ -645,12 +619,7 @@ export default function Startlijst() {
                             ) : (formatStartnummer(r) || (r.startnummer ?? idx + 1))}</td>
                             <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>
                             <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>
-                            <td style={{ padding: 8 }}>{beheer ? (
-                              <select value={r.categorie || ''} onChange={(e)=>onCellChange(r.id, 'categorie', e.target.value)} style={{ width: '100%' }}>
-                                <option value="">— kies categorie —</option>
-                                {CATS_EDIT.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
-                              </select>
-                            ) : (CAT_LABEL[r.categorie] || r.categorie || '—')}</td>
+                            {/* categorie removed */}
                             <td style={{ padding: 8 }}>{beheer ? <input type="email" value={r.email || ''} onChange={(e)=>onCellChange(r.id, 'email', e.target.value)} style={{ width: '100%' }} /> : (r.email || '—')}</td>
                             <td style={{ padding: 8 }}>{beheer ? <input value={r.omroeper || ''} onChange={(e)=>onCellChange(r.id, 'omroeper', e.target.value)} style={{ width: '100%' }} placeholder="Tekst voor omroeper" /> : (r.omroeper || '—')}</td>
                             <td style={{ padding: 8 }}>{beheer ? <input value={r.opmerkingen || ''} onChange={(e)=>onCellChange(r.id, 'opmerkingen', e.target.value)} style={{ width: '100%' }} /> : (r.opmerkingen || '—')}</td>

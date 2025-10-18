@@ -7,7 +7,7 @@ import { Input } from "@/ui/input";
 import { Card } from "@/ui/card";
 import { Alert } from "@/ui/alert";
 
-// Klassen incl. WE2+
+// Klassen incl. WE2+ en extra klassen voor leeftijdsgroepen
 const KLASSEN = [
   { code: "we0",  label: "Introductieklasse (WE0)" },
   { code: "we1",  label: "WE1" },
@@ -15,11 +15,7 @@ const KLASSEN = [
   { code: "we2+", label: "WE2+" },
   { code: "we3",  label: "WE3" },
   { code: "we4",  label: "WE4" },
-];
-
-const CATS = [
-  { code: "senior", label: "Senioren" },
-  { code: "yr",     label: "Young Riders" },
+  { code: "yr",   label: "Young Riders" },
   { code: "junior", label: "Junioren" },
 ];
 
@@ -31,7 +27,7 @@ export default function PublicInschrijven() {
   const [form, setForm] = useState({
     wedstrijd_id: qId || "",
     klasse: "",
-    categorie: "senior",
+  // categorie removed — we now use klasstype only
     leeftijd_ruiter: "",
     geslacht_paard: "",
     ruiter: "",
@@ -56,16 +52,10 @@ export default function PublicInschrijven() {
       : KLASSEN.map((k) => k.code);
   }, [gekozenWedstrijd]);
 
-  const allowedCategorieenForKlasse = useMemo(() => {
-    if (!gekozenWedstrijd) return CATS.map((c) => c.code);
-    const map = gekozenWedstrijd.klasse_categorieen || {};
-    return form.klasse && map[form.klasse] && map[form.klasse].length
-      ? map[form.klasse]
-      : CATS.map((c) => c.code);
-  }, [gekozenWedstrijd, form.klasse]);
+  // categorie removed, no per-klasse categorieen to enforce
 
   const disabled = useMemo(() => {
-    if (!form.wedstrijd_id || !form.klasse) return true;
+  if (!form.wedstrijd_id || !form.klasse) return true;
     if (!form.ruiter || !form.paard || !form.email) return true;
     // leeftijd_ruiter is optional but if present must be a positive integer
     if (form.leeftijd_ruiter && !/^[0-9]{1,3}$/.test(String(form.leeftijd_ruiter))) return true;
@@ -82,7 +72,6 @@ export default function PublicInschrijven() {
     const payload = {
       wedstrijd_id: form.wedstrijd_id,
       klasse: form.klasse,
-      categorie: form.categorie,
       leeftijd_ruiter: form.leeftijd_ruiter ? Number(form.leeftijd_ruiter) : null,
       geslacht_paard: form.geslacht_paard || null,
       ruiter: form.ruiter?.trim(),
@@ -97,9 +86,6 @@ export default function PublicInschrijven() {
       // client validation
       if (gekozenWedstrijd) {
         if (!allowedKlassenForWedstrijd.includes(payload.klasse)) throw new Error('Geselecteerde klasse is niet toegestaan voor deze wedstrijd.');
-        const map = gekozenWedstrijd.klasse_categorieen || {};
-        const allowedCats = (map[payload.klasse] && map[payload.klasse].length) ? map[payload.klasse] : CATS.map((c) => c.code);
-        if (!allowedCats.includes(payload.categorie)) throw new Error('Geselecteerde categorie is niet toegestaan voor deze klasse op deze wedstrijd.');
       }
 
       const res = await fetch('/api/inschrijvingen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -176,16 +162,7 @@ export default function PublicInschrijven() {
           ))}
         </select>
 
-        <label htmlFor="categorie_select">Categorie*</label>
-        <select
-          id="categorie_select"
-          value={form.categorie}
-          onChange={(e) => setForm((s) => ({ ...s, categorie: e.target.value }))}
-        >
-          {CATS.filter((c) => allowedCategorieenForKlasse.includes(c.code)).map((c) => (
-            <option key={c.code} value={c.code}>{c.label}</option>
-          ))}
-        </select>
+        {/* categorie removed — we only select klasse now */}
 
         <label htmlFor="ruiter_input">Ruiter (volledige naam)*</label>
         <Input

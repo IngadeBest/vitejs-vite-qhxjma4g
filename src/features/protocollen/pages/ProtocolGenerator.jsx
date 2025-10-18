@@ -11,6 +11,8 @@ const KLASSEN = [
   { code: "we2", labelKey: "WE2", naam: "WE2",                       min: 8,  max: 12 },
   { code: "we3", labelKey: "WE3", naam: "WE3",                       min: 10, max: 14 },
   { code: "we4", labelKey: "WE4", naam: "WE4",                       min: 12, max: 16 },
+  { code: "yr", labelKey: "YR", naam: "Young Riders",                min: 6,  max: 10 },
+  { code: "junior", labelKey: "JR", naam: "Junioren",               min: 6,  max: 10 },
 ];
 const ONDERDELEN = [
   { code: "dressuur", label: "Dressuur" },

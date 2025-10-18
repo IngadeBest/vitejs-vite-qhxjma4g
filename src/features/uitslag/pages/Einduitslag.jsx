@@ -11,11 +11,13 @@ const KLASSEN = [
   { code: "we2", label: "WE2" },
   { code: "we3", label: "WE3" },
   { code: "we4", label: "WE4" },
+  { code: "yr", label: "Young Riders" },
+  { code: "junior", label: "Junioren" },
 ];
 
 function toCSV(rows) {
   const head = "plaats,ruiter,paard,dressuur,stijl,speed,totaal";
-  const body = rows.map((r,i)=>[i+1, r.ruiter, r.paard, r.dressuur ?? "", r.stijl ?? "", r.speed ?? "", r.totaal ?? ""].map(v => JSON.stringify(String(v))).join(",")).join("\n");
+  const body = (rows || []).map((r, i) => [i + 1, r.ruiter, r.paard, r.dressuur ?? "", r.stijl ?? "", r.speed ?? "", r.totaal ?? ""].map(v => JSON.stringify(String(v))).join(",")).join("\n");
   return head + "\n" + body + "\n";
 }
 

@@ -34,10 +34,9 @@ export default function WedstrijdenBeheer() {
 
   const [msg, setMsg] = useState("");
   const [allowedKlassen, setAllowedKlassen] = useState([]);
-  const [klasseCategorieen, setKlasseCategorieen] = useState({});
   const [migrationSql, setMigrationSql] = useState("");
 
-  const MIGRATION_SQL = `-- add allowed_klassen and klasse_categorieen to wedstrijden\nALTER TABLE IF EXISTS wedstrijden\n  ADD COLUMN IF NOT EXISTS allowed_klassen jsonb DEFAULT '[]'::jsonb,\n  ADD COLUMN IF NOT EXISTS klasse_categorieen jsonb DEFAULT '{}'::jsonb;`;
+  const MIGRATION_SQL = `-- add allowed_klassen to wedstrijden\nALTER TABLE IF EXISTS wedstrijden\n  ADD COLUMN IF NOT EXISTS allowed_klassen jsonb DEFAULT '[]'::jsonb;`;
 
   async function addWedstrijd() {
     setMsg("");
@@ -74,9 +73,8 @@ export default function WedstrijdenBeheer() {
       setKlasseCategorieen({});
       return;
     }
-    // expected shape: gekozen.allowed_klassen (array) and gekozen.klasse_categorieen (object)
-    setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
-    setKlasseCategorieen(typeof gekozen.klasse_categorieen === 'object' && gekozen.klasse_categorieen ? gekozen.klasse_categorieen : {});
+  // expected shape: gekozen.allowed_klassen (array)
+  setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
     // populate organisator email if present
     setNieuwEmail(gekozen.organisator_email || "");
   }
@@ -135,8 +133,7 @@ export default function WedstrijdenBeheer() {
     try {
       const { error } = await supabase.from("wedstrijden").update({
         allowed_klassen: allowedKlassen,
-        klasse_categorieen: klasseCategorieen
-        , organisator_email: nieuwEmail || null
+        organisator_email: nieuwEmail || null
       }).eq("id", gekozen.id);
       if (error) throw error;
       setMsg("Wedstrijd instellingen opgeslagen ✔️");
@@ -144,7 +141,7 @@ export default function WedstrijdenBeheer() {
     } catch (e) {
       // likely column doesn't exist — instruct admin to run DB migration
       const em = (e?.message || String(e));
-      const hint = "Controleer of de kolommen 'allowed_klassen' en 'klasse_categorieen' bestaan in de tabel 'wedstrijden'.";
+      const hint = "Controleer of de kolom 'allowed_klassen' bestaat in de tabel 'wedstrijden'.";
       setMsg("Opslaan mislukt: " + em + " — " + hint);
       setMigrationSql(MIGRATION_SQL);
     }
@@ -234,49 +231,7 @@ export default function WedstrijdenBeheer() {
             </div>
           </div>
 
-          <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
-            <div style={{ fontWeight: 800, marginBottom: 8 }}>Categorieën per klasse</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {KLASSEN.map(k => (
-                <div key={k.code} style={{ padding: 8, border: '1px solid #f0f6ff', borderRadius: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{k.label}</div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <label style={{display:'flex', alignItems:'center', gap:6}}>
-                      <input type="checkbox" checked={!!(klasseCategorieen[k.code] && klasseCategorieen[k.code].includes('senior'))} onChange={(e)=>{
-                        setKlasseCategorieen(s => {
-                          const prev = s[k.code] || [];
-                          const next = e.target.checked ? Array.from(new Set([...prev, 'senior'])) : prev.filter(x=>x!=='senior');
-                          return { ...s, [k.code]: next };
-                        });
-                      }} /> <span style={{fontSize:13}}>Senior</span>
-                    </label>
-                    <label style={{display:'flex', alignItems:'center', gap:6}}>
-                      <input type="checkbox" checked={!!(klasseCategorieen[k.code] && klasseCategorieen[k.code].includes('yr'))} onChange={(e)=>{
-                        setKlasseCategorieen(s => {
-                          const prev = s[k.code] || [];
-                          const next = e.target.checked ? Array.from(new Set([...prev, 'yr'])) : prev.filter(x=>x!=='yr');
-                          return { ...s, [k.code]: next };
-                        });
-                      }} /> <span style={{fontSize:13}}>Young Riders</span>
-                    </label>
-                    <label style={{display:'flex', alignItems:'center', gap:6}}>
-                      <input type="checkbox" checked={!!(klasseCategorieen[k.code] && klasseCategorieen[k.code].includes('junior'))} onChange={(e)=>{
-                        setKlasseCategorieen(s => {
-                          const prev = s[k.code] || [];
-                          const next = e.target.checked ? Array.from(new Set([...prev, 'junior'])) : prev.filter(x=>x!=='junior');
-                          return { ...s, [k.code]: next };
-                        });
-                      }} /> <span style={{fontSize:13}}>Junior</span>
-                    </label>
-                    <div style={{ marginLeft: 'auto' }}>
-                      <button type="button" onClick={()=>setKlasseCategorieen(s => ({ ...s, [k.code]: ['senior','yr','junior'] }))}>Alles</button>
-                      <button type="button" onClick={()=>setKlasseCategorieen(s => ({ ...s, [k.code]: [] }))}>Reset</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* categorie feature removed */}
         </div>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginBottom: 8 }}>
