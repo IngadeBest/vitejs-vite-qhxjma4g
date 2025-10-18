@@ -132,10 +132,12 @@ export default async function handler(req, res) {
     // send notification to organisator (reuse existing endpoint)
     try {
       const base = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '';
+      const notifyBody = { wedstrijd_naam: wedstrijd.naam, ...b };
+      if (wedstrijd.organisator_email) notifyBody.organisatie_email = wedstrijd.organisator_email;
       await fetch(base + '/api/notifyOrganisator', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wedstrijd_naam: wedstrijd.naam, ...b }),
+        body: JSON.stringify(notifyBody),
       }).catch((e) => console.warn('notifyOrganisator forward failed:', e));
     } catch(e) {
       console.warn('notifyOrganisator error:', e);

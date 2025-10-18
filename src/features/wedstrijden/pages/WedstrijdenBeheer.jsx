@@ -18,6 +18,8 @@ const ONDERDELEN = [
 export default function WedstrijdenBeheer() {
   const { items: wedstrijden, loading } = useWedstrijden(false);
   const [nieuw, setNieuw] = useState({ naam: "", datum: "", locatie: "", status: "open" });
+  // nieuw.organisator_email optionally
+  const [nieuwEmail, setNieuwEmail] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const gekozen = useMemo(() => wedstrijden.find(w => w.id === selectedId) || null, [selectedId, wedstrijden]);
 
@@ -44,6 +46,7 @@ export default function WedstrijdenBeheer() {
         datum: nieuw.datum || null,
         locatie: nieuw.locatie || null,
         status: nieuw.status || "open",
+        organisator_email: nieuwEmail || null,
       }).select("id").single();
       if (error) throw error;
       setNieuw({ naam: "", datum: "", locatie: "", status: "open" });
@@ -70,6 +73,8 @@ export default function WedstrijdenBeheer() {
     // expected shape: gekozen.allowed_klassen (array) and gekozen.klasse_categorieen (object)
     setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
     setKlasseCategorieen(typeof gekozen.klasse_categorieen === 'object' && gekozen.klasse_categorieen ? gekozen.klasse_categorieen : {});
+    // populate organisator email if present
+    setNieuwEmail(gekozen.organisator_email || "");
   }
 
   // when selected changes, populate local config
@@ -127,6 +132,7 @@ export default function WedstrijdenBeheer() {
       const { error } = await supabase.from("wedstrijden").update({
         allowed_klassen: allowedKlassen,
         klasse_categorieen: klasseCategorieen
+        , organisator_email: nieuwEmail || null
       }).eq("id", gekozen.id);
       if (error) throw error;
       setMsg("Wedstrijd instellingen opgeslagen ✔️");
@@ -150,6 +156,7 @@ export default function WedstrijdenBeheer() {
           <input placeholder="Naam*" value={nieuw.naam} onChange={(e)=>setNieuw(s=>({...s, naam:e.target.value}))}/>
           <input type="date" value={nieuw.datum} onChange={(e)=>setNieuw(s=>({...s, datum:e.target.value}))}/>
           <input placeholder="Locatie" value={nieuw.locatie} onChange={(e)=>setNieuw(s=>({...s, locatie:e.target.value}))}/>
+          <input placeholder="Organisator e-mail" value={nieuwEmail} onChange={(e)=>setNieuwEmail(e.target.value)}/>
           <select value={nieuw.status} onChange={(e)=>setNieuw(s=>({...s, status:e.target.value}))}>
             <option value="open">open</option>
             <option value="gesloten">gesloten</option>
@@ -251,6 +258,16 @@ export default function WedstrijdenBeheer() {
           <div style={{marginTop:12, fontSize:13, color:"#444"}}>
             <div><b>Naam:</b> {gekozen.naam}</div>
             <div><b>Datum:</b> {gekozen.datum || "—"} · <b>Status:</b> {gekozen.status}</div>
+            <div style={{marginTop:8}}>
+              <label style={{display:'block', fontSize:13, fontWeight:600, marginBottom:6}}>Organisator e-mail</label>
+              <input
+                type="email"
+                placeholder="organisator@example.com"
+                value={nieuwEmail}
+                onChange={(e)=>setNieuwEmail(e.target.value)}
+                style={{padding:6, borderRadius:6, border:'1px solid #ddd', width:320}}
+              />
+            </div>
           </div>
         )}
       </section>
