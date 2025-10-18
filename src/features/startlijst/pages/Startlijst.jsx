@@ -50,6 +50,7 @@ export default function Startlijst() {
   const refs = useRef({}); // per-klasse refs for export and PDF
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [klasseOrder, setKlasseOrder] = useState([]); // visual order of klasse cards
 
   // Drag & drop handlers: allow reordering within the same klasse
   function onDragStart(e, id, klasse) {
@@ -147,6 +148,19 @@ export default function Startlijst() {
   useEffect(() => {
     fetchRows();
   }, [fetchRows]);
+
+  // initialize klasse order when rows or filters change
+  useEffect(() => {
+    const map = new Map();
+    (editRows || []).forEach(r => {
+      const k = r.klasse || 'onbekend';
+      if (!map.has(k)) map.set(k, 0);
+    });
+    const keys = [...map.keys()];
+    // if no rows, default to KLASSEN_EDIT order
+    if (keys.length === 0) setKlasseOrder(KLASSEN_EDIT.map(k => k.code));
+    else setKlasseOrder(keys);
+  }, [editRows]);
 
   // Realtime updates (verversen bij wijzigingen, ook als iemand anders iets toevoegt)
   useEffect(() => {
@@ -348,6 +362,19 @@ export default function Startlijst() {
     return map;
   }, [visible]);
 
+  function moveClass(code, dir) {
+    setKlasseOrder(prev => {
+      const idx = prev.indexOf(code);
+      if (idx === -1) return prev;
+      const to = Math.max(0, Math.min(prev.length - 1, idx + dir));
+      if (to === idx) return prev;
+      const copy = [...prev];
+      const [item] = copy.splice(idx, 1);
+      copy.splice(to, 0, item);
+      return copy;
+    });
+  }
+
   function formatStartnummer(r) {
     const raw = r?.startnummer;
     const klasse = r?.klasse || '';
@@ -546,31 +573,35 @@ export default function Startlijst() {
           </div>
 
           <div style={{ marginTop: 8, display: 'grid', gap: 18 }}>
-            {[...grouped.keys()].map(klasseCode => {
+            {(klasseOrder || []).map(klasseCode => {
               const items = grouped.get(klasseCode) || [];
               return (
-                <div key={klasseCode} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff' }}>
+                <div key={klasseCode} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff', boxShadow: '0 6px 18px rgba(12,40,80,0.04)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                     <div style={{ fontWeight: 800, fontSize: 16 }}>{KLASSEN_EDIT.find(k => k.code === klasseCode)?.label || (klasseCode === 'onbekend' ? 'Onbekend' : klasseCode)}</div>
-                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                      <button onClick={() => handleExportExcel(klasseCode)}>Export Excel</button>
-                      <button onClick={() => handleExportPDF(klasseCode)}>Export PDF</button>
-                      <button onClick={() => handleExportAfbeelding(klasseCode)}>Export afbeelding</button>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <button title="Verplaats klasse omhoog" onClick={() => moveClass(klasseCode, -1)} style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid #e6eefb', background: '#fff' }}>↑</button>
+                      <button title="Verplaats klasse omlaag" onClick={() => moveClass(klasseCode, 1)} style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid #e6eefb', background: '#fff' }}>↓</button>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => handleExportExcel(klasseCode)} style={{ padding: '6px 10px' }}>Export Excel</button>
+                        <button onClick={() => handleExportPDF(klasseCode)} style={{ padding: '6px 10px' }}>Export PDF</button>
+                        <button onClick={() => handleExportAfbeelding(klasseCode)} style={{ padding: '6px 10px' }}>Export afbeelding</button>
+                      </div>
                     </div>
                   </div>
 
                   <div ref={el => refs.current[klasseCode] = el}>
-                    <table width="100%" cellPadding={6} style={{ borderCollapse: 'collapse', fontSize: 14, paddingLeft: 6 }}>
+                    <table width="100%" cellPadding={6} style={{ borderCollapse: 'collapse', fontSize: 14 }}>
                       <thead>
                         <tr style={{ background: '#f7f7f7' }}>
-                          <th style={{ borderBottom: '1px solid #eee', width: 60 }}>#</th>
-                          <th style={{ borderBottom: '1px solid #eee' }}>Ruiter</th>
-                          <th style={{ borderBottom: '1px solid #eee' }}>Paard</th>
-                          <th style={{ borderBottom: '1px solid #eee', width: 160 }}>Categorie</th>
-                          <th style={{ borderBottom: '1px solid #eee' }}>Email</th>
-                          <th style={{ borderBottom: '1px solid #eee' }}>Omroeper</th>
-                          <th style={{ borderBottom: '1px solid #eee' }}>Opmerkingen</th>
-                          {beheer && <th style={{ borderBottom: '1px solid #eee', width: 120 }}>Acties</th>}
+                          <th style={{ borderBottom: '1px solid #eee', width: 60, padding: 8 }}>#</th>
+                          <th style={{ borderBottom: '1px solid #eee', padding: 8 }}>Ruiter</th>
+                          <th style={{ borderBottom: '1px solid #eee', padding: 8 }}>Paard</th>
+                          <th style={{ borderBottom: '1px solid #eee', width: 160, padding: 8 }}>Categorie</th>
+                          <th style={{ borderBottom: '1px solid #eee', padding: 8 }}>Email</th>
+                          <th style={{ borderBottom: '1px solid #eee', padding: 8 }}>Omroeper</th>
+                          <th style={{ borderBottom: '1px solid #eee', padding: 8 }}>Opmerkingen</th>
+                          {beheer && <th style={{ borderBottom: '1px solid #eee', width: 120, padding: 8 }}>Acties</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -582,7 +613,7 @@ export default function Startlijst() {
                             onDragLeave={onDragLeave}
                             onDrop={(e)=>onDrop(e, idx, klasseCode)}
                             style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
-                            <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center' }}>{beheer ? (
+                            <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center', padding: 8 }}>{beheer ? (
                               <>
                                 <button
                                   aria-label="drag-handle"
@@ -596,19 +627,19 @@ export default function Startlijst() {
                                 <input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} />
                               </>
                             ) : (formatStartnummer(r) || (r.startnummer ?? idx + 1))}</td>
-                            <td>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>
-                            <td>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>
-                            <td>{beheer ? (
+                            <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>
+                            <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>
+                            <td style={{ padding: 8 }}>{beheer ? (
                               <select value={r.categorie || ''} onChange={(e)=>onCellChange(r.id, 'categorie', e.target.value)} style={{ width: '100%' }}>
                                 <option value="">— kies categorie —</option>
                                 {CATS_EDIT.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
                               </select>
                             ) : (CAT_LABEL[r.categorie] || r.categorie || '—')}</td>
-                            <td>{beheer ? <input type="email" value={r.email || ''} onChange={(e)=>onCellChange(r.id, 'email', e.target.value)} style={{ width: '100%' }} /> : (r.email || '—')}</td>
-                            <td>{beheer ? <input value={r.omroeper || ''} onChange={(e)=>onCellChange(r.id, 'omroeper', e.target.value)} style={{ width: '100%' }} placeholder="Tekst voor omroeper" /> : (r.omroeper || '—')}</td>
-                            <td>{beheer ? <input value={r.opmerkingen || ''} onChange={(e)=>onCellChange(r.id, 'opmerkingen', e.target.value)} style={{ width: '100%' }} /> : (r.opmerkingen || '—')}</td>
+                            <td style={{ padding: 8 }}>{beheer ? <input type="email" value={r.email || ''} onChange={(e)=>onCellChange(r.id, 'email', e.target.value)} style={{ width: '100%' }} /> : (r.email || '—')}</td>
+                            <td style={{ padding: 8 }}>{beheer ? <input value={r.omroeper || ''} onChange={(e)=>onCellChange(r.id, 'omroeper', e.target.value)} style={{ width: '100%' }} placeholder="Tekst voor omroeper" /> : (r.omroeper || '—')}</td>
+                            <td style={{ padding: 8 }}>{beheer ? <input value={r.opmerkingen || ''} onChange={(e)=>onCellChange(r.id, 'opmerkingen', e.target.value)} style={{ width: '100%' }} /> : (r.opmerkingen || '—')}</td>
                             {beheer && (
-                              <td style={{ whiteSpace: 'nowrap' }}>
+                              <td style={{ whiteSpace: 'nowrap', padding: 8 }}>
                                 <button onClick={()=>{/* noop: explicit move via drag/drop preferred */}}>↕️</button>
                                 <button onClick={()=>deleteRow(r.id)} style={{ color: 'crimson' }}>Verwijderen</button>
                               </td>
