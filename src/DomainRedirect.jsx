@@ -3,12 +3,12 @@ import { useLocation } from "react-router-dom";
 
 /**
  * Domeinscheiding:
- * - MAIN  = workingpoint.nl / www.workingpoint.nl  -> publiek: /formulier & /contact
- * - APP   = app.workingpoint.nl                    -> beheer: /startlijst (en straks /protocollen /uitslagen)
+ * MAIN  = workingpoint.nl / www.workingpoint.nl  -> publiek: /formulier & /contact
+ * APP   = app.workingpoint.nl                    -> beheer: /startlijst, /protocollen, /uitslagen
  *
- * Werkt met HashRouter (leest het pad uit window.location.hash).
- * - Op MAIN: root => /formulier, alles behalve /formulier|/contact => naar APP
- * - Op APP : root => /startlijst, /formulier|/contact => naar MAIN
+ * Werkt met HashRouter (leest pad uit window.location.hash).
+ * - Op MAIN: root => /formulier, alles behalve /formulier|/contact => door naar APP
+ * - Op APP : root => /startlijst, /formulier|/contact => door naar MAIN
  */
 export default function DomainRedirect() {
   const mounted = useRef(false);
@@ -42,7 +42,7 @@ export default function DomainRedirect() {
     };
 
     if (APP.has(host)) {
-      // Op app.*: root => /startlijst, /formulier|/contact => naar MAIN
+      // Op app.*: root => /startlijst; /formulier|/contact => naar MAIN
       if (path === "/") {
         if (hash !== "#/startlijst") window.location.replace("#/startlijst");
         return;
@@ -55,7 +55,7 @@ export default function DomainRedirect() {
     }
 
     if (MAIN.has(host)) {
-      // Op main: root => /formulier, alles behalve /formulier|/contact => naar APP
+      // Op main: root => /formulier; alles behalve /formulier|/contact => naar APP
       if (path === "/") {
         if (hash !== "#/formulier") window.location.replace("#/formulier");
         return;
