@@ -56,14 +56,11 @@ function InnerApp() {
         <nav style={{ display: "flex", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
           {onApp ? (
             <>
-              {/* Beheer op app.*: alle onderdelen tonen */}
+              {/* Beheer op app.*: toon Wedstrijden als start en volgorde aanpassen */}
+              <NavLink to="/wedstrijden" style={navStyle}>Wedstrijden</NavLink>
               <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
               <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
               <NavLink to="/uitslagen" style={navStyle}>Uitslagen</NavLink>
-              <NavLink to="/wedstrijden" style={navStyle}>Wedstrijden</NavLink>
-              <a href="https://workingpoint.nl/#/contact" style={navStyle({ isActive: false })}>
-                Contact
-              </a>
             </>
           ) : (
             <>
@@ -76,8 +73,8 @@ function InnerApp() {
       </header>
 
       <Routes>
-        {/* Publiek */}
-        <Route path="/formulier" element={onApp ? <InschrijfFormulier /> : <PublicInschrijven />} />
+  {/* Publiek */}
+  <Route path="/formulier" element={onApp ? <InschrijfFormulier /> : <PublicInschrijven />} />
         <Route path="/contact" element={<Contact />} />
 
   {/* Beheer */}
@@ -86,8 +83,8 @@ function InnerApp() {
   <Route path="/uitslagen" element={<Einduitslag />} />
   <Route path="/wedstrijden" element={<WedstrijdenBeheer />} />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/formulier" replace />} />
+        {/* Fallback: on app.* default to wedstrijden, else formulier */}
+        <Route path="*" element={<Navigate to={onApp ? "/wedstrijden" : "/formulier"} replace />} />
       </Routes>
     </>
   );

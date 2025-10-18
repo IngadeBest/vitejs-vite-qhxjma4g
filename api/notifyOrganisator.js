@@ -39,8 +39,8 @@ export default async function handler(req, res) {
     }
 
     const b = req.body || {};
-    const to = (b.organistor_email || b.organisateur_email || b.organizer_email || b.organisatie_email || b.organisator_email || ORGANISATOR_EMAIL_DEFAULT || '').trim();
-    const wedstrijdNaam = b.wedstrijd_naam || b.wedstrijd || 'Wedstrijd';
+  const to = (b.organistor_email || b.organisateur_email || b.organizer_email || b.organisatie_email || b.organisator_email || b.organisatie_email || ORGANISATOR_EMAIL_DEFAULT || '').trim();
+  const wedstrijdNaam = b.wedstrijd_naam || b.wedstrijd || 'Wedstrijd';
 
     if (!to) {
       return res.status(400).json({ ok: false, error: 'NO_TO', message: 'No organisator email configured or provided.' });
@@ -57,7 +57,9 @@ export default async function handler(req, res) {
         <li><b>Categorie:</b> ${b.categorie || '-'}</li>
         <li><b>Klasse:</b> ${b.klasse || '-'}</li>
         <li><b>Ruiter:</b> ${b.ruiter || '-'}</li>
+        <li><b>Leeftijd ruiter:</b> ${b.leeftijd_ruiter != null ? b.leeftijd_ruiter : '-'}</li>
         <li><b>Paard:</b> ${b.paard || '-'}</li>
+        <li><b>Geslacht paard:</b> ${b.geslacht_paard || '-'}</li>
         <li><b>E-mail ruiter:</b> ${b.email || '-'}</li>
         <li><b>Omroeper:</b> ${b.omroeper || '-'}</li>
         <li><b>Opmerkingen:</b> ${b.opmerkingen || '-'}</li>

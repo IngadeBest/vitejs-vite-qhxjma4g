@@ -100,6 +100,8 @@ export default async function handler(req, res) {
       categorie: b.categorie,
       ruiter: b.ruiter || null,
       paard: b.paard || null,
+      leeftijd_ruiter: b.leeftijd_ruiter || null,
+      geslacht_paard: b.geslacht_paard || null,
       email: b.email || null,
       opmerkingen: b.opmerkingen || null,
       omroeper: b.omroeper || null,
@@ -132,7 +134,20 @@ export default async function handler(req, res) {
     // send notification to organisator (reuse existing endpoint)
     try {
       const base = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '';
-      const notifyBody = { wedstrijd_naam: wedstrijd.naam, ...b };
+      // forward a payload that includes the denormalized wedstrijd name plus relevant fields
+      const notifyBody = {
+        wedstrijd_naam: wedstrijd.naam,
+        wedstrijd_id,
+        klasse: b.klasse,
+        categorie: b.categorie,
+        ruiter: b.ruiter,
+        paard: b.paard,
+        email: b.email,
+        opmerkingen: b.opmerkingen,
+        omroeper: b.omroeper,
+        leeftijd_ruiter: b.leeftijd_ruiter || null,
+        geslacht_paard: b.geslacht_paard || null,
+      };
       if (wedstrijd.organisator_email) notifyBody.organisatie_email = wedstrijd.organisator_email;
       await fetch(base + '/api/notifyOrganisator', {
         method: 'POST',
