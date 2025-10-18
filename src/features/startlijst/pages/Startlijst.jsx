@@ -311,6 +311,25 @@ export default function Startlijst() {
 
   // Export helpers
   function handleExportExcel(klasseCode) {
+    const wb = XLSX.utils.book_new();
+    if (klasseCode === '__all__') {
+      for (const [k, items] of grouped.entries()) {
+        const ws = XLSX.utils.json_to_sheet(
+          (items || []).map(item => ({
+            Startnummer: item.startnummer || '',
+            Ruiter: item.ruiter,
+            Paard: item.paard,
+            Categorie: item.categorie,
+            Email: item.email,
+            Omroeper: item.omroeper,
+            Opmerkingen: item.opmerkingen,
+          }))
+        );
+        XLSX.utils.book_append_sheet(wb, ws, (k || 'Onbekend').toString().slice(0,30));
+      }
+      XLSX.writeFile(wb, `Startlijst_${gekozen?.naam ? gekozen.naam.replace(/\s+/g,'_') : 'wedstrijd'}.xlsx`);
+      return;
+    }
     const items = grouped.get(klasseCode) || [];
     const ws = XLSX.utils.json_to_sheet(
       items.map(item => ({
@@ -323,7 +342,6 @@ export default function Startlijst() {
         Opmerkingen: item.opmerkingen,
       }))
     );
-    const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, klasseCode || 'Onbekend');
     XLSX.writeFile(wb, `Startlijst_${klasseCode || 'onbekend'}.xlsx`);
   }
@@ -433,6 +451,10 @@ export default function Startlijst() {
           {busy ? "Vernieuwen..." : "Vernieuw"}
         </Button>
 
+        <Button onClick={() => handleExportExcel('__all__')} disabled={!selectedWedstrijdId}>
+          Export hele startlijst (Excel)
+        </Button>
+
         {beheer && (
           <Button
             onClick={saveChanges}
@@ -500,16 +522,23 @@ export default function Startlijst() {
                       <tbody>
                         {items.map((r, idx) => (
                           <tr key={r.id}
-                            draggable={beheer}
-                            onDragStart={(e)=>onDragStart(e, r.id, klasseCode)}
+                            draggable={false}
                             onDragOver={onDragOver}
                             onDragEnter={(e)=>onDragEnter(e, r.id)}
                             onDragLeave={onDragLeave}
                             onDrop={(e)=>onDrop(e, idx, klasseCode)}
-                            style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1 }}>
+                            style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
                             <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center' }}>{beheer ? (
                               <>
-                                <button aria-label="handle" style={{ cursor: 'grab', padding: 4 }}>≡</button>
+                                <button
+                                  aria-label="drag-handle"
+                                  draggable={beheer}
+                                  onDragStart={(e)=>onDragStart(e, r.id, klasseCode)}
+                                  onDragEnd={()=>{ setDraggingId(null); setDragOverId(null); }}
+                                  style={{ cursor: 'grab', padding: 6, borderRadius: 6, border: '1px solid #e6eefb', background: '#fafdff' }}
+                                >
+                                  ≡
+                                </button>
                                 <input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} />
                               </>
                             ) : (r.startnummer ?? idx + 1)}</td>
