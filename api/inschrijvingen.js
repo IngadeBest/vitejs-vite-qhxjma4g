@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import notifyHandler from './notifyOrganisator';
+
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
@@ -7,6 +7,10 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || proce
 const supabaseServer = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) : null;
 
 export default async function handler(req, res) {
+  console.log('inschrijvingen handler invoked', {
+    has_supabase_url: !!process.env.VITE_SUPABASE_URL || !!process.env.SUPABASE_URL,
+    has_service_key: !!process.env.SUPABASE_SERVICE_ROLE_KEY || !!process.env.SUPABASE_KEY,
+  });
   if (req.method === 'GET' && req.query?.ping) return res.status(200).json({ ok: true });
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
 
@@ -19,7 +23,10 @@ export default async function handler(req, res) {
     // fetch wedstrijd settings using public client if server client not available
     const publicFetch = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
     const { data: wedstrijden = [], error: wErr } = await publicFetch.from('wedstrijden').select('*').eq('id', wedstrijd_id).limit(1);
-    if (wErr) throw wErr;
+    if (wErr) {
+      console.error('Failed to fetch wedstrijd (publicFetch):', wErr);
+      throw new Error('WEDSTRIJD_FETCH_FAILED: ' + (wErr.message || JSON.stringify(wErr)));
+    }
     const wedstrijd = (wedstrijden && wedstrijden[0]) || null;
     if (!wedstrijd) return res.status(404).json({ ok: false, error: 'WEDSTRIJD_NOT_FOUND', message: 'Wedstrijd niet gevonden.' });
 
@@ -52,7 +59,7 @@ export default async function handler(req, res) {
       const { error: insertErr } = await supabaseServer.from('inschrijvingen').insert(payload);
       if (insertErr) {
         console.error('Supabase insert error (server):', insertErr);
-        throw insertErr;
+        throw new Error('INSERT_FAILED_SERVER: ' + (insertErr.message || JSON.stringify(insertErr)));
       }
     } else {
       // fallback: use public client (may fail due to RLS) — document risk
@@ -60,7 +67,7 @@ export default async function handler(req, res) {
       const { error: insertErr } = await pub.from('inschrijvingen').insert(payload);
       if (insertErr) {
         console.error('Supabase insert error (public):', insertErr);
-        throw insertErr;
+        throw new Error('INSERT_FAILED_PUBLIC: ' + (insertErr.message || JSON.stringify(insertErr)));
       }
     }
 
