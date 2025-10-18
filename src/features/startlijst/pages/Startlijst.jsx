@@ -688,5 +688,4 @@ export default function Startlijst() {
       </div>
     </div>
   );
-  );
 }
