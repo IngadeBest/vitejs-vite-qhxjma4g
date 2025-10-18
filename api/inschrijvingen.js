@@ -20,8 +20,11 @@ export default async function handler(req, res) {
   if (!wedstrijd_id) return res.status(400).json({ ok: false, error: 'NO_WEDSTRIJD_ID' });
 
   try {
-    // fetch wedstrijd settings using public client if server client not available
-    const publicFetch = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+  // fetch wedstrijd settings using public client if server client not available
+  // prefer SUPABASE_URL / SUPABASE_ANON_KEY but fall back to VITE_* names for local dev
+  const PUBLIC_SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const PUBLIC_SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const publicFetch = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON);
     const { data: wedstrijden = [], error: wErr } = await publicFetch.from('wedstrijden').select('*').eq('id', wedstrijd_id).limit(1);
     if (wErr) {
       console.error('Failed to fetch wedstrijd (publicFetch):', wErr);
@@ -63,7 +66,9 @@ export default async function handler(req, res) {
       }
     } else {
       // fallback: use public client (may fail due to RLS) — document risk
-      const pub = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+  const PUB_SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const PUB_SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const pub = createClient(PUB_SUPABASE_URL, PUB_SUPABASE_ANON);
       const { error: insertErr } = await pub.from('inschrijvingen').insert(payload);
       if (insertErr) {
         console.error('Supabase insert error (public):', insertErr);
