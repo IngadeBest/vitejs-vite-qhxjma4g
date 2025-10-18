@@ -5,7 +5,7 @@ import DomainRedirect from "@/DomainRedirect";
 // Pagina's
 import PublicInschrijven from "@/features/inschrijven/pages/PublicInschrijven";
 import Startlijst from "@/features/startlijst/pages/Startlijst";
-import Contact from "@/pages/Contact";
+import Contact from "@/features/public/pages/Contact"; // nieuw
 
 const navStyle = ({ isActive }) => ({
   padding: "8px 10px",
@@ -17,12 +17,11 @@ const navStyle = ({ isActive }) => ({
 });
 
 export default function App() {
-  const onApp =
-    typeof window !== "undefined" && window.location.hostname.startsWith("app.");
+  const host = typeof window !== "undefined" ? window.location.hostname : "";
+  const onApp  = host.startsWith("app.");
 
   return (
     <Router>
-      {/* Domein-afhankelijke routering */}
       <DomainRedirect />
 
       <header
@@ -45,17 +44,28 @@ export default function App() {
         <nav style={{ display: "flex", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
           {onApp ? (
             <>
-              <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
+              {/* Op APP linken we extern naar MAIN voor publiek */}
               <a href="https://workingpoint.nl/#/formulier" style={navStyle({ isActive: false })}>
                 Inschrijven
               </a>
+              <a href="https://workingpoint.nl/#/contact" style={navStyle({ isActive: false })}>
+                Contact
+              </a>
+              {/* Beheer-functies intern */}
+              <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
+              {/* Voeg later toe als de pagina's klaar zijn:
+                  <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
+                  <NavLink to="/uitslagen" style={navStyle}>Uitslagen</NavLink>
+              */}
             </>
           ) : (
             <>
+              {/* Op MAIN alles intern */}
               <NavLink to="/formulier" style={navStyle}>Inschrijven</NavLink>
               <NavLink to="/contact" style={navStyle}>Contact</NavLink>
+              {/* Link naar beheer */}
               <a href="https://app.workingpoint.nl/#/startlijst" style={navStyle({ isActive: false })}>
-                Beheer (app)
+                Beheer
               </a>
             </>
           )}
@@ -63,9 +73,18 @@ export default function App() {
       </header>
 
       <Routes>
+        {/* Publiek */}
         <Route path="/formulier" element={<PublicInschrijven />} />
-        <Route path="/startlijst" element={<Startlijst />} />
         <Route path="/contact" element={<Contact />} />
+
+        {/* Beheer */}
+        <Route path="/startlijst" element={<Startlijst />} />
+        {/* Voeg later toe zodra de bestanden bestaan:
+            <Route path="/protocollen" element={<ProtocolGenerator />} />
+            <Route path="/uitslagen" element={<Einduitslag />} />
+        */}
+
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/formulier" replace />} />
       </Routes>
     </Router>
