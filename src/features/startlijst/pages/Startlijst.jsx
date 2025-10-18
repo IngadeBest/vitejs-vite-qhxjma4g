@@ -284,6 +284,8 @@ export default function Startlijst() {
           omroeper: r.omroeper || null,
           opmerkingen: r.opmerkingen || null,
           startnummer: r.startnummer != null && r.startnummer !== "" ? Number(r.startnummer) : null,
+          starttijd_manual: r.starttijd_manual || null,
+          trailtijd_manual: r.trailtijd_manual || null,
         }));
 
       // Validation: startnummers must be unique per wedstrijd and max 3 digits

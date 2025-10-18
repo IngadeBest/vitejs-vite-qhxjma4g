@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-  "migrate": "psql $DATABASE_URL -f migrations/001_add_wedstrijden_columns.sql",
+    "migrate": "./scripts/run_migrations.sh",
     "preview": "vite preview"
   },
   "dependencies": {
