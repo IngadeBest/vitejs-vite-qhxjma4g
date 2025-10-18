@@ -121,7 +121,15 @@ export default function Startlijst() {
       const cfg = (gekozen.startlijst_config && typeof gekozen.startlijst_config === 'object') ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null);
       if (cfg) {
         setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart || '', interval: cfg.interval || s.interval || 7, trailOffset: cfg.trailOffset || s.trailOffset || 0, trailInfo: cfg.trailInfo || s.trailInfo || '' }));
-        setPauses(cfg.pauses && Array.isArray(cfg.pauses) ? { ...(pauses || {}), [/* per-wedstrijd default - use global key */'__default__']: cfg.pauses } : pauses);
+        // support both legacy array-shaped pauses and the newer object mapping per klasse
+        if (cfg.pauses) {
+          if (Array.isArray(cfg.pauses)) {
+            // legacy: store under __default__ key
+            setPauses({ ...(typeof pauses === 'object' ? pauses : {}), ['__default__']: cfg.pauses });
+          } else if (typeof cfg.pauses === 'object') {
+            setPauses(cfg.pauses);
+          }
+        }
       }
     } catch (e) { /* ignore */ }
   }, [gekozen]);
@@ -138,7 +146,7 @@ export default function Startlijst() {
       }
       let q = supabase
         .from("inschrijvingen")
-    .select("id, created_at, wedstrijd_id, klasse, categorie, ruiter, paard, email, startnummer, omroeper, opmerkingen")
+    .select("id, created_at, wedstrijd_id, klasse, categorie, ruiter, paard, email, startnummer, omroeper, opmerkingen, starttijd_manual, trailtijd_manual")
         .eq("wedstrijd_id", selectedWedstrijdId)
         .order("startnummer", { ascending: true, nullsFirst: true })
         .order("created_at", { ascending: true });
@@ -440,7 +448,9 @@ export default function Startlijst() {
     if (!items || !items.length) return [];
     const times = [];
     let cumulative = 0; // minutes
-    const classPauses = (pauses && pauses[klasseCode]) ? pauses[klasseCode] : [];
+  // pauses may be stored as an object mapping klasseCode -> array of pause objects
+  const classPausesRaw = (pauses && pauses[klasseCode]) ? pauses[klasseCode] : ((pauses && pauses['__default__']) ? pauses['__default__'] : []);
+  const classPauses = Array.isArray(classPausesRaw) ? classPausesRaw : [];
     for (let i = 0; i < items.length; i++) {
       // pauses are defined as afterIndex === number of previous participants
       const afterIndex = i === 0 ? 0 : i;
@@ -451,6 +461,29 @@ export default function Startlijst() {
       times.push(start);
     }
     return times;
+  }
+
+  async function saveScheduleToWedstrijd() {
+    if (!gekozen) return setMsg('Kies eerst een wedstrijd.');
+    setBusy(true); setErr(''); setMsg('');
+    try {
+      const payload = {
+        startlijst_config: {
+          dressuurStart: scheduleConfig.dressuurStart || null,
+          interval: scheduleConfig.interval || 7,
+          trailOffset: scheduleConfig.trailOffset || 0,
+          trailInfo: scheduleConfig.trailInfo || '',
+          pauses: pauses || {}
+        }
+      };
+      const { error } = await supabase.from('wedstrijden').update(payload).eq('id', gekozen.id);
+      if (error) throw error;
+      setMsg('Planning opgeslagen ✔️');
+    } catch (e) {
+      setErr(e?.message || String(e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   // helper to get displayed start/trail time considering manual overrides on the row

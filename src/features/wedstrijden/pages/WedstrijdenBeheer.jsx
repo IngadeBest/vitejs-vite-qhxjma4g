@@ -87,7 +87,11 @@ export default function WedstrijdenBeheer() {
     // load startlijst_config if present
     try {
       const cfg = (gekozen.startlijst_config && typeof gekozen.startlijst_config === 'object') ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null);
-      if (cfg) setStartlijstConfig({ dressuurStart: cfg.dressuurStart || '', interval: cfg.interval || 7, trailOffset: cfg.trailOffset || 0, pauses: Array.isArray(cfg.pauses) ? cfg.pauses : [] });
+      if (cfg) {
+        // support both legacy array pauses and new object-shaped pauses
+        const pauses = cfg.pauses && !Array.isArray(cfg.pauses) ? cfg.pauses : { ['__default__']: (Array.isArray(cfg.pauses) ? cfg.pauses : []) };
+        setStartlijstConfig({ dressuurStart: cfg.dressuurStart || '', interval: cfg.interval || 7, trailOffset: cfg.trailOffset || 0, pauses });
+      }
     } catch (e) {
       // ignore parse errors
     }
@@ -145,11 +149,17 @@ export default function WedstrijdenBeheer() {
     setMsg("");
     if (!gekozen) return setMsg("Kies eerst een wedstrijd.");
     try {
-      const { error } = await supabase.from("wedstrijden").update({
+      const payload = {
         allowed_klassen: allowedKlassen,
         organisator_email: nieuwEmail || null,
-        startlijst_config: startlijstConfig || {}
-      }).eq("id", gekozen.id);
+        startlijst_config: {
+          dressuurStart: startlijstConfig.dressuurStart || null,
+          interval: startlijstConfig.interval || 7,
+          trailOffset: startlijstConfig.trailOffset || 0,
+          pauses: startlijstConfig.pauses || {}
+        }
+      };
+      const { error } = await supabase.from("wedstrijden").update(payload).eq("id", gekozen.id);
       if (error) throw error;
       setMsg("Wedstrijd instellingen opgeslagen ✔️");
       setMigrationSql("");
