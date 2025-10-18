@@ -2,8 +2,10 @@ import React from "react";
 import { HashRouter as Router, Routes, Route, NavLink, Navigate } from "react-router-dom";
 import DomainRedirect from "@/DomainRedirect";
 
+// Pagina's
 import PublicInschrijven from "@/features/inschrijven/pages/PublicInschrijven";
 import Startlijst from "@/features/startlijst/pages/Startlijst";
+import Contact from "@/pages/Contact";
 
 const navStyle = ({ isActive }) => ({
   padding: "8px 10px",
@@ -15,8 +17,12 @@ const navStyle = ({ isActive }) => ({
 });
 
 export default function App() {
+  const onApp =
+    typeof window !== "undefined" && window.location.hostname.startsWith("app.");
+
   return (
     <Router>
+      {/* Domein-afhankelijke routering */}
       <DomainRedirect />
 
       <header
@@ -35,17 +41,31 @@ export default function App() {
         <div style={{ fontWeight: 800, fontSize: 18, color: "#102754" }}>
           Working Point
         </div>
+
         <nav style={{ display: "flex", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
-          <NavLink to="/formulier" style={navStyle}>
-            Inschrijven
-          </NavLink>
-          <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
+          {onApp ? (
+            <>
+              <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
+              <a href="https://workingpoint.nl/#/formulier" style={navStyle({ isActive: false })}>
+                Inschrijven
+              </a>
+            </>
+          ) : (
+            <>
+              <NavLink to="/formulier" style={navStyle}>Inschrijven</NavLink>
+              <NavLink to="/contact" style={navStyle}>Contact</NavLink>
+              <a href="https://app.workingpoint.nl/#/startlijst" style={navStyle({ isActive: false })}>
+                Beheer (app)
+              </a>
+            </>
+          )}
         </nav>
       </header>
 
       <Routes>
         <Route path="/formulier" element={<PublicInschrijven />} />
         <Route path="/startlijst" element={<Startlijst />} />
+        <Route path="/contact" element={<Contact />} />
         <Route path="*" element={<Navigate to="/formulier" replace />} />
       </Routes>
     </Router>
