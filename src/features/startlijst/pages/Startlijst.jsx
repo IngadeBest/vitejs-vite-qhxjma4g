@@ -42,6 +42,15 @@ export default function Startlijst() {
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [klasseOrder, setKlasseOrder] = useState([]); // visual order of klasse cards
+  // Scheduling state
+  const [scheduleConfig, setScheduleConfig] = useState({
+    dressuurStart: '', // 'HH:MM'
+    interval: 7, // minutes
+    trailOffset: 0, // minutes after starttijd for trail
+    trailInfo: '',
+  });
+  const [pauses, setPauses] = useState([]); // { afterIndex: number, minutes: number }
+  const [visibleCols, setVisibleCols] = useState({ starttijd: true, startnummer: true, ruiter: true, paard: true, klasse: true, starttijdTrail: true });
 
   // Drag & drop handlers: allow reordering within the same klasse
   function onDragStart(e, id, klasse) {
@@ -380,21 +389,68 @@ export default function Startlijst() {
     return padded;
   }
 
+  function parseTimeForDate(timeStr) {
+    if (!timeStr) return null;
+    // prefer wedstrijd datum if available
+    const datePart = (gekozen && gekozen.datum) ? String(gekozen.datum) : null;
+    try {
+      if (datePart) {
+        // timeStr like 'HH:MM'
+        return new Date(datePart + 'T' + timeStr + ':00');
+      }
+      const today = new Date();
+      const [hh, mm] = String(timeStr).split(':').map(s => Number(s));
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hh || 0, mm || 0, 0);
+      return d;
+    } catch (e) { return null; }
+  }
+
+  function formatTime(date) {
+    if (!date) return '';
+    try {
+      const d = new Date(date);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return '' }
+  }
+
+  function computeStartTimes(items) {
+    // items: ordered array for the class
+    const base = parseTimeForDate(scheduleConfig.dressuurStart);
+    const interval = Number(scheduleConfig.interval) || 7;
+    if (!items || !items.length) return [];
+    const times = [];
+    let cumulative = 0; // minutes
+    for (let i = 0; i < items.length; i++) {
+      // check for pauses after previous index (i-1)
+      const afterIndex = i === 0 ? 0 : i; // pauses defined as afterIndex refers to number of previous participants
+      const pauseHere = pauses.find(p => Number(p.afterIndex) === afterIndex);
+      if (i > 0) cumulative += interval;
+      if (pauseHere) cumulative += Number(pauseHere.minutes || 0);
+      const start = base ? new Date(base.getTime() + cumulative * 60000) : null;
+      times.push(start);
+    }
+    return times;
+  }
+
   // Export helpers
   function handleExportExcel(klasseCode) {
     const wb = XLSX.utils.book_new();
     if (klasseCode === '__all__') {
       for (const [k, items] of grouped.entries()) {
         const ws = XLSX.utils.json_to_sheet(
-          (items || []).map(item => ({
-            Startnummer: item.startnummer || '',
-            Ruiter: item.ruiter,
-            Paard: item.paard,
-            Categorie: item.categorie,
-            Email: item.email,
-            Omroeper: item.omroeper,
-            Opmerkingen: item.opmerkingen,
-          }))
+          (items || []).map((item, idx) => {
+            const times = computeStartTimes(items || []);
+            const start = times[idx] || null;
+            const trailStart = start ? new Date(start.getTime() + (Number(scheduleConfig.trailOffset || 0) * 60000)) : null;
+            return {
+              Starttijd: formatTime(start),
+              Startnummer: item.startnummer || '',
+              Ruiter: item.ruiter,
+              Paard: item.paard,
+              Klasse: item.klasse || '',
+              'Starttijd Trail': formatTime(trailStart),
+            };
+          })
         );
         XLSX.utils.book_append_sheet(wb, ws, (k || 'Onbekend').toString().slice(0,30));
       }
@@ -549,6 +605,30 @@ export default function Startlijst() {
           </div>
 
           <div style={{ marginTop: 8, display: 'grid', gap: 18 }}>
+            {/* Schedule/config panel */}
+            <div style={{ background: '#f8fbff', padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Dressuur start (HH:MM)</label>
+                  <input value={scheduleConfig.dressuurStart} onChange={e=>setScheduleConfig(s=>({...s, dressuurStart: e.target.value}))} placeholder="09:00" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Interval (min)</label>
+                  <input type="number" value={scheduleConfig.interval} onChange={e=>setScheduleConfig(s=>({...s, interval: Number(e.target.value) || 7}))} style={{ width: 80 }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Trail offset (min)</label>
+                  <input type="number" value={scheduleConfig.trailOffset} onChange={e=>setScheduleConfig(s=>({...s, trailOffset: Number(e.target.value)||0}))} style={{ width: 80 }} />
+                </div>
+                <div style={{ marginLeft: 'auto' }}>
+                  <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Pauzes</label>
+                  <small style={{ color: '#666' }}>Voeg pauzes toe via beheer-mode (na welke start; minuten)</small>
+                </div>
+              </div>
+              <div style={{ marginTop: 8, fontSize: 13, color: '#234' }}>
+                <b>Info:</b> {scheduleConfig.trailInfo || 'Stel hierboven de dressuur starttijd, interval en trail offset in.'}
+              </div>
+            </div>
             {(klasseOrder || []).map(klasseCode => {
               const items = grouped.get(klasseCode) || [];
               return (
@@ -581,58 +661,64 @@ export default function Startlijst() {
                     </div>
                   </div>
 
-                  <div ref={el => refs.current[klasseCode] = el}>
+                    <div ref={el => refs.current[klasseCode] = el}>
                     <table width="100%" cellPadding={6} style={{ borderCollapse: 'collapse', fontSize: 14, background: '#fafdff', borderRadius: 8 }}>
                       <thead>
                         <tr style={{ background: '#dfeffd', color: '#174174' }}>
-                          <th style={{ borderBottom: '1px solid #e0edf8', width: 60, padding: 8 }}>#</th>
-                          <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Ruiter</th>
-                          <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Paard</th>
-                          <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Email</th>
-                          <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Omroeper</th>
-                          <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Opmerkingen</th>
+                          {visibleCols.starttijd && <th style={{ borderBottom: '1px solid #e0edf8', width: 110, padding: 8 }}>Starttijd</th>}
+                          {visibleCols.startnummer && <th style={{ borderBottom: '1px solid #e0edf8', width: 60, padding: 8 }}>#</th>}
+                          {visibleCols.ruiter && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Ruiter</th>}
+                          {visibleCols.paard && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Paard</th>}
+                          {visibleCols.klasse && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Klasse</th>}
+                          {visibleCols.starttijdTrail && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Starttijd Trail</th>}
                           {beheer && <th style={{ borderBottom: '1px solid #e0edf8', width: 120, padding: 8 }}>Acties</th>}
                         </tr>
                       </thead>
                       <tbody>
-                        {items.map((r, idx) => (
-                          <tr key={r.id}
-                            draggable={false}
-                            onDragOver={onDragOver}
-                            onDragEnter={(e)=>onDragEnter(e, r.id)}
-                            onDragLeave={onDragLeave}
-                            onDrop={(e)=>onDrop(e, idx, klasseCode)}
-                            style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
-                            <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center', padding: 8 }}>{beheer ? (
-                              <>
-                                <button
-                                  aria-label="drag-handle"
-                                  draggable={beheer}
-                                  onDragStart={(e)=>onDragStart(e, r.id, klasseCode)}
-                                  onDragEnd={()=>{ setDraggingId(null); setDragOverId(null); }}
-                                  style={{ cursor: 'grab', padding: 6, borderRadius: 6, border: '1px solid #e6eefb', background: '#fafdff' }}
-                                >
-                                  ≡
-                                </button>
-                                <input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} />
-                              </>
-                            ) : (formatStartnummer(r) || (r.startnummer ?? idx + 1))}</td>
-                            <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>
-                            <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>
-                            {/* categorie removed */}
-                            <td style={{ padding: 8 }}>{beheer ? <input type="email" value={r.email || ''} onChange={(e)=>onCellChange(r.id, 'email', e.target.value)} style={{ width: '100%' }} /> : (r.email || '—')}</td>
-                            <td style={{ padding: 8 }}>{beheer ? <input value={r.omroeper || ''} onChange={(e)=>onCellChange(r.id, 'omroeper', e.target.value)} style={{ width: '100%' }} placeholder="Tekst voor omroeper" /> : (r.omroeper || '—')}</td>
-                            <td style={{ padding: 8 }}>{beheer ? <input value={r.opmerkingen || ''} onChange={(e)=>onCellChange(r.id, 'opmerkingen', e.target.value)} style={{ width: '100%' }} /> : (r.opmerkingen || '—')}</td>
-                            {beheer && (
-                              <td style={{ whiteSpace: 'nowrap', padding: 8 }}>
-                                <Button onClick={()=>{/* noop: explicit move via drag/drop preferred */}} variant="secondary">↕️</Button>
-                                <Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
+                        {(() => {
+                          const times = computeStartTimes(items);
+                          return items.map((r, idx) => {
+                            const start = times[idx] || null;
+                            const trailStart = start ? new Date(start.getTime() + (Number(scheduleConfig.trailOffset || 0) * 60000)) : null;
+                            return (
+                              <tr key={r.id}
+                                draggable={false}
+                                onDragOver={onDragOver}
+                                onDragEnter={(e)=>onDragEnter(e, r.id)}
+                                onDragLeave={onDragLeave}
+                                onDrop={(e)=>onDrop(e, idx, klasseCode)}
+                                style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
+                                {visibleCols.starttijd && <td style={{ padding: 8 }}>{formatTime(start)}</td>}
+                                {visibleCols.startnummer && <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center', padding: 8 }}>{beheer ? (
+                                  <>
+                                    <button
+                                      aria-label="drag-handle"
+                                      draggable={beheer}
+                                      onDragStart={(e)=>onDragStart(e, r.id, klasseCode)}
+                                      onDragEnd={()=>{ setDraggingId(null); setDragOverId(null); }}
+                                      style={{ cursor: 'grab', padding: 6, borderRadius: 6, border: '1px solid #e6eefb', background: '#fafdff' }}
+                                    >
+                                      ≡
+                                    </button>
+                                    <input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} />
+                                  </>
+                                ) : (formatStartnummer(r) || (r.startnummer ?? idx + 1))}</td>}
+                                {visibleCols.ruiter && <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>}
+                                {visibleCols.paard && <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>}
+                                {visibleCols.klasse && <td style={{ padding: 8 }}>{r.klasse || '—'}</td>}
+                                {visibleCols.starttijdTrail && <td style={{ padding: 8 }}>{formatTime(trailStart)}</td>}
+                                {beheer && (
+                                  <td style={{ whiteSpace: 'nowrap', padding: 8 }}>
+                                    <Button onClick={()=>{/* noop: explicit move via drag/drop preferred */}} variant="secondary">↕️</Button>
+                                    <Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          });
+                        })()}
                         {items.length === 0 && (
-                          <tr><td colSpan={beheer ? 7 : 6} style={{ color: '#777', padding: '18px 8px' }}>Nog geen inschrijvingen voor deze klasse.</td></tr>
+                          <tr><td colSpan={beheer ? 6 : 5} style={{ color: '#777', padding: '18px 8px' }}>Nog geen inschrijvingen voor deze klasse.</td></tr>
                         )}
                       </tbody>
                     </table>
