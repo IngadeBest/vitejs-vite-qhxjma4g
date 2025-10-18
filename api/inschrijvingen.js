@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+// Prefer server env names, fall back to VITE_* for local dev
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 
 const supabaseServer = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) : null;
@@ -24,6 +25,10 @@ export default async function handler(req, res) {
   // prefer SUPABASE_URL / SUPABASE_ANON_KEY but fall back to VITE_* names for local dev
   const PUBLIC_SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const PUBLIC_SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_ANON) {
+    console.error('Missing public Supabase env vars', { PUBLIC_SUPABASE_URL: !!PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON: !!PUBLIC_SUPABASE_ANON });
+    return res.status(500).json({ ok: false, error: 'MISSING_SUPABASE_ENV', message: 'Missing SUPABASE_URL or SUPABASE_ANON_KEY (or VITE_* equivalents) in environment.' });
+  }
   const publicFetch = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON);
     const { data: wedstrijden = [], error: wErr } = await publicFetch.from('wedstrijden').select('*').eq('id', wedstrijd_id).limit(1);
     if (wErr) {
@@ -66,9 +71,13 @@ export default async function handler(req, res) {
       }
     } else {
       // fallback: use public client (may fail due to RLS) — document risk
-  const PUB_SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const PUB_SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-  const pub = createClient(PUB_SUPABASE_URL, PUB_SUPABASE_ANON);
+      const PUB_SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const PUB_SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+      if (!PUB_SUPABASE_URL || !PUB_SUPABASE_ANON) {
+        console.error('Missing public Supabase env vars for fallback insert', { PUB_SUPABASE_URL: !!PUB_SUPABASE_URL, PUB_SUPABASE_ANON: !!PUB_SUPABASE_ANON });
+        return res.status(500).json({ ok: false, error: 'MISSING_SUPABASE_ENV', message: 'Missing SUPABASE_URL or SUPABASE_ANON_KEY (or VITE_* equivalents) in environment for public insert fallback.' });
+      }
+      const pub = createClient(PUB_SUPABASE_URL, PUB_SUPABASE_ANON);
       const { error: insertErr } = await pub.from('inschrijvingen').insert(payload);
       if (insertErr) {
         console.error('Supabase insert error (public):', insertErr);
