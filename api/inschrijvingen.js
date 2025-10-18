@@ -30,11 +30,55 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'MISSING_SUPABASE_ENV', message: 'Missing SUPABASE_URL or SUPABASE_ANON_KEY (or VITE_* equivalents) in environment.' });
   }
   const publicFetch = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON);
-    const { data: wedstrijden = [], error: wErr } = await publicFetch.from('wedstrijden').select('*').eq('id', wedstrijd_id).limit(1);
-    if (wErr) {
-      console.error('Failed to fetch wedstrijd (publicFetch):', wErr);
-      throw new Error('WEDSTRIJD_FETCH_FAILED: ' + (wErr.message || JSON.stringify(wErr)));
+    let wedstrijden = [];
+    let wErr = null;
+    // first, try fetching by id — this will fail if the provided id is not a uuid
+    try {
+      const res = await publicFetch.from('wedstrijden').select('*').eq('id', wedstrijd_id).limit(1);
+      wedstrijden = res.data || [];
+      wErr = res.error || null;
+      if (wErr) {
+        // if the error looks like an invalid uuid input, fall through to a fallback query
+        const msg = String(wErr.message || JSON.stringify(wErr)).toLowerCase();
+        if (!msg.includes('invalid input syntax for type uuid')) {
+          console.error('Failed to fetch wedstrijd (publicFetch):', wErr);
+          throw new Error('WEDSTRIJD_FETCH_FAILED: ' + (wErr.message || JSON.stringify(wErr)));
+        }
+        // else: continue to fallback
+      }
+    } catch (err) {
+      // If the client threw (e.g. server returned 500) check message for uuid issue, else rethrow
+      const m = String(err?.message || '').toLowerCase();
+      if (!m.includes('invalid input syntax for type uuid')) {
+        console.error('Failed to fetch wedstrijd (publicFetch exception):', err);
+        throw new Error('WEDSTRIJD_FETCH_FAILED: ' + (err?.message || String(err)));
+      }
+      // otherwise we'll try the fallback below
     }
+
+    // fallback: try to find by slug or partial name if id lookup failed due to uuid syntax
+    if (!wedstrijden.length) {
+      try {
+        // try slug exact match first
+        const bySlug = await publicFetch.from('wedstrijden').select('*').eq('slug', wedstrijd_id).limit(1);
+        if (bySlug.data && bySlug.data.length) {
+          wedstrijden = bySlug.data;
+        } else {
+          // try name search (case-insensitive, partial)
+          const byName = await publicFetch.from('wedstrijden').select('*').ilike('naam', `%${wedstrijd_id}%`).limit(1);
+          wedstrijden = byName.data || [];
+          wErr = byName.error || null;
+          if (wErr) {
+            console.error('Failed fallback fetch by naam:', wErr);
+            throw new Error('WEDSTRIJD_FETCH_FAILED: ' + (wErr.message || JSON.stringify(wErr)));
+          }
+        }
+      } catch (err) {
+        console.error('Fallback fetch failed:', err);
+        throw new Error('WEDSTRIJD_FETCH_FAILED: ' + (err?.message || String(err)));
+      }
+    }
+
     const wedstrijd = (wedstrijden && wedstrijden[0]) || null;
     if (!wedstrijd) return res.status(404).json({ ok: false, error: 'WEDSTRIJD_NOT_FOUND', message: 'Wedstrijd niet gevonden.' });
 
