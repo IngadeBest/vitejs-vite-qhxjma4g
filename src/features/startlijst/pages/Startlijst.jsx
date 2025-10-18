@@ -49,7 +49,7 @@ export default function Startlijst() {
     trailOffset: 0, // minutes after starttijd for trail
     trailInfo: '',
   });
-  const [pauses, setPauses] = useState([]); // { afterIndex: number, minutes: number }
+  const [pauses, setPauses] = useState({}); // { [klasseCode]: [{ afterIndex: number, minutes: number }] }
   const [visibleCols, setVisibleCols] = useState({ starttijd: true, startnummer: true, ruiter: true, paard: true, klasse: true, starttijdTrail: true });
 
   // Drag & drop handlers: allow reordering within the same klasse
@@ -111,6 +111,18 @@ export default function Startlijst() {
     () => wedstrijden.find((w) => w.id === selectedWedstrijdId) || null,
     [wedstrijden, selectedWedstrijdId]
   );
+
+  // sync schedule configuration from wedstrijd (persisted in startlijst_config)
+  useEffect(() => {
+    if (!gekozen) return;
+    try {
+      const cfg = (gekozen.startlijst_config && typeof gekozen.startlijst_config === 'object') ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null);
+      if (cfg) {
+        setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart || '', interval: cfg.interval || s.interval || 7, trailOffset: cfg.trailOffset || s.trailOffset || 0, trailInfo: cfg.trailInfo || s.trailInfo || '' }));
+        setPauses(cfg.pauses && Array.isArray(cfg.pauses) ? { ...(pauses || {}), [/* per-wedstrijd default - use global key */'__default__']: cfg.pauses } : pauses);
+      }
+    } catch (e) { /* ignore */ }
+  }, [gekozen]);
 
   const fetchRows = useCallback(async () => {
     setBusy(true);
@@ -413,17 +425,18 @@ export default function Startlijst() {
     } catch (e) { return '' }
   }
 
-  function computeStartTimes(items) {
+  function computeStartTimes(items, klasseCode) {
     // items: ordered array for the class
     const base = parseTimeForDate(scheduleConfig.dressuurStart);
     const interval = Number(scheduleConfig.interval) || 7;
     if (!items || !items.length) return [];
     const times = [];
     let cumulative = 0; // minutes
+    const classPauses = (pauses && pauses[klasseCode]) ? pauses[klasseCode] : [];
     for (let i = 0; i < items.length; i++) {
-      // check for pauses after previous index (i-1)
-      const afterIndex = i === 0 ? 0 : i; // pauses defined as afterIndex refers to number of previous participants
-      const pauseHere = pauses.find(p => Number(p.afterIndex) === afterIndex);
+      // pauses are defined as afterIndex === number of previous participants
+      const afterIndex = i === 0 ? 0 : i;
+      const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex);
       if (i > 0) cumulative += interval;
       if (pauseHere) cumulative += Number(pauseHere.minutes || 0);
       const start = base ? new Date(base.getTime() + cumulative * 60000) : null;
@@ -676,7 +689,7 @@ export default function Startlijst() {
                       </thead>
                       <tbody>
                         {(() => {
-                          const times = computeStartTimes(items);
+                          const times = computeStartTimes(items, klasseCode);
                           return items.map((r, idx) => {
                             const start = times[idx] || null;
                             const trailStart = start ? new Date(start.getTime() + (Number(scheduleConfig.trailOffset || 0) * 60000)) : null;
@@ -722,6 +735,49 @@ export default function Startlijst() {
                         )}
                       </tbody>
                     </table>
+
+                    {beheer && (
+                      <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: '#fcfeff', border: '1px dashed #e6f2ff' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Pauzes voor {KLASSEN_EDIT.find(k=>k.code===klasseCode)?.label || klasseCode}</div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                          <small style={{ color: '#666' }}>Huidige pauzes:</small>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {(pauses[klasseCode] || []).map((p, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <div style={{ fontSize: 13 }}>Na {p.afterIndex} starts — {p.minutes} min</div>
+                              <Button variant="secondary" onClick={()=>{
+                                setPauses(prev => {
+                                  const copy = { ...(prev || {}) };
+                                  copy[klasseCode] = (copy[klasseCode] || []).filter((_,idx)=>idx !== i);
+                                  return copy;
+                                });
+                              }}>Verwijder</Button>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <input type="number" placeholder="Na (count)" id={`pause-after-${klasseCode}`} style={{ width: 100 }} />
+                          <input type="number" placeholder="Minuten" id={`pause-min-${klasseCode}`} style={{ width: 100 }} />
+                          <Button onClick={()=>{
+                            const elA = document.getElementById(`pause-after-${klasseCode}`);
+                            const elM = document.getElementById(`pause-min-${klasseCode}`);
+                            const after = Number(elA?.value || 0);
+                            const minutes = Number(elM?.value || 0);
+                            if (!Number.isFinite(after) || !Number.isFinite(minutes)) return;
+                            setPauses(prev => {
+                              const copy = { ...(prev || {}) };
+                              copy[klasseCode] = copy[klasseCode] || [];
+                              copy[klasseCode].push({ afterIndex: after, minutes });
+                              return copy;
+                            });
+                            if (elA) elA.value = '';
+                            if (elM) elM.value = '';
+                          }}>Voeg pauze toe</Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

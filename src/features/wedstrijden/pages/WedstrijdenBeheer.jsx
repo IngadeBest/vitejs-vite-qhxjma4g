@@ -34,6 +34,7 @@ export default function WedstrijdenBeheer() {
 
   const [msg, setMsg] = useState("");
   const [allowedKlassen, setAllowedKlassen] = useState([]);
+  const [startlijstConfig, setStartlijstConfig] = useState({ dressuurStart: '', interval: 7, trailOffset: 0, pauses: [] });
   const [migrationSql, setMigrationSql] = useState("");
 
   const MIGRATION_SQL = `-- add allowed_klassen to wedstrijden\nALTER TABLE IF EXISTS wedstrijden\n  ADD COLUMN IF NOT EXISTS allowed_klassen jsonb DEFAULT '[]'::jsonb;`;
@@ -70,13 +71,20 @@ export default function WedstrijdenBeheer() {
   function syncConfigFromSelected() {
     if (!gekozen) {
       setAllowedKlassen([]);
-      setKlasseCategorieen({});
+      setStartlijstConfig({ dressuurStart: '', interval: 7, trailOffset: 0, pauses: [] });
       return;
     }
   // expected shape: gekozen.allowed_klassen (array)
   setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
     // populate organisator email if present
     setNieuwEmail(gekozen.organisator_email || "");
+    // load startlijst_config if present
+    try {
+      const cfg = (gekozen.startlijst_config && typeof gekozen.startlijst_config === 'object') ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null);
+      if (cfg) setStartlijstConfig({ dressuurStart: cfg.dressuurStart || '', interval: cfg.interval || 7, trailOffset: cfg.trailOffset || 0, pauses: Array.isArray(cfg.pauses) ? cfg.pauses : [] });
+    } catch (e) {
+      // ignore parse errors
+    }
   }
 
   // when selected changes, populate local config
@@ -133,7 +141,8 @@ export default function WedstrijdenBeheer() {
     try {
       const { error } = await supabase.from("wedstrijden").update({
         allowed_klassen: allowedKlassen,
-        organisator_email: nieuwEmail || null
+        organisator_email: nieuwEmail || null,
+        startlijst_config: startlijstConfig || {}
       }).eq("id", gekozen.id);
       if (error) throw error;
       setMsg("Wedstrijd instellingen opgeslagen ✔️");
