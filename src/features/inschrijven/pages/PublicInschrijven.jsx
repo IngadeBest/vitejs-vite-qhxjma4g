@@ -97,8 +97,13 @@ export default function PublicInschrijven() {
       }
 
       const res = await fetch('/api/inschrijvingen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((json && json.message) ? json.message : (json.error || 'Opslaan mislukt'));
+      const text = await res.text().catch(() => '');
+      let json = {};
+      try { json = text ? JSON.parse(text) : {}; } catch (e) { json = { raw: text }; }
+      if (!res.ok) {
+        const msg = (json && json.message) ? json.message : (json.error || (json.raw ? String(json.raw) : 'Opslaan mislukt'));
+        throw new Error(`API ${res.status}: ${msg}`);
+      }
 
       // best effort notify via existing client helper (still useful)
       try { await notifyOrganisator({ wedstrijd: gekozenWedstrijd, inschrijving: payload }); } catch (e) { /* ignore */ }
