@@ -1,7 +1,7 @@
-
 import React from "react";
 import { createRoot } from "react-dom/client";
-import "./styles.css";
-import Formulier from "./Formulier";
+import App from "./App.jsx";
+import "./index.css"; 
 
-createRoot(document.getElementById("root")).render(<Formulier />);
+const rootEl = document.getElementById("root");
+createRoot(rootEl).render(<App />);
