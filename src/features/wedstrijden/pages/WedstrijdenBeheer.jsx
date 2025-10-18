@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
+import ProefEditor from "@/features/wedstrijden/components/ProefEditor";
 
 const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
@@ -285,41 +286,7 @@ export default function WedstrijdenBeheer() {
 
       
 
-      <section style={{border:"1px solid #eee", borderRadius:12, padding:12}}>
-        <h3>Proeven & max scores</h3>
-        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:8, alignItems:"center"}}>
-          <label>Onderdeel</label>
-          <select value={cfg.onderdeel} onChange={(e)=>setCfg(s=>({...s, onderdeel:e.target.value}))}>
-            {ONDERDELEN.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}
-          </select>
-          <label>Klasse</label>
-          <select value={cfg.klasse} onChange={(e)=>setCfg(s=>({...s, klasse:e.target.value}))}>
-            {KLASSEN.map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
-          </select>
-          <div></div>
-
-          <label>Naam/proefcode*</label>
-          <input placeholder="Bijv. WE1-A, Stijltrail-1, Speedtrail-1" value={cfg.proef_naam} onChange={(e)=>setCfg(s=>({...s, proef_naam:e.target.value}))}/>
-
-          <label>Max. score (optioneel)</label>
-          <input type="number" placeholder="Bijv. 200" value={cfg.max_score} onChange={(e)=>setCfg(s=>({...s, max_score:e.target.value}))}/>
-
-          <div></div><div></div>
-        </div>
-
-        <div style={{marginTop:8}}>
-          <label style={{display:"block", fontWeight:600}}>Onderdelen van de proef</label>
-          <div style={{fontSize:12,color:"#666",margin:"4px 0 8px"}}>
-            <b>Dressuur:</b> per regel: <code>omschrijving | max | coeff</code> (bijv. "C binnenkomen | 10 | 1")<br/>
-            <b>Stijl/Speed:</b> per regel één obstakel of element.
-          </div>
-          <textarea rows={8} style={{width:"100%"}} value={cfg.items_text} onChange={(e)=>setCfg(s=>({...s, items_text:e.target.value}))}/>
-        </div>
-
-        <div style={{marginTop:8}}>
-          <button onClick={saveProef} disabled={!gekozen}>Opslaan</button>
-        </div>
-      </section>
+      <ProefEditor cfg={cfg} setCfg={setCfg} saveProef={saveProef} gekozen={gekozen} />
 
       {msg && <div style={{ marginTop: 12, color: "#333" }}>{msg}</div>}
       {migrationSql && (
