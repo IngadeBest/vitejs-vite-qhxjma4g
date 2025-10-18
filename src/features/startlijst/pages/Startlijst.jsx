@@ -222,7 +222,11 @@ export default function Startlijst() {
     // per-klasse renumber volgens schema: weX -> X01, X02, ... (WE1 -> 101, 102)
     const getDigit = (code) => {
       if (!code) return null;
-      const m = String(code).toLowerCase().match(/we(\d)/);
+      const c = String(code).toLowerCase();
+      if (c === 'junior') return 6;
+      if (c === 'yr' || c === 'young riders' || c === 'young_riders') return 7;
+      if (c === 'we2p' || c === 'we2+' ) return 8;
+      const m = c.match(/we(\d)/);
       return m ? Number(m[1]) : null;
     };
     const byClass = new Map();
@@ -447,6 +451,17 @@ export default function Startlijst() {
     return times;
   }
 
+  // helper to get displayed start/trail time considering manual overrides on the row
+  function getDisplayedTimesForRow(item, idx, classItems, klasseCode) {
+    const manualStart = item.starttijd_manual;
+    const manualTrail = item.trailtijd_manual;
+    const times = computeStartTimes(classItems, klasseCode);
+    const computedStart = times[idx] || null;
+    const start = manualStart ? (new Date(manualStart)) : computedStart;
+    const trail = manualTrail ? (new Date(manualTrail)) : (start ? new Date(start.getTime() + (Number(scheduleConfig.trailOffset || 0) * 60000)) : null);
+    return { start, trail, computedStart };
+  }
+
   // Export helpers
   function handleExportExcel(klasseCode) {
     const wb = XLSX.utils.book_new();
@@ -454,16 +469,14 @@ export default function Startlijst() {
       for (const [k, items] of grouped.entries()) {
         const ws = XLSX.utils.json_to_sheet(
           (items || []).map((item, idx) => {
-            const times = computeStartTimes(items || []);
-            const start = times[idx] || null;
-            const trailStart = start ? new Date(start.getTime() + (Number(scheduleConfig.trailOffset || 0) * 60000)) : null;
+            const { start, trail } = getDisplayedTimesForRow(item, idx, items, k);
             return {
               Starttijd: formatTime(start),
               Startnummer: item.startnummer || '',
               Ruiter: item.ruiter,
               Paard: item.paard,
-              Klasse: item.klasse || '',
-              'Starttijd Trail': formatTime(trailStart),
+              Klasse: KLASSEN.find(x=>x.code=== (item.klasse || ''))?.label || item.klasse || '',
+              'Starttijd Trail': formatTime(trail),
             };
           })
         );
@@ -474,15 +487,17 @@ export default function Startlijst() {
     }
     const items = grouped.get(klasseCode) || [];
     const ws = XLSX.utils.json_to_sheet(
-      items.map(item => ({
-        Startnummer: item.startnummer || '',
-        Ruiter: item.ruiter,
-        Paard: item.paard,
-        Categorie: item.categorie,
-        Email: item.email,
-        Omroeper: item.omroeper,
-        Opmerkingen: item.opmerkingen,
-      }))
+      items.map((item, idx) => {
+        const { start, trail } = getDisplayedTimesForRow(item, idx, items, klasseCode);
+        return {
+          Starttijd: formatTime(start),
+          Startnummer: item.startnummer || '',
+          Ruiter: item.ruiter,
+          Paard: item.paard,
+          Klasse: KLASSEN.find(x=>x.code=== (item.klasse || ''))?.label || item.klasse || '',
+          'Starttijd Trail': formatTime(trail),
+        };
+      })
     );
     XLSX.utils.book_append_sheet(wb, ws, klasseCode || 'Onbekend');
     XLSX.writeFile(wb, `Startlijst_${klasseCode || 'onbekend'}.xlsx`);
@@ -611,16 +626,15 @@ export default function Startlijst() {
                             {(() => {
                               const times = computeStartTimes(items, klasseCode);
                               return items.map((r, idx) => {
-                                const start = times[idx] || null;
-                                const trailStart = start ? new Date(start.getTime() + (Number(scheduleConfig.trailOffset || 0) * 60000)) : null;
+                                const { start, trail, computedStart } = getDisplayedTimesForRow(r, idx, items, klasseCode);
                                 return (
                                   <tr key={r.id} draggable={false} onDragOver={onDragOver} onDragEnter={(e)=>onDragEnter(e, r.id)} onDragLeave={onDragLeave} onDrop={(e)=>onDrop(e, idx, klasseCode)} style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
-                                    {visibleCols.starttijd && <td style={{ padding: 8 }}>{formatTime(start)}</td>}
+                                    {visibleCols.starttijd && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.starttijd_manual || (computedStart ? new Date(computedStart).toISOString().slice(0,16) : '')} onChange={(e)=>onCellChange(r.id, 'starttijd_manual', e.target.value)} />) : formatTime(start)}</td>}
                                     {visibleCols.startnummer && <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center', padding: 8 }}>{beheer ? (<><button aria-label="drag-handle" draggable={beheer} onDragStart={(e)=>onDragStart(e, r.id, klasseCode)} onDragEnd={()=>{ setDraggingId(null); setDragOverId(null); }} style={{ cursor: 'grab', padding: 6, borderRadius: 6, border: '1px solid #e6eefb', background: '#fafdff' }}>≡</button><input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} /></>) : (formatStartnummer(r) || (r.startnummer ?? idx + 1))}</td>}
                                     {visibleCols.ruiter && <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>}
                                     {visibleCols.paard && <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>}
                                     {visibleCols.klasse && <td style={{ padding: 8 }}>{KLASSEN.find(k=>k.code === (r.klasse || ''))?.label || (r.klasse || '—')}</td>}
-                                    {visibleCols.starttijdTrail && <td style={{ padding: 8 }}>{formatTime(trailStart)}</td>}
+                                    {visibleCols.starttijdTrail && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.trailtijd_manual || (trail ? new Date(trail).toISOString().slice(0,16) : '')} onChange={(e)=>onCellChange(r.id, 'trailtijd_manual', e.target.value)} />) : formatTime(trail)}</td>}
                                     {beheer && (<td style={{ whiteSpace: 'nowrap', padding: 8 }}><Button onClick={()=>{/* noop */}} variant="secondary">↕️</Button><Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button></td>)}
                                   </tr>
                                 );
@@ -665,19 +679,23 @@ export default function Startlijst() {
           <div style={{ marginTop: 8, fontWeight: 700 }}>Huidige instellingen</div>
           <div style={{ fontSize: 13, color: '#333', marginTop: 6 }}>Dressuur start: <b>{scheduleConfig.dressuurStart || '—'}</b><br/>Interval: <b>{scheduleConfig.interval} min</b><br/>Trail offset: <b>{scheduleConfig.trailOffset} min</b></div>
           <div style={{ marginTop: 12 }}>
-            <div style={{ fontWeight: 700 }}>Voorbeeld export (eerste klasse)</div>
+            <div style={{ fontWeight: 700 }}>Voorbeeld export (alle klassen)</div>
             <div style={{ marginTop: 8 }}>
               {(() => {
-                const first = (klasseOrder || [])[0];
-                if (!first) return <div style={{ color: '#777' }}>Geen klasse geselecteerd</div>;
-                const items = grouped.get(first) || [];
-                const times = computeStartTimes(items, first);
+                const rows = [];
+                for (const [k, items] of grouped.entries()) {
+                  for (let i=0;i<items.length;i++) {
+                    const it = items[i];
+                    const { start, trail } = getDisplayedTimesForRow(it, i, items, k);
+                    rows.push({ klasse: KLASSEN.find(x=>x.code===k)?.label || k, start: formatTime(start), trail: formatTime(trail), ruiter: it.ruiter || '—', startnummer: formatStartnummer(it) || (it.startnummer || i+1) });
+                  }
+                }
+                if (!rows.length) return <div style={{ color: '#777' }}>Geen inschrijvingen</div>;
                 return (
                   <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
-                    <thead><tr><th style={{ textAlign: 'left' }}>#</th><th style={{ textAlign: 'left' }}>Ruiter</th><th style={{ textAlign: 'left' }}>Starttijd</th><th style={{ textAlign: 'left' }}>Trail</th></tr></thead>
+                    <thead><tr><th style={{ textAlign: 'left' }}>Klasse</th><th style={{ textAlign: 'left' }}>#</th><th style={{ textAlign: 'left' }}>Ruiter</th><th style={{ textAlign: 'left' }}>Starttijd</th><th style={{ textAlign: 'left' }}>Trail</th></tr></thead>
                     <tbody>
-                      {items.slice(0,5).map((it, i) => (<tr key={it.id}><td>{formatStartnummer(it) || (it.startnummer || i+1)}</td><td>{it.ruiter || '—'}</td><td>{formatTime(times[i])}</td><td>{times[i] ? formatTime(new Date(times[i].getTime() + (Number(scheduleConfig.trailOffset||0)*60000))) : ''}</td></tr>))}
-                      {items.length === 0 && <tr><td colSpan={4} style={{ color: '#777' }}>Geen inschrijvingen</td></tr>}
+                      {rows.slice(0,50).map((r,i)=>(<tr key={i}><td>{r.klasse}</td><td>{r.startnummer}</td><td>{r.ruiter}</td><td>{r.start}</td><td>{r.trail}</td></tr>))}
                     </tbody>
                   </table>
                 );
