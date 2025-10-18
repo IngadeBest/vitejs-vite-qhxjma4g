@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
+import { Button } from "@/ui/button";
+import { Card } from "@/ui/card";
 
 const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
@@ -54,22 +56,26 @@ export default function Tussenstand() {
   return (
     <div style={{ maxWidth: 1100, margin: "24px auto" }}>
       <h2>Tussenstand</h2>
-      <div style={{ display:"grid", gridTemplateColumns:"200px 1fr", gap:"10px 12px", alignItems:"center" }}>
-        <label>Wedstrijd*</label>
-        <select value={filters.wedstrijd_id} onChange={(e)=>setFilters(s=>({...s, wedstrijd_id:e.target.value}))} disabled={loadingWed}>
-          <option value="">{loadingWed ? "Laden..." : "— kies wedstrijd —"}</option>
-          {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ""}</option>)}
-        </select>
-        <label>Klasse*</label>
-        <select value={filters.klasse} onChange={(e)=>setFilters(s=>({...s, klasse:e.target.value}))}>
-          <option value="">— kies klasse —</option>
-          {KLASSEN.map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
-        </select>
-        <div></div>
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-          <button onClick={load} disabled={disabled || busy}>{busy ? "Laden..." : "Laden"}</button>
+      <Card>
+        <div style={{ display:"grid", gridTemplateColumns:"200px 1fr", gap:"10px 12px", alignItems:"center" }}>
+          <label htmlFor="wedstrijd_select">Wedstrijd*</label>
+          <select id="wedstrijd_select" value={filters.wedstrijd_id} onChange={(e)=>setFilters(s=>({...s, wedstrijd_id:e.target.value}))} disabled={loadingWed}>
+            <option value="">{loadingWed ? "Laden..." : "— kies wedstrijd —"}</option>
+            {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ""}</option>)}
+          </select>
+
+          <label htmlFor="klasse_select">Klasse*</label>
+          <select id="klasse_select" value={filters.klasse} onChange={(e)=>setFilters(s=>({...s, klasse:e.target.value}))}>
+            <option value="">— kies klasse —</option>
+            {KLASSEN.map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
+          </select>
+
+          <div></div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            <Button onClick={load} disabled={disabled || busy} aria-busy={busy}>{busy ? "Laden..." : "Laden"}</Button>
+          </div>
         </div>
-      </div>
+      </Card>
 
       {msg && <div style={{ marginTop: 8, color:"#444" }}>{msg}</div>}
 

@@ -3,6 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { notifyOrganisator } from "@/lib/notifyOrganisator";
+import { Button } from "@/ui/button";
+import { Input } from "@/ui/input";
+import { Card } from "@/ui/card";
 
 // Klassen incl. WE2+
 const KLASSEN = [
@@ -93,12 +96,14 @@ export default function PublicInschrijven() {
   if (done) {
     return (
       <div style={{ maxWidth: 720, margin: "24px auto" }}>
-        <h2>Dank je wel!</h2>
-        <p>
-          Je inschrijving is ontvangen
-          {gekozenWedstrijd?.naam ? <> voor <b>{gekozenWedstrijd.naam}</b></> : null}.
-        </p>
-        <p>Je ontvangt binnenkort een bevestiging van inschrijving per e-mail.</p>
+        <Card>
+          <h2>Dank je wel!</h2>
+          <p>
+            Je inschrijving is ontvangen
+            {gekozenWedstrijd?.naam ? <> voor <b>{gekozenWedstrijd.naam}</b></> : null}.
+          </p>
+          <p>Je ontvangt binnenkort een bevestiging van inschrijving per e-mail.</p>
+        </Card>
       </div>
     );
   }
@@ -106,14 +111,16 @@ export default function PublicInschrijven() {
   return (
     <div style={{ maxWidth: 760, margin: "24px auto" }}>
       <h2>Inschrijfformulier Ruiters</h2>
-      <p style={{ color: "#555" }}>Velden met * zijn verplicht. Er is geen voorkeur starttijd veld.</p>
+      <p style={{ color: "#555" }}>Velden met * zijn verplicht.</p>
 
+      <Card variant="info" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial" }}>
       <form
         onSubmit={onSubmit}
         style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "10px 12px", alignItems: "center" }}
       >
-        <label>Wedstrijd*</label>
+        <label htmlFor="wedstrijd_select">Wedstrijd*</label>
         <select
+          id="wedstrijd_select"
           value={form.wedstrijd_id}
           onChange={(e) => setForm((s) => ({ ...s, wedstrijd_id: e.target.value }))}
           disabled={loading || !!qId}
@@ -126,8 +133,9 @@ export default function PublicInschrijven() {
           ))}
         </select>
 
-        <label>Klasse*</label>
+        <label htmlFor="klasse_select">Klasse*</label>
         <select
+          id="klasse_select"
           value={form.klasse}
           onChange={(e) => setForm((s) => ({ ...s, klasse: e.target.value }))}
         >
@@ -139,8 +147,9 @@ export default function PublicInschrijven() {
           ))}
         </select>
 
-        <label>Categorie*</label>
+        <label htmlFor="categorie_select">Categorie*</label>
         <select
+          id="categorie_select"
           value={form.categorie}
           onChange={(e) => setForm((s) => ({ ...s, categorie: e.target.value }))}
         >
@@ -149,49 +158,59 @@ export default function PublicInschrijven() {
           ))}
         </select>
 
-        <label>Ruiter (volledige naam)*</label>
-        <input
+        <label htmlFor="ruiter_input">Ruiter (volledige naam)*</label>
+        <Input
+          id="ruiter_input"
           value={form.ruiter}
           onChange={(e) => setForm((s) => ({ ...s, ruiter: e.target.value }))}
           placeholder="Naam ruiter"
         />
 
-        <label>Paard*</label>
-        <input
+        <label htmlFor="paard_input">Paard*</label>
+        <Input
+          id="paard_input"
           value={form.paard}
           onChange={(e) => setForm((s) => ({ ...s, paard: e.target.value }))}
           placeholder="Naam paard"
         />
 
-        <label>E-mail*</label>
-        <input
+        <label htmlFor="email_input">E-mail*</label>
+        <Input
+          id="email_input"
           type="email"
           value={form.email}
           onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
           placeholder="jij@example.com"
         />
+        {/* inline validation */}
+        <div style={{ gridColumn: "2 / 3", color: form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "crimson" : "#666", fontSize: 13 }}>
+          {form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "Voer een geldig e-mailadres in." : ""}
+        </div>
 
-        <label>Tekst voor de omroeper (optioneel)</label>
+        <label htmlFor="omroeper_input">Tekst voor de omroeper (optioneel)</label>
         <textarea
+          id="omroeper_input"
           rows={4}
           value={form.omroeper}
           onChange={(e) => setForm((s) => ({ ...s, omroeper: e.target.value }))}
           placeholder="Korte introductie / bijzonderheden"
+          className="border rounded px-2 py-1 w-full"
         />
 
-        <label>Opmerkingen (optioneel)</label>
+        <label htmlFor="opmerkingen_input">Opmerkingen (optioneel)</label>
         <textarea
+          id="opmerkingen_input"
           rows={3}
           value={form.opmerkingen}
           onChange={(e) => setForm((s) => ({ ...s, opmerkingen: e.target.value }))}
           placeholder="Bijv. speciale wensen / opmerkingen"
+          className="border rounded px-2 py-1 w-full"
         />
 
         <div></div>
-        <button type="submit" disabled={busy || disabled}>
-          {busy ? "Verzenden..." : "Inschrijven"}
-        </button>
+        <Button type="submit" disabled={busy || disabled} aria-busy={busy}>{busy ? "Verzenden..." : "Inschrijven"}</Button>
       </form>
+      </Card>
 
       {err && <div style={{ marginTop: 12, color: "crimson" }}>{String(err)}</div>}
     </div>

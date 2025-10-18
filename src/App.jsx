@@ -1,9 +1,10 @@
 import React from "react";
-import { HashRouter as Router, Routes, Route, NavLink, Navigate } from "react-router-dom";
+import { HashRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
 import DomainRedirect from "@/DomainRedirect";
 
 // Pagina's
 import PublicInschrijven from "@/features/inschrijven/pages/PublicInschrijven";
+import InschrijfFormulier from "@/features/inschrijven/pages/InschrijfFormulier";
 import Startlijst from "@/features/startlijst/pages/Startlijst";
 import ProtocolGenerator from "@/features/protocollen/pages/ProtocolGenerator";
 import Einduitslag from "@/features/einduitslag/pages/Einduitslag";
@@ -18,12 +19,20 @@ const navStyle = ({ isActive }) => ({
   fontWeight: 700,
 });
 
-export default function App() {
+function InnerApp() {
   const host = typeof window !== "undefined" ? window.location.hostname : "";
-  const onApp = host.startsWith("app.");
+  const defaultOnApp = host.startsWith("app.");
+
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const menuOverride = params.get("menu"); // allow ?menu=public or ?menu=beheer
+
+  let onApp = defaultOnApp;
+  if (menuOverride === "public") onApp = false;
+  if (menuOverride === "beheer" || menuOverride === "admin") onApp = true;
 
   return (
-    <Router>
+    <>
       <DomainRedirect />
 
       <header
@@ -70,7 +79,7 @@ export default function App() {
 
       <Routes>
         {/* Publiek */}
-        <Route path="/formulier" element={<PublicInschrijven />} />
+        <Route path="/formulier" element={onApp ? <InschrijfFormulier /> : <PublicInschrijven />} />
         <Route path="/contact" element={<Contact />} />
 
         {/* Beheer */}
@@ -81,6 +90,14 @@ export default function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/formulier" replace />} />
       </Routes>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <InnerApp />
     </Router>
   );
 }
