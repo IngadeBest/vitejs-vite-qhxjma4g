@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { notifyOrganisator } from "@/lib/notifyOrganisator";
 import { Button } from "@/ui/button";
@@ -48,6 +47,21 @@ export default function PublicInschrijven() {
     [wedstrijden, form.wedstrijd_id]
   );
 
+  const allowedKlassenForWedstrijd = useMemo(() => {
+    if (!gekozenWedstrijd) return KLASSEN.map((k) => k.code);
+    return Array.isArray(gekozenWedstrijd.allowed_klassen) && gekozenWedstrijd.allowed_klassen.length
+      ? gekozenWedstrijd.allowed_klassen
+      : KLASSEN.map((k) => k.code);
+  }, [gekozenWedstrijd]);
+
+  const allowedCategorieenForKlasse = useMemo(() => {
+    if (!gekozenWedstrijd) return CATS.map((c) => c.code);
+    const map = gekozenWedstrijd.klasse_categorieen || {};
+    return form.klasse && map[form.klasse] && map[form.klasse].length
+      ? map[form.klasse]
+      : CATS.map((c) => c.code);
+  }, [gekozenWedstrijd, form.klasse]);
+
   const disabled = useMemo(() => {
     if (!form.wedstrijd_id || !form.klasse) return true;
     if (!form.ruiter || !form.paard || !form.email) return true;
@@ -74,17 +88,20 @@ export default function PublicInschrijven() {
     };
 
     try {
-      const { error } = await supabase.from("inschrijvingen").insert(payload);
-      if (error) throw error;
-
-      try {
-        await notifyOrganisator({
-          wedstrijd: gekozenWedstrijd, // { id, naam, organisator_email } (optioneel)
-          inschrijving: { ...payload },
-        });
-      } catch (mailErr) {
-        console.warn("notifyOrganisator error:", mailErr);
+      // client validation
+      if (gekozenWedstrijd) {
+        if (!allowedKlassenForWedstrijd.includes(payload.klasse)) throw new Error('Geselecteerde klasse is niet toegestaan voor deze wedstrijd.');
+        const map = gekozenWedstrijd.klasse_categorieen || {};
+        const allowedCats = (map[payload.klasse] && map[payload.klasse].length) ? map[payload.klasse] : CATS.map((c) => c.code);
+        if (!allowedCats.includes(payload.categorie)) throw new Error('Geselecteerde categorie is niet toegestaan voor deze klasse op deze wedstrijd.');
       }
+
+      const res = await fetch('/api/inschrijvingen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((json && json.message) ? json.message : (json.error || 'Opslaan mislukt'));
+
+      // best effort notify via existing client helper (still useful)
+      try { await notifyOrganisator({ wedstrijd: gekozenWedstrijd, inschrijving: payload }); } catch (e) { /* ignore */ }
 
       setDone(true);
     } catch (e) {
@@ -141,7 +158,7 @@ export default function PublicInschrijven() {
           onChange={(e) => setForm((s) => ({ ...s, klasse: e.target.value }))}
         >
           <option value="">— kies klasse —</option>
-          {KLASSEN.map((k) => (
+          {KLASSEN.filter((k) => allowedKlassenForWedstrijd.includes(k.code)).map((k) => (
             <option key={k.code} value={k.code}>
               {k.label}
             </option>
@@ -154,7 +171,7 @@ export default function PublicInschrijven() {
           value={form.categorie}
           onChange={(e) => setForm((s) => ({ ...s, categorie: e.target.value }))}
         >
-          {CATS.map((c) => (
+          {CATS.filter((c) => allowedCategorieenForKlasse.includes(c.code)).map((c) => (
             <option key={c.code} value={c.code}>{c.label}</option>
           ))}
         </select>

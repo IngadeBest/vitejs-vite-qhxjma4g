@@ -159,16 +159,22 @@ export default function WedstrijdenBeheer() {
         <p style={{color:'#555', marginTop:4}}>Kies welke klassen ruiters zich mogen opgeven voor deze wedstrijd. Per klasse kun je aangeven welke categorieën toegestaan zijn (senior / yr / junior).</p>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
           <div>
-            <label style={{fontWeight:600}}>Toegestane klassen</label>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <label style={{fontWeight:600}}>Toegestane klassen</label>
+              <div style={{display:'flex', gap:8}}>
+                <button type="button" onClick={()=>setAllowedKlassen(KLASSEN.map(k=>k.code))}>Selecteer alles</button>
+                <button type="button" onClick={()=>setAllowedKlassen([])}>Reset</button>
+              </div>
+            </div>
             <div style={{display:'flex', flexDirection:'column', gap:6, marginTop:6}}>
               {KLASSEN.map(k => {
                 const checked = allowedKlassen.includes(k.code);
                 return (
                   <label key={k.code} style={{display:'flex', alignItems:'center', gap:8}}>
                     <input type="checkbox" checked={checked} onChange={(e)=>{
-                      setAllowedKlassen(s => e.target.checked ? [...s, k.code] : s.filter(x=>x!==k.code));
+                      setAllowedKlassen(s => e.target.checked ? Array.from(new Set([...s, k.code])) : s.filter(x=>x!==k.code));
                     }} />
-                    <span>{k.label}</span>
+                    <span style={{fontSize:13}}>{k.label}</span>
                   </label>
                 );
               })}
@@ -179,9 +185,9 @@ export default function WedstrijdenBeheer() {
             <label style={{fontWeight:600}}>Categorieën per klasse</label>
             <div style={{display:'flex', flexDirection:'column', gap:8, marginTop:6}}>
               {KLASSEN.map(k => (
-                <div key={k.code} style={{padding:6, border: '1px solid #eee', borderRadius:6}}>
+                <div key={k.code} style={{padding:4, border: '1px solid #eee', borderRadius:6}}>
                   <div style={{fontSize:13, fontWeight:600}}>{k.label}</div>
-                  <div style={{display:'flex', gap:8, marginTop:6}}>
+                  <div style={{display:'flex', gap:8, marginTop:6, flexWrap:'wrap'}}>
                     <label style={{display:'flex', alignItems:'center', gap:6}}>
                       <input type="checkbox" checked={!!(klasseCategorieen[k.code] && klasseCategorieen[k.code].includes('senior'))} onChange={(e)=>{
                         setKlasseCategorieen(s => {
@@ -189,7 +195,7 @@ export default function WedstrijdenBeheer() {
                           const next = e.target.checked ? Array.from(new Set([...prev, 'senior'])) : prev.filter(x=>x!=='senior');
                           return { ...s, [k.code]: next };
                         });
-                      }} /> Senior
+                      }} /> <span style={{fontSize:13}}>Senior</span>
                     </label>
                     <label style={{display:'flex', alignItems:'center', gap:6}}>
                       <input type="checkbox" checked={!!(klasseCategorieen[k.code] && klasseCategorieen[k.code].includes('yr'))} onChange={(e)=>{
@@ -198,7 +204,7 @@ export default function WedstrijdenBeheer() {
                           const next = e.target.checked ? Array.from(new Set([...prev, 'yr'])) : prev.filter(x=>x!=='yr');
                           return { ...s, [k.code]: next };
                         });
-                      }} /> Young Riders
+                      }} /> <span style={{fontSize:13}}>Young Riders</span>
                     </label>
                     <label style={{display:'flex', alignItems:'center', gap:6}}>
                       <input type="checkbox" checked={!!(klasseCategorieen[k.code] && klasseCategorieen[k.code].includes('junior'))} onChange={(e)=>{
@@ -207,8 +213,12 @@ export default function WedstrijdenBeheer() {
                           const next = e.target.checked ? Array.from(new Set([...prev, 'junior'])) : prev.filter(x=>x!=='junior');
                           return { ...s, [k.code]: next };
                         });
-                      }} /> Junior
+                      }} /> <span style={{fontSize:13}}>Junior</span>
                     </label>
+                    <div style={{marginLeft:'auto'}}>
+                      <button type="button" onClick={()=>setKlasseCategorieen(s => ({ ...s, [k.code]: ['senior','yr','junior'] }))}>Alles</button>
+                      <button type="button" onClick={()=>setKlasseCategorieen(s => ({ ...s, [k.code]: [] }))}>Reset</button>
+                    </div>
                   </div>
                 </div>
               ))}
