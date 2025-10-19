@@ -31,7 +31,8 @@ export default function Startlijst() {
 
   const [selectedWedstrijdId, setSelectedWedstrijdId] = useState(qId);
   const [klasseFilter, setKlasseFilter] = useState("");
-  const [beheer, setBeheer] = useState(false);
+  // beheer is always enabled now — all controls editable by default
+  const beheer = true;
 
   const [rows, setRows] = useState([]);         // ruwe DB-rows
   const [editRows, setEditRows] = useState([]); // bewerkbare kopie
@@ -50,6 +51,8 @@ export default function Startlijst() {
     interval: 7, // minutes
     trailOffset: 0, // minutes after starttijd for trail
     trailInfo: '',
+    // if true: use one continuous schedule across all classes (global sequence)
+    globalSequence: false,
   });
   const [pauses, setPauses] = useState({}); // { [klasseCode]: [{ afterIndex: number, minutes: number }] }
   const [visibleCols, setVisibleCols] = useState({ starttijd: true, startnummer: true, ruiter: true, paard: true, klasse: true, starttijdTrail: true });
@@ -463,22 +466,66 @@ export default function Startlijst() {
     return times;
   }
 
+  // Compute a single global timeline across all classes in `klasseOrder` and `grouped`.
+  const globalTimes = useMemo(() => {
+    if (!scheduleConfig.globalSequence) return null;
+    // build ordered list of items in klasseOrder order
+    const all = [];
+    (klasseOrder || []).forEach(k => {
+      const arr = grouped.get(k) || [];
+      arr.forEach(it => all.push(it));
+    });
+    if (!all.length) return [];
+    const base = parseTimeForDate(scheduleConfig.dressuurStart);
+    const interval = Number(scheduleConfig.interval) || 7;
+    const times = [];
+    let cumulative = 0;
+    // global pauses read from pauses['__default__'] or []
+    const gp = (pauses && pauses['__default__']) ? pauses['__default__'] : [];
+    for (let i = 0; i < all.length; i++) {
+      const afterIndex = i === 0 ? 0 : i;
+      const pauseHere = Array.isArray(gp) ? gp.find(p => Number(p.afterIndex) === afterIndex) : null;
+      if (i > 0) cumulative += interval;
+      if (pauseHere) cumulative += Number(pauseHere.minutes || 0);
+      const start = base ? new Date(base.getTime() + cumulative * 60000) : null;
+      times.push(start);
+    }
+    return times;
+  }, [scheduleConfig.globalSequence, scheduleConfig.dressuurStart, scheduleConfig.interval, klasseOrder, grouped, pauses]);
+
   async function saveScheduleToWedstrijd() {
     if (!gekozen) return setMsg('Kies eerst een wedstrijd.');
     setBusy(true); setErr(''); setMsg('');
     try {
+      // build new config and append history if present
+      const newCfg = {
+        dressuurStart: scheduleConfig.dressuurStart || null,
+        interval: scheduleConfig.interval || 7,
+        trailOffset: scheduleConfig.trailOffset || 0,
+        trailInfo: scheduleConfig.trailInfo || '',
+        pauses: pauses || {}
+      };
+
+      // preserve previous config into history
+      const prev = (gekozen && gekozen.startlijst_config) ? (typeof gekozen.startlijst_config === 'object' ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null)) : null;
+      const history = prev && prev.history && Array.isArray(prev.history) ? prev.history.slice() : [];
+      if (prev) {
+        history.push({ savedAt: new Date().toISOString(), config: prev });
+      }
+
       const payload = {
         startlijst_config: {
-          dressuurStart: scheduleConfig.dressuurStart || null,
-          interval: scheduleConfig.interval || 7,
-          trailOffset: scheduleConfig.trailOffset || 0,
-          trailInfo: scheduleConfig.trailInfo || '',
-          pauses: pauses || {}
+          ...newCfg,
+          history
         }
       };
       const { error } = await supabase.from('wedstrijden').update(payload).eq('id', gekozen.id);
       if (error) throw error;
+      // refresh wedstrijden list so gekozen reflects the saved config
       setMsg('Planning opgeslagen ✔️');
+      // refetch wedstrijden via hook; a crude way is to reload the page of wedstrijden by calling fetchRows for rows and letting useWedstrijden revalidate via the outer hook
+      // best-effort: trigger a full refresh
+      window.dispatchEvent(new Event('startlijst:refresh'));
     } catch (e) {
       setErr(e?.message || String(e));
     } finally {
@@ -601,6 +648,7 @@ export default function Startlijst() {
               <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <div style={{ fontSize: 12, color: '#666' }}><b>Aantal inschrijvingen:</b> {visible.length}</div>
                 {beheer && (<><Button onClick={addRow} disabled={busy} variant="secondary">Nieuwe inschrijving</Button><Button onClick={renumber} disabled={busy || visible.length === 0} variant="secondary">Startnummers hernummeren</Button></>)}
+                {beheer && (<Button onClick={saveScheduleToWedstrijd} disabled={busy || !selectedWedstrijdId} variant="secondary">Opslaan planning</Button>)}
               </div>
 
               <div style={{ marginTop: 8, display: 'grid', gap: 18 }}>
@@ -630,7 +678,7 @@ export default function Startlijst() {
                 {(klasseOrder || []).map(klasseCode => {
                   const items = grouped.get(klasseCode) || [];
                   return (
-                    <div key={klasseCode} draggable={true} onDragStart={(e)=>{ e.dataTransfer.setData('text/plain', klasseCode); e.dataTransfer.effectAllowed='move'; setDraggingId(klasseCode); }} onDragOver={(e)=>e.preventDefault()} onDrop={(e)=>{ e.preventDefault(); const code = e.dataTransfer.getData('text/plain'); if (code) { const from = klasseOrder.indexOf(code); const to = klasseOrder.indexOf(klasseCode); if (from !== -1 && to !== -1 && from !== to) { const copy = [...klasseOrder]; const [it] = copy.splice(from,1); copy.splice(to, 0, it); setKlasseOrder(copy); } } setDraggingId(null); }} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff', boxShadow: draggingId === klasseCode ? '0 10px 30px rgba(12,40,80,0.08)' : '0 6px 18px rgba(12,40,80,0.04)', cursor: 'grab' }}>
+                    <div key={klasseCode} draggable={beheer} onDragStart={(e)=>{ if(!beheer) return; e.dataTransfer.setData('text/plain', klasseCode); e.dataTransfer.effectAllowed='move'; setDraggingId(klasseCode); }} onDragOver={(e)=>e.preventDefault()} onDrop={(e)=>{ e.preventDefault(); const code = e.dataTransfer.getData('text/plain'); if (code) { const from = klasseOrder.indexOf(code); const to = klasseOrder.indexOf(klasseCode); if (from !== -1 && to !== -1 && from !== to) { const copy = [...klasseOrder]; const [it] = copy.splice(from,1); copy.splice(to, 0, it); setKlasseOrder(copy); } } setDraggingId(null); }} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff', boxShadow: draggingId === klasseCode ? '0 10px 30px rgba(12,40,80,0.08)' : '0 6px 18px rgba(12,40,80,0.04)', cursor: beheer ? 'grab' : 'default' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                         <div style={{ fontWeight: 800, fontSize: 16 }}>{KLASSEN_EDIT.find(k => k.code === klasseCode)?.label || (klasseCode === 'onbekend' ? 'Onbekend' : klasseCode)}</div>
                         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -659,9 +707,9 @@ export default function Startlijst() {
                           </thead>
                           <tbody>
                             {(() => {
-                              const times = computeStartTimes(items, klasseCode);
+                              const times = scheduleConfig.globalSequence && globalTimes ? globalTimes : computeStartTimes(items, klasseCode);
                               return items.map((r, idx) => {
-                                const { start, trail, computedStart } = getDisplayedTimesForRow(r, idx, items, klasseCode);
+                                const { start, trail, computedStart } = scheduleConfig.globalSequence && globalTimes ? { start: globalTimes[(klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + (grouped.get(k)||[]).length, 0) ) + idx], trail: r.trailtijd_manual ? new Date(r.trailtijd_manual) : (globalTimes[(klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + (grouped.get(k)||[]).length, 0) ) + idx] ? new Date(globalTimes[(klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + (grouped.get(k)||[]).length, 0) ) + idx].getTime() + (Number(scheduleConfig.trailOffset||0)*60000)) : null), computedStart: null } : getDisplayedTimesForRow(r, idx, items, klasseCode);
                                 return (
                                   <tr key={r.id} draggable={false} onDragOver={onDragOver} onDragEnter={(e)=>onDragEnter(e, r.id)} onDragLeave={onDragLeave} onDrop={(e)=>onDrop(e, idx, klasseCode)} style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
                                     {visibleCols.starttijd && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.starttijd_manual || (computedStart ? new Date(computedStart).toISOString().slice(0,16) : '')} onChange={(e)=>onCellChange(r.id, 'starttijd_manual', e.target.value)} />) : formatTime(start)}</td>}
