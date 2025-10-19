@@ -651,7 +651,8 @@ export default function Startlijst() {
             </div>
 
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', userSelect: 'none' }}>
-              <input type="checkbox" checked={beheer} onChange={(e)=>setBeheer(e.target.checked)} /> Beheer-modus
+              {/* beheer is always enabled in this build; make checkbox read-only to avoid undefined setter */}
+              <input type="checkbox" checked={beheer} readOnly /> Beheer-modus
             </label>
 
             <Button onClick={fetchRows} disabled={busy || !selectedWedstrijdId}>{busy ? 'Vernieuwen...' : 'Vernieuw'}</Button>
