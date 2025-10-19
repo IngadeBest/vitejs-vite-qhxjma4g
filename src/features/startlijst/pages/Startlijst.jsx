@@ -49,7 +49,7 @@ export default function Startlijst() {
   const [scheduleConfig, setScheduleConfig] = useState({
     dressuurStart: '', // 'HH:MM'
     interval: 7, // minutes
-    trailOffset: 0, // minutes after starttijd for trail
+    stijltrailStart: '', // 'HH:MM' absolute start for stijltrail
     trailInfo: '',
     // if true: use one continuous schedule across all classes (global sequence)
     globalSequence: false,
@@ -123,7 +123,7 @@ export default function Startlijst() {
     try {
       const cfg = (gekozen.startlijst_config && typeof gekozen.startlijst_config === 'object') ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null);
       if (cfg) {
-        setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart || '', interval: cfg.interval || s.interval || 7, trailOffset: cfg.trailOffset || s.trailOffset || 0, trailInfo: cfg.trailInfo || s.trailInfo || '' }));
+  setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart || '', interval: cfg.interval || s.interval || 7, stijltrailStart: cfg.stijltrailStart || cfg.trailOffset || s.stijltrailStart || '', trailInfo: cfg.trailInfo || s.trailInfo || '' }));
         // support both legacy array-shaped pauses and the newer object mapping per klasse
         if (cfg.pauses) {
           if (Array.isArray(cfg.pauses)) {
@@ -466,6 +466,26 @@ export default function Startlijst() {
     return times;
   }
 
+  function computeTrailTimes(items, klasseCode) {
+    const base = parseTimeForDate(scheduleConfig.stijltrailStart);
+    const interval = Number(scheduleConfig.interval) || 7;
+    if (!items || !items.length) return [];
+    if (!base) return [];
+    const times = [];
+    let cumulative = 0; // minutes
+    const classPausesRaw = (pauses && pauses[klasseCode]) ? pauses[klasseCode] : ((pauses && pauses['__default__']) ? pauses['__default__'] : []);
+    const classPauses = Array.isArray(classPausesRaw) ? classPausesRaw : [];
+    for (let i = 0; i < items.length; i++) {
+      const afterIndex = i === 0 ? 0 : i;
+      const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex);
+      if (i > 0) cumulative += interval;
+      if (pauseHere) cumulative += Number(pauseHere.minutes || 0);
+      const start = base ? new Date(base.getTime() + cumulative * 60000) : null;
+      times.push(start);
+    }
+    return times;
+  }
+
   // Compute a single global timeline across all classes in `klasseOrder` and `grouped`.
   const globalTimes = useMemo(() => {
     if (!scheduleConfig.globalSequence) return null;
@@ -501,7 +521,7 @@ export default function Startlijst() {
       const newCfg = {
         dressuurStart: scheduleConfig.dressuurStart || null,
         interval: scheduleConfig.interval || 7,
-        trailOffset: scheduleConfig.trailOffset || 0,
+        stijltrailStart: scheduleConfig.stijltrailStart || null,
         trailInfo: scheduleConfig.trailInfo || '',
         pauses: pauses || {}
       };
@@ -540,7 +560,10 @@ export default function Startlijst() {
     const times = computeStartTimes(classItems, klasseCode);
     const computedStart = times[idx] || null;
     const start = manualStart ? (new Date(manualStart)) : computedStart;
-    const trail = manualTrail ? (new Date(manualTrail)) : (start ? new Date(start.getTime() + (Number(scheduleConfig.trailOffset || 0) * 60000)) : null);
+    // compute trail either from manualTrail, or from stijltrailStart schedule
+    const trailTimes = computeTrailTimes(classItems, klasseCode);
+    const computedTrail = trailTimes[idx] || null;
+    const trail = manualTrail ? (new Date(manualTrail)) : computedTrail;
     return { start, trail, computedStart };
   }
 
@@ -664,15 +687,15 @@ export default function Startlijst() {
                       <input type="number" value={scheduleConfig.interval} onChange={e=>setScheduleConfig(s=>({...s, interval: Number(e.target.value) || 7}))} style={{ width: 80 }} />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Trail offset (min)</label>
-                      <input type="number" value={scheduleConfig.trailOffset} onChange={e=>setScheduleConfig(s=>({...s, trailOffset: Number(e.target.value)||0}))} style={{ width: 80 }} />
+                      <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Stijltrail start (HH:MM)</label>
+                      <input value={scheduleConfig.stijltrailStart} onChange={e=>setScheduleConfig(s=>({...s, stijltrailStart: e.target.value}))} placeholder="12:30" style={{ width: 110 }} />
                     </div>
                     <div style={{ marginLeft: 'auto' }}>
                       <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Pauzes</label>
                       <small style={{ color: '#666' }}>Voeg pauzes toe via beheer-mode (na welke start; minuten)</small>
                     </div>
                   </div>
-                  <div style={{ marginTop: 8, fontSize: 13, color: '#234' }}><b>Info:</b> {scheduleConfig.trailInfo || 'Stel hierboven de dressuur starttijd, interval en trail offset in.'}</div>
+                  <div style={{ marginTop: 8, fontSize: 13, color: '#234' }}><b>Info:</b> {scheduleConfig.trailInfo || 'Stel hierboven de dressuur starttijd, interval en de Stijltrail starttijd in.'}</div>
                 </div>
 
                 {(klasseOrder || []).map(klasseCode => {
@@ -760,7 +783,7 @@ export default function Startlijst() {
           <h3 style={{ marginTop: 0 }}>Preview & uitleg</h3>
           <p style={{ color: '#444', marginTop: 6 }}>Trail offset geeft aan hoeveel minuten na de dressuur-starttijd de trail begint voor die start. Pauzes voegen extra minuten toe op de planning na een gegeven positie.</p>
           <div style={{ marginTop: 8, fontWeight: 700 }}>Huidige instellingen</div>
-          <div style={{ fontSize: 13, color: '#333', marginTop: 6 }}>Dressuur start: <b>{scheduleConfig.dressuurStart || '—'}</b><br/>Interval: <b>{scheduleConfig.interval} min</b><br/>Trail offset: <b>{scheduleConfig.trailOffset} min</b></div>
+          <div style={{ fontSize: 13, color: '#333', marginTop: 6 }}>Dressuur start: <b>{scheduleConfig.dressuurStart || '—'}</b><br/>Interval: <b>{scheduleConfig.interval} min</b><br/>Stijltrail start: <b>{scheduleConfig.stijltrailStart || '—'}</b></div>
           <div style={{ marginTop: 12 }}>
             <div style={{ fontWeight: 700 }}>Voorbeeld export (alle klassen)</div>
             <div style={{ marginTop: 8 }}>
