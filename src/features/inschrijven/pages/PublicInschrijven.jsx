@@ -30,6 +30,7 @@ export default function PublicInschrijven() {
   // categorie removed — we now use klasstype only
     leeftijd_ruiter: "",
     geslacht_paard: "",
+    weh_lid: false,
     ruiter: "",
     paard: "",
     email: "",
@@ -72,6 +73,7 @@ export default function PublicInschrijven() {
     const payload = {
       wedstrijd_id: form.wedstrijd_id,
       klasse: form.klasse,
+      weh_lid: form.weh_lid ? true : false,
       leeftijd_ruiter: form.leeftijd_ruiter ? Number(form.leeftijd_ruiter) : null,
       geslacht_paard: form.geslacht_paard || null,
       ruiter: form.ruiter?.trim(),
@@ -220,9 +222,14 @@ export default function PublicInschrijven() {
           rows={3}
           value={form.opmerkingen}
           onChange={(e) => setForm((s) => ({ ...s, opmerkingen: e.target.value }))}
-          placeholder="Bijv. speciale wensen / opmerkingen"
+          placeholder="Speciale wensen/stal"
           className="border rounded px-2 py-1 w-full"
         />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }} htmlFor="weh_lid_cb">
+          <input id="weh_lid_cb" type="checkbox" checked={form.weh_lid} onChange={(e) => setForm(s => ({ ...s, weh_lid: e.target.checked }))} />
+          <span>WEH-lid</span>
+        </label>
 
         <div></div>
         <Button type="submit" disabled={busy || disabled} aria-busy={busy}>{busy ? "Verzenden..." : "Inschrijven"}</Button>

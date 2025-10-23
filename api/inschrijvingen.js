@@ -100,6 +100,7 @@ export default async function handler(req, res) {
       wedstrijd: b.wedstrijd || wedstrijd.naam || null, // denormalized name for readability
       klasse: b.klasse,
       categorie: b.categorie,
+      weh_lid: b.weh_lid || false,
       ruiter: b.ruiter || null,
       paard: b.paard || null,
       leeftijd_ruiter: b.leeftijd_ruiter || null,

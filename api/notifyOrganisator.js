@@ -54,7 +54,7 @@ export default async function handler(req, res) {
       <h2>Nieuwe inschrijving</h2>
       <p><b>Wedstrijd:</b> ${wedstrijdNaam}</p>
       <ul>
-        <li><b>Categorie:</b> ${b.categorie || '-'}</li>
+        <li><b>WEH-lid:</b> ${b.weh_lid ? 'Ja' : 'Nee'}</li>
         <li><b>Klasse:</b> ${b.klasse || '-'}</li>
         <li><b>Ruiter:</b> ${b.ruiter || '-'}</li>
         <li><b>Leeftijd ruiter:</b> ${b.leeftijd_ruiter != null ? b.leeftijd_ruiter : '-'}</li>
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
         <li><b>Geslacht paard:</b> ${b.geslacht_paard || '-'}</li>
         <li><b>E-mail ruiter:</b> ${b.email || '-'}</li>
         <li><b>Omroeper:</b> ${b.omroeper || '-'}</li>
-        <li><b>Opmerkingen:</b> ${b.opmerkingen || '-'}</li>
+        <li><b>Speciale wensen/stal:</b> ${b.opmerkingen || '-'}</li>
       </ul>
     `;
 
