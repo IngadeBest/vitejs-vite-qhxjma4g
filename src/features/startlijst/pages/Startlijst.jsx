@@ -667,7 +667,9 @@ export default function Startlijst() {
                   for (let i=0;i<items.length;i++) {
                     const it = items[i];
                     const { start, trail } = getDisplayedTimesForRow(it, i, items, k);
-                    rowsPreview.push({ klasse: KLASSEN.find(x=>x.code===k)?.label || k, start: formatTime(start), trail: formatTime(trail), ruiter: it.ruiter || '—', startnummer: formatStartnummer(it) || (it.startnummer || i+1) });
+                    // ensure startnummer is padded and uses class/idx when possible
+                    const previewSn = (typeof it.startnummer !== 'undefined' && it.startnummer !== null && String(it.startnummer).toString().trim() !== '') ? formatStartnummer(it) : formatStartnummer(it, i, k) || '';
+                    rowsPreview.push({ klasse: KLASSEN.find(x=>x.code===k)?.label || k, start: formatTime(start), trail: formatTime(trail), ruiter: it.ruiter || '—', startnummer: previewSn });
                     const pauseAfter = (classPauses.find(p => Number(p.afterIndex) === (i+1)) || defaultPauses.find(p => Number(p.afterIndex) === (i+1)) || null);
                     if (pauseAfter) rowsPreview.push({ klasse: '', start: `Pauze — ${pauseAfter.minutes} min`, trail: '', ruiter: '', startnummer: '' });
                   }
