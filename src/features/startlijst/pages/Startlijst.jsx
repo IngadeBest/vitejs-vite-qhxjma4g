@@ -489,10 +489,30 @@ export default function Startlijst() {
     if (!items || !items.length) return [];
     const times = [];
     let cumulative = 0; // minutes
-  // pauses may be stored as an object mapping klasseCode -> array of pause objects
-  const classPausesRaw = (pauses && pauses[klasseCode]) ? pauses[klasseCode] : ((pauses && pauses['__default__']) ? pauses['__default__'] : []);
-  const classPauses = Array.isArray(classPausesRaw) ? classPausesRaw : [];
+    // pauses may be stored as an object mapping klasseCode -> array of pause objects
+    const classPausesRaw = (pauses && pauses[klasseCode]) ? pauses[klasseCode] : ((pauses && pauses['__default__']) ? pauses['__default__'] : []);
+    const classPauses = Array.isArray(classPausesRaw) ? classPausesRaw : [];
     for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      // if this item has an explicit manual start, use it and reset cumulative accordingly
+      if (item && item.starttijd_manual) {
+        const manualDate = new Date(item.starttijd_manual);
+        if (!Number.isNaN(manualDate.getTime())) {
+          times.push(manualDate);
+          if (base) {
+            cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000);
+          } else {
+            // if no base, treat this manual as the base
+            // next computed times will be relative to this manual time
+            // set base to manual for future computations
+            // (do not mutate original scheduleConfig; use local variable)
+            // we'll set cumulative = 0 and consider base for subsequent
+            cumulative = 0;
+          }
+          continue;
+        }
+      }
+
       // pauses are defined as afterIndex === number of previous participants
       const afterIndex = i === 0 ? 0 : i;
       const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex);
@@ -508,12 +528,30 @@ export default function Startlijst() {
     const base = parseTimeForDate(scheduleConfig.stijltrailStart);
     const interval = Number(scheduleConfig.interval) || 7;
     if (!items || !items.length) return [];
-    if (!base) return [];
     const times = [];
     let cumulative = 0; // minutes
     const classPausesRaw = (pauses && pauses[klasseCode]) ? pauses[klasseCode] : ((pauses && pauses['__default__']) ? pauses['__default__'] : []);
     const classPauses = Array.isArray(classPausesRaw) ? classPausesRaw : [];
     for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item && item.trailtijd_manual) {
+        const manualDate = new Date(item.trailtijd_manual);
+        if (!Number.isNaN(manualDate.getTime())) {
+          times.push(manualDate);
+          if (base) {
+            cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000);
+          } else {
+            cumulative = 0;
+          }
+          continue;
+        }
+      }
+
+      if (!base) {
+        // if there's no stijltrailStart, attempt to compute relative to dressuurStart + delta later in display logic
+        times.push(null);
+        continue;
+      }
       const afterIndex = i === 0 ? 0 : i;
       const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex);
       if (i > 0) cumulative += interval;
@@ -548,6 +586,22 @@ export default function Startlijst() {
       const afterIndex = idxInClass === 0 ? 0 : idxInClass;
       const classPausesRaw = (pauses && pauses[k]) ? pauses[k] : [];
       const classPauses = Array.isArray(classPausesRaw) ? classPausesRaw : [];
+
+      // If item has manual starttijd, use it and reset cumulative relative to base
+      if (item && item.starttijd_manual) {
+        const manualDate = new Date(item.starttijd_manual);
+        if (!Number.isNaN(manualDate.getTime())) {
+          times.push(manualDate);
+          if (base) {
+            cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000);
+          } else {
+            cumulative = 0;
+          }
+          perClassCounts[k] = (perClassCounts[k] || 0) + 1;
+          continue;
+        }
+      }
+
       // prefer class-specific pause entry, otherwise check default pauses
       const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex) || defaultPauses.find(p => Number(p.afterIndex) === afterIndex) || null;
       if (i > 0) cumulative += interval;
@@ -604,9 +658,34 @@ export default function Startlijst() {
   function getDisplayedTimesForRow(item, idx, classItems, klasseCode) {
     const manualStart = item.starttijd_manual;
     const manualTrail = item.trailtijd_manual;
+
+    // If global sequence is enabled, prefer globalTimes (which now respects manual overrides)
+    if (scheduleConfig.globalSequence && globalTimes) {
+      // compute the global index of this item
+      const globalIndex = (klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + (grouped.get(k)||[]).length, 0) ) + idx;
+      const gStart = globalTimes[globalIndex];
+      const start = manualStart ? (new Date(manualStart)) : gStart || null;
+
+      // Trail: if manual set, use it. Otherwise, if stijltrailStart present compute from delta between dressuur and stijltrail relative to gStart
+      if (manualTrail) {
+        return { start, trail: new Date(manualTrail), computedStart: null };
+      }
+      if (scheduleConfig.stijltrailStart && gStart) {
+        const dressStart = parseTimeForDate(scheduleConfig.dressuurStart);
+        const stijlBase = parseTimeForDate(scheduleConfig.stijltrailStart);
+        const delta = (dressStart && stijlBase) ? Math.round((stijlBase.getTime() - dressStart.getTime()) / 60000) : 0;
+        const trailTime = gStart ? new Date(gStart.getTime() + delta * 60000) : null;
+        return { start, trail: trailTime, computedStart: null };
+      }
+      // fallback: use gStart for trail if no stijltrailStart
+      return { start, trail: gStart ? new Date(gStart.getTime()) : null, computedStart: null };
+    }
+
+    // per-class sequence: compute using class-specific function which respects manual overrides
     const times = computeStartTimes(classItems, klasseCode);
     const computedStart = times[idx] || null;
     const start = manualStart ? (new Date(manualStart)) : computedStart;
+
     // compute trail either from manualTrail, or from stijltrailStart schedule
     const trailTimes = computeTrailTimes(classItems, klasseCode);
     const computedTrail = trailTimes[idx] || null;
