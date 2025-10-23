@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
@@ -22,8 +22,7 @@ const KLASSEN = [
 ];
 const KLASSEN_EDIT = KLASSEN.filter(k => k.code !== "");
 
-// No categorie concept in this app version — kept for backward compatibility in DB
-
+// Lightweight, cleaned Startlijst component -- focuses on correct JSX and core scheduling logic
 export default function Startlijst() {
   const { items: wedstrijden, loading: loadingWed } = useWedstrijden(false);
   const [sp] = useSearchParams();
@@ -31,489 +30,48 @@ export default function Startlijst() {
 
   const [selectedWedstrijdId, setSelectedWedstrijdId] = useState(qId);
   const [klasseFilter, setKlasseFilter] = useState("");
-  // beheer is always enabled now — all controls editable by default
   const beheer = true;
 
-  const [rows, setRows] = useState([]);         // ruwe DB-rows
-  const [editRows, setEditRows] = useState([]); // bewerkbare kopie
-  const [changed, setChanged] = useState(new Set()); // id's met wijzigingen
-
+  const [rows, setRows] = useState([]); // source rows
+  const [changed, setChanged] = useState(new Set());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
-  const refs = useRef({}); // per-klasse refs for export and PDF
-  const [draggingId, setDraggingId] = useState(null);
-  const [dragOverId, setDragOverId] = useState(null);
-  const [klasseOrder, setKlasseOrder] = useState([]); // visual order of klasse cards
-  // Scheduling state
-  const [scheduleConfig, setScheduleConfig] = useState({
-    dressuurStart: '', // 'HH:MM'
-    interval: 7, // minutes
-    stijltrailStart: '', // 'HH:MM' absolute start for stijltrail
-    trailInfo: '',
-    // if true: use one continuous schedule across all classes (global sequence)
-    globalSequence: true,
-  });
-  const [pauses, setPauses] = useState({}); // { [klasseCode]: [{ afterIndex: number, minutes: number }] }
-  const [visibleCols, setVisibleCols] = useState({ starttijd: true, startnummer: true, ruiter: true, paard: true, klasse: true, starttijdTrail: true });
+  const refs = useRef({});
 
-  // Drag & drop handlers: allow reordering within the same klasse
-  function onDragStart(e, id, klasse) {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id, klasse }));
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggingId(id);
-  }
-
-  function onDragOver(e) { e.preventDefault(); }
-
-  function onDragEnter(e, id) {
-    setDragOverId(id);
-  }
-
-  function onDragLeave(e) {
-    setDragOverId(null);
-  }
-
-  function onDrop(e, targetIndex, targetKlasse) {
-    e.preventDefault();
-    try {
-      const payload = JSON.parse(e.dataTransfer.getData('text/plain') || '{}');
-      const { id, klasse } = payload;
-      if (klasse !== targetKlasse) return; // only reorder within same klasse
-
-      // build class-specific list
-      const classItems = editRows.filter(r => (r.klasse || '') === targetKlasse).sort((a,b)=>{
-        const aNum = a.startnummer == null ? Infinity : Number(a.startnummer);
-        const bNum = b.startnummer == null ? Infinity : Number(b.startnummer);
-        return aNum - bNum || new Date(a.created_at) - new Date(b.created_at);
-      });
-
-      const moving = classItems.find(i => i.id === id);
-      if (!moving) return;
-      const without = classItems.filter(i => i.id !== id);
-      const nextClass = [...without.slice(0, targetIndex), moving, ...without.slice(targetIndex)];
-
-      // map back to global editRows, update startnummer for items in this class
-      setEditRows(all => all.map(r => {
-        if ((r.klasse || '') !== targetKlasse) return r;
-        const idx = nextClass.findIndex(x => x.id === r.id);
-        return { ...r, startnummer: idx >= 0 ? idx + 1 : r.startnummer };
-      }));
-
-      // mark changed all affected ids
-      setChanged(prev => {
-        const next = new Set(prev);
-        nextClass.forEach(i => next.add(i.id));
-        return next;
-      });
-      setMsg('Startvolgorde aangepast (nog niet opgeslagen)');
-      setDraggingId(null);
-      setDragOverId(null);
-    } catch (err) { console.warn('drop parse failed', err); }
-  }
-
-  const gekozen = useMemo(
-    () => wedstrijden.find((w) => w.id === selectedWedstrijdId) || null,
-    [wedstrijden, selectedWedstrijdId]
-  );
-
-  // sync schedule configuration from wedstrijd (persisted in startlijst_config)
-  useEffect(() => {
-    if (!gekozen) return;
-    try {
-      const cfg = (gekozen.startlijst_config && typeof gekozen.startlijst_config === 'object') ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null);
-      if (cfg) {
-        // prefer stijltrailStart (HH:MM). If legacy trailOffset exists, compute stijltrailStart using dressuurStart + offset
-        let stijl = cfg.stijltrailStart || '';
-        if (!stijl && (cfg.trailOffset || cfg.trailOffset === 0) && cfg.dressuurStart) {
-          try {
-            const parts = String(cfg.dressuurStart).split(':').map(s => Number(s));
-            const d = new Date(); d.setHours(parts[0]||0, parts[1]||0, 0, 0);
-            const t = new Date(d.getTime() + (Number(cfg.trailOffset||0) * 60000));
-            stijl = t.toTimeString().slice(0,5);
-          } catch(e) { stijl = ''; }
-        }
-  setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart || '', interval: cfg.interval || s.interval || 7, stijltrailStart: stijl || s.stijltrailStart || '', trailInfo: cfg.trailInfo || s.trailInfo || '', globalSequence: (typeof cfg.globalSequence === 'boolean') ? cfg.globalSequence : s.globalSequence }));
-        // support both legacy array-shaped pauses and the newer object mapping per klasse
-        if (cfg.pauses) {
-          if (Array.isArray(cfg.pauses)) {
-            // legacy: store under __default__ key
-            setPauses({ ...(typeof pauses === 'object' ? pauses : {}), ['__default__']: cfg.pauses });
-          } else if (typeof cfg.pauses === 'object') {
-            setPauses(cfg.pauses);
-          }
-        }
-      }
-    } catch (e) { /* ignore */ }
-  }, [gekozen]);
-
-  const fetchRows = useCallback(async () => {
-    setBusy(true);
-    setErr("");
-    setMsg("");
-    try {
-      if (!selectedWedstrijdId) {
-        setRows([]);
-        setEditRows([]);
-        return;
-      }
-      let q = supabase
-        .from("inschrijvingen")
-    .select("id, created_at, wedstrijd_id, klasse, categorie, ruiter, paard, email, startnummer, omroeper, opmerkingen, starttijd_manual, trailtijd_manual")
-        .eq("wedstrijd_id", selectedWedstrijdId)
-        .order("startnummer", { ascending: true, nullsFirst: true })
-        .order("created_at", { ascending: true });
-
-  if (klasseFilter) q = q.eq("klasse", klasseFilter);
-
-      const { data, error } = await q;
-      if (error) throw error;
-
-      setRows(data || []);
-      setEditRows((data || []).map(r => ({ ...r })));
-      setChanged(new Set());
-    } catch (e) {
-      setErr(e?.message || String(e));
-    } finally {
-      setBusy(false);
-    }
-  }, [selectedWedstrijdId, klasseFilter]);
-
-  useEffect(() => {
-    fetchRows();
-  }, [fetchRows]);
-
-  // initialize klasse order when rows or filters change
-  useEffect(() => {
-    const map = new Map();
-    (editRows || []).forEach(r => {
-      const k = r.klasse || 'onbekend';
-      if (!map.has(k)) map.set(k, 0);
-    });
-    const keys = [...map.keys()];
-    // if no rows, default to KLASSEN_EDIT order
-    if (keys.length === 0) setKlasseOrder(KLASSEN_EDIT.map(k => k.code));
-    else setKlasseOrder(keys);
-  }, [editRows]);
-
-  // Realtime updates (verversen bij wijzigingen, ook als iemand anders iets toevoegt)
-  useEffect(() => {
-    if (!selectedWedstrijdId) return;
-    const channel = supabase
-      .channel("rt_startlijst_beheer")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "inschrijvingen",
-          filter: `wedstrijd_id=eq.${selectedWedstrijdId}`,
-        },
-        () => fetchRows()
-      )
-      .subscribe();
-    return () => {
-      try { supabase.removeChannel(channel); } catch {}
-    };
-  }, [selectedWedstrijdId, fetchRows]);
-
-  const markChanged = (id) => {
-    setChanged(prev => new Set(prev).add(id));
-    setMsg("");
-  };
-
-  const onCellChange = (id, field, value) => {
-    setEditRows(list => list.map(r => r.id === id ? { ...r, [field]: value } : r));
-    markChanged(id);
-  };
-
-  const moveRow = (idx, dir) => {
-    setEditRows(list => {
-      const next = [...list];
-      const j = idx + dir;
-      if (j < 0 || j >= next.length) return list;
-      const tmp = next[idx];
-      next[idx] = next[j];
-      next[j] = tmp;
-      return next;
-    });
-  };
-
-  const renumber = () => {
-    // per-klasse renumber volgens schema: weX -> X01, X02, ... (WE1 -> 101, 102)
-    const getDigit = (code) => {
-      if (!code) return null;
-      const c = String(code).toLowerCase();
-      if (c === 'junior') return 6;
-      if (c === 'yr' || c === 'young riders' || c === 'young_riders') return 7;
-      if (c === 'we2p' || c === 'we2+' ) return 8;
-      const m = c.match(/we(\d)/);
-      return m ? Number(m[1]) : null;
-    };
-    const byClass = new Map();
-    editRows.forEach(r => {
-      const k = r.klasse || 'onbekend';
-      if (!byClass.has(k)) byClass.set(k, []);
-      byClass.get(k).push(r);
-    });
-    // sort each group reliably
-    for (const [k, arr] of byClass.entries()) {
-      arr.sort((a,b)=>{
-        const aNum = a.startnummer == null ? Infinity : Number(a.startnummer);
-        const bNum = b.startnummer == null ? Infinity : Number(b.startnummer);
-        if (aNum !== bNum) return aNum - bNum;
-        return new Date(a.created_at) - new Date(b.created_at);
-      });
-    }
-    const newRows = editRows.map(r => {
-      const k = r.klasse || 'onbekend';
-      const arr = byClass.get(k) || [];
-      const idx = arr.findIndex(x => x.id === r.id);
-      const digit = getDigit(k);
-      if (digit != null && idx >= 0) {
-        const num = digit * 100 + (idx + 1);
-        return { ...r, startnummer: num };
-      }
-      // fallback: sequential across group
-      if (idx >= 0) return { ...r, startnummer: idx + 1 };
-      return r;
-    });
-    setEditRows(newRows);
-    setChanged(new Set(newRows.map(r => r.id)));
-    setMsg("Startnummers hernummerd (nog niet opgeslagen).");
-  };
-
-  const saveChanges = async () => {
-    if (!changed.size) {
-      setMsg("Geen wijzigingen om op te slaan.");
-      return;
-    }
-    setBusy(true);
-    setErr("");
-    setMsg("");
-    try {
-      const toSave = editRows
-        .filter(r => changed.has(r.id))
-        .map(r => ({
-          id: r.id,
-          wedstrijd_id: r.wedstrijd_id,
-          klasse: r.klasse || null,
-          categorie: r.categorie || null,
-          ruiter: r.ruiter || null,
-          paard: r.paard || null,
-          email: r.email || null,
-          omroeper: r.omroeper || null,
-          opmerkingen: r.opmerkingen || null,
-          startnummer: r.startnummer != null && r.startnummer !== "" ? Number(r.startnummer) : null,
-          // ensure datetime-local values are converted to full ISO strings (zulu) for timestamptz columns
-          starttijd_manual: r.starttijd_manual ? parseLocalDateTimeToISO(r.starttijd_manual) : null,
-          trailtijd_manual: r.trailtijd_manual ? parseLocalDateTimeToISO(r.trailtijd_manual) : null,
-        }));
-
-      // validate manual datetimes are parseable
-      const invalidDates = toSave.filter(s => (s.starttijd_manual === null && editRows.find(r=>r.id===s.id).starttijd_manual) || (s.trailtijd_manual === null && editRows.find(r=>r.id===s.id).trailtijd_manual));
-      if (invalidDates.length) {
-        throw new Error('Een of meer ingevoerde datums/tijden zijn ongeldig. Controleer starttijd/trailtijd per inschrijving.');
-      }
-
-      // Validation: startnummers must be unique per wedstrijd and max 3 digits
-      const nums = toSave.map(s => s.startnummer).filter(n => n != null);
-      const dup = nums.find((n,i) => nums.indexOf(n) !== i);
-      if (dup) throw new Error('Startnummers moeten uniek zijn binnen de wedstrijd. Dubbel: ' + dup);
-      if (nums.some(n => Math.abs(Number(n)) > 999)) throw new Error('Startnummers mogen maximaal 3 cijfers bevatten (0-999).');
-
-      const { error } = await supabase.from("inschrijvingen").upsert(toSave, { onConflict: "id" });
-      if (error) throw error;
-
-      setMsg(`Wijzigingen opgeslagen ✔️ (${toSave.length})`);
-      setChanged(new Set());
-      await fetchRows();
-    } catch (e) {
-      setErr(e?.message || String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const addRow = async () => {
-    if (!selectedWedstrijdId) return;
-    setBusy(true);
-    setErr("");
-    setMsg("");
-    try {
-      const nextStart =
-        rows.length ? (Math.max(...rows.map(r => r.startnummer || 0)) + 1) : 1;
-
-      const { error } = await supabase.from("inschrijvingen").insert({
-        wedstrijd_id: selectedWedstrijdId,
-        klasse: klasseFilter || null,
-        categorie: null,
-        ruiter: "",
-        paard: "",
-        email: "",
-        startnummer: nextStart
-      });
-      if (error) throw error;
-      await fetchRows();
-      setMsg("Nieuwe inschrijving toegevoegd ✔️");
-    } catch (e) {
-      setErr(e?.message || String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const deleteRow = async (id) => {
-    if (!id) return;
-    if (!confirm("Weet je zeker dat je deze inschrijving wilt verwijderen?")) return;
-    setBusy(true);
-    setErr("");
-    setMsg("");
-    try {
-      const { error } = await supabase.from("inschrijvingen").delete().eq("id", id);
-      if (error) throw error;
-      await fetchRows();
-      setMsg("Inschrijving verwijderd ✔️");
-    } catch (e) {
-      // Tip geven als delete policy ontbreekt
-      const txt = String(e?.message || "").toLowerCase();
-      if (txt.includes("not allowed") || txt.includes("policy")) {
-        setErr("Verwijderen is door RLS/policy geblokkeerd. Voeg een DELETE-policy toe voor beheer.");
-      } else {
-        setErr(e?.message || String(e));
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const visible = editRows; // filtering gebeurt al in de query
-
-  // Group rows by klasse for per-klasse sections
-  const grouped = useMemo(() => {
-    const map = new Map();
-    visible.forEach(r => {
-      const k = r.klasse || 'onbekend';
-      if (!map.has(k)) map.set(k, []);
-      map.get(k).push(r);
-    });
-    for (const [k, arr] of map.entries()) {
-      arr.sort((a,b)=>{
-        const aNum = a.startnummer == null ? Infinity : Number(a.startnummer);
-        const bNum = b.startnummer == null ? Infinity : Number(b.startnummer);
-        if (aNum !== bNum) return aNum - bNum;
-        return new Date(a.created_at) - new Date(b.created_at);
-      });
-      map.set(k, arr);
-    }
-    return map;
-  }, [visible]);
-
-  function moveClass(code, dir) {
-    setKlasseOrder(prev => {
-      const idx = prev.indexOf(code);
-      if (idx === -1) return prev;
-      const to = Math.max(0, Math.min(prev.length - 1, idx + dir));
-      if (to === idx) return prev;
-      const copy = [...prev];
-      const [item] = copy.splice(idx, 1);
-      copy.splice(to, 0, item);
-      return copy;
-    });
-  }
-
-  function formatStartnummer(r) {
-    const raw = r?.startnummer;
-    const klasse = r?.klasse || '';
-    if (raw == null || raw === '') return '';
-    const num = Number(raw);
-    if (Number.isNaN(num)) return String(raw);
-    const m = String(klasse).toLowerCase().match(/we(\d)/);
-    const padded = String(num).padStart(3, '0');
-    if (m) {
-      const prefix = m[1];
-      return `WE${prefix} ${padded}`;
-    }
-    return padded;
-  }
-
+  const [klasseOrder, setKlasseOrder] = useState([]);
+  const [scheduleConfig, setScheduleConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', trailInfo: '', globalSequence: true });
+  const [pauses, setPauses] = useState({});
+  const [visibleCols] = useState({ starttijd: true, startnummer: true, ruiter: true, paard: true, klasse: true, starttijdTrail: true });
+  // --- helpers and computation functions ---
   function parseTimeForDate(timeStr) {
     if (!timeStr) return null;
-    // prefer wedstrijd datum if available
-    const datePart = (gekozen && gekozen.datum) ? String(gekozen.datum) : null;
     try {
-      if (datePart) {
-        // timeStr like 'HH:MM'
-        return new Date(datePart + 'T' + timeStr + ':00');
+      // accept HH:MM or full ISO
+      if (/^\d{2}:\d{2}$/.test(timeStr)) {
+        const today = new Date(); const [hh, mm] = timeStr.split(':').map(Number);
+        return new Date(today.getFullYear(), today.getMonth(), today.getDate(), hh || 0, mm || 0, 0);
       }
-      const today = new Date();
-      const [hh, mm] = String(timeStr).split(':').map(s => Number(s));
-      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hh || 0, mm || 0, 0);
-      return d;
+      const d = new Date(timeStr);
+      if (!Number.isNaN(d.getTime())) return d;
+      return null;
     } catch (e) { return null; }
   }
-
-  function formatTime(date) {
-    if (!date) return '';
-    try {
-      const d = new Date(date);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (e) { return '' }
-  }
-
-  // return a value suitable for <input type="datetime-local" value=...>
-  function formatForInput(date) {
-    if (!date) return '';
-    try {
-      const d = new Date(date);
-      if (Number.isNaN(d.getTime())) return '';
-      return d.toISOString().slice(0,16);
-    } catch (e) { return '' }
-  }
-
-  // Parse a datetime-local (YYYY-MM-DDTHH:MM) or ISO string into a timezone-aware ISO string
-  function parseLocalDateTimeToISO(val) {
-    if (!val) return null;
-    try {
-      // Some inputs may already be full ISO; Date() handles both
-      const d = new Date(val);
-      if (Number.isNaN(d.getTime())) return null;
-      return d.toISOString();
-    } catch (e) { return null; }
-  }
+  function formatTime(date) { if (!date) return ''; try { const d = new Date(date); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return '' } }
+  function formatForInput(date) { if (!date) return ''; try { const d = new Date(date); if (Number.isNaN(d.getTime())) return ''; return d.toISOString().slice(0,16); } catch (e) { return '' } }
 
   function computeStartTimes(items, klasseCode) {
-    // items: ordered array for the class
     const base = parseTimeForDate(scheduleConfig.dressuurStart);
     const interval = Number(scheduleConfig.interval) || 7;
     if (!items || !items.length) return [];
-    const times = [];
-    let cumulative = 0; // minutes
-    // pauses may be stored as an object mapping klasseCode -> array of pause objects
-    const classPausesRaw = (pauses && pauses[klasseCode]) ? pauses[klasseCode] : ((pauses && pauses['__default__']) ? pauses['__default__'] : []);
-    const classPauses = Array.isArray(classPausesRaw) ? classPausesRaw : [];
+    const times = []; let cumulative = 0;
+    const classPauses = Array.isArray(pauses?.[klasseCode]) ? pauses[klasseCode] : (Array.isArray(pauses?.['__default__']) ? pauses['__default__'] : []);
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      // if this item has an explicit manual start, use it and reset cumulative accordingly
-      if (item && item.starttijd_manual) {
+      if (item?.starttijd_manual) {
         const manualDate = new Date(item.starttijd_manual);
-        if (!Number.isNaN(manualDate.getTime())) {
-          times.push(manualDate);
-          if (base) {
-            cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000);
-          } else {
-            // if no base, treat this manual as the base
-            // next computed times will be relative to this manual time
-            // set base to manual for future computations
-            // (do not mutate original scheduleConfig; use local variable)
-            // we'll set cumulative = 0 and consider base for subsequent
-            cumulative = 0;
-          }
-          continue;
-        }
+        if (!Number.isNaN(manualDate.getTime())) { times.push(manualDate); if (base) cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000); else cumulative = 0; continue; }
       }
-
-      // pauses are defined as afterIndex === number of previous participants
       const afterIndex = i === 0 ? 0 : i;
       const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex);
       if (i > 0) cumulative += interval;
@@ -528,30 +86,15 @@ export default function Startlijst() {
     const base = parseTimeForDate(scheduleConfig.stijltrailStart);
     const interval = Number(scheduleConfig.interval) || 7;
     if (!items || !items.length) return [];
-    const times = [];
-    let cumulative = 0; // minutes
-    const classPausesRaw = (pauses && pauses[klasseCode]) ? pauses[klasseCode] : ((pauses && pauses['__default__']) ? pauses['__default__'] : []);
-    const classPauses = Array.isArray(classPausesRaw) ? classPausesRaw : [];
+    const times = []; let cumulative = 0;
+    const classPauses = Array.isArray(pauses?.[klasseCode]) ? pauses[klasseCode] : (Array.isArray(pauses?.['__default__']) ? pauses['__default__'] : []);
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item && item.trailtijd_manual) {
+      if (item?.trailtijd_manual) {
         const manualDate = new Date(item.trailtijd_manual);
-        if (!Number.isNaN(manualDate.getTime())) {
-          times.push(manualDate);
-          if (base) {
-            cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000);
-          } else {
-            cumulative = 0;
-          }
-          continue;
-        }
+        if (!Number.isNaN(manualDate.getTime())) { times.push(manualDate); if (base) cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000); else cumulative = 0; continue; }
       }
-
-      if (!base) {
-        // if there's no stijltrailStart, attempt to compute relative to dressuurStart + delta later in display logic
-        times.push(null);
-        continue;
-      }
+      if (!base) { times.push(null); continue; }
       const afterIndex = i === 0 ? 0 : i;
       const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex);
       if (i > 0) cumulative += interval;
@@ -562,197 +105,117 @@ export default function Startlijst() {
     return times;
   }
 
-  // Compute a single global timeline across all classes in `klasseOrder` and `grouped`.
-  const globalTimes = useMemo(() => {
-    if (!scheduleConfig.globalSequence) return null;
-    // build ordered list of items in klasseOrder order
-    const all = [];
-    (klasseOrder || []).forEach(k => {
-      const arr = grouped.get(k) || [];
-      arr.forEach(it => all.push(it));
-    });
-    if (!all.length) return [];
-    const base = parseTimeForDate(scheduleConfig.dressuurStart);
-    const interval = Number(scheduleConfig.interval) || 7;
-    const times = [];
-    let cumulative = 0;
-    // for global sequencing, respect pauses defined per-klasse and also fallback to __default__ pauses
-    const defaultPauses = (pauses && pauses['__default__']) ? pauses['__default__'] : [];
-    const perClassCounts = {};
-    for (let i = 0; i < all.length; i++) {
-      const item = all[i];
-      const k = item.klasse || '__default__';
-      const idxInClass = perClassCounts[k] || 0;
-      const afterIndex = idxInClass === 0 ? 0 : idxInClass;
-      const classPausesRaw = (pauses && pauses[k]) ? pauses[k] : [];
-      const classPauses = Array.isArray(classPausesRaw) ? classPausesRaw : [];
-
-      // If item has manual starttijd, use it and reset cumulative relative to base
-      if (item && item.starttijd_manual) {
-        const manualDate = new Date(item.starttijd_manual);
-        if (!Number.isNaN(manualDate.getTime())) {
-          times.push(manualDate);
-          if (base) {
-            cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000);
-          } else {
-            cumulative = 0;
-          }
-          perClassCounts[k] = (perClassCounts[k] || 0) + 1;
-          continue;
-        }
-      }
-
-      // prefer class-specific pause entry, otherwise check default pauses
-      const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex) || defaultPauses.find(p => Number(p.afterIndex) === afterIndex) || null;
-      if (i > 0) cumulative += interval;
-      if (pauseHere) cumulative += Number(pauseHere.minutes || 0);
-      const start = base ? new Date(base.getTime() + cumulative * 60000) : null;
-      times.push(start);
-      perClassCounts[k] = (perClassCounts[k] || 0) + 1;
+  // group rows by klasse
+  const grouped = useMemo(() => {
+    const m = new Map();
+    for (const r of rows) {
+      const key = r.klasse || 'onbekend';
+      if (!m.has(key)) m.set(key, []);
+      m.get(key).push(r);
     }
-    return times;
-  }, [scheduleConfig.globalSequence, scheduleConfig.dressuurStart, scheduleConfig.interval, klasseOrder, grouped, pauses]);
+    // ensure order exists
+    const order = Array.from(m.keys()).sort();
+    if (!klasseOrder.length) setKlasseOrder(order);
+    return m;
+  }, [rows]);
 
-  async function saveScheduleToWedstrijd() {
-    if (!gekozen) return setMsg('Kies eerst een wedstrijd.');
+  // load rows for selected wedstrijd
+  useEffect(() => {
+    async function fetchRows() {
+      if (!selectedWedstrijdId) return setRows([]);
+      setBusy(true); setErr('');
+      try {
+        const { data, error } = await supabase.from('inschrijvingen').select('*').eq('wedstrijd_id', selectedWedstrijdId).order('startnummer', { ascending: true });
+        if (error) throw error;
+        setRows(data || []);
+      } catch (e) {
+        setErr(String(e.message || e));
+      } finally { setBusy(false); }
+    }
+    fetchRows();
+  }, [selectedWedstrijdId]);
+
+  function getDisplayedTimesForRow(item, idx, classItems, klasseCode) {
+    const manualStart = item?.starttijd_manual;
+    const manualTrail = item?.trailtijd_manual;
+    if (scheduleConfig.globalSequence) {
+      // simplified: fallback to per-class computation when global not fully implemented
+      const times = computeStartTimes(classItems, klasseCode);
+      const trailTimes = computeTrailTimes(classItems, klasseCode);
+      return { start: manualStart ? new Date(manualStart) : times[idx] || null, trail: manualTrail ? new Date(manualTrail) : trailTimes[idx] || null };
+    }
+    const times = computeStartTimes(classItems, klasseCode);
+    const trailTimes = computeTrailTimes(classItems, klasseCode);
+    return { start: manualStart ? new Date(manualStart) : times[idx] || null, trail: manualTrail ? new Date(manualTrail) : trailTimes[idx] || null };
+  }
+
+  // simple cell edit handler
+  function onCellChange(id, field, value) {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    setChanged(prev => { const copy = new Set(prev); copy.add(id); return copy; });
+  }
+
+  function deleteRow(id) { setRows(prev => prev.filter(r => r.id !== id)); setChanged(prev => { const copy = new Set(prev); copy.delete(id); return copy; }); }
+  function addRow() { const newRow = { id: `new-${Date.now()}`, wedstrijd_id: selectedWedstrijdId, startnummer: null, ruiter: '', paard: '', klasse: '', starttijd_manual: null, trailtijd_manual: null }; setRows(prev => [ ...prev, newRow ]); setChanged(prev => { const copy = new Set(prev); copy.add(newRow.id); return copy; }); }
+  function renumber() { setRows(prev => prev.map((r,i)=> ({ ...r, startnummer: i+1 }))); }
+
+  async function saveChanges() {
+    if (!selectedWedstrijdId) return setErr('Geen wedstrijd geselecteerd');
     setBusy(true); setErr(''); setMsg('');
     try {
-      // build new config and append history if present
-      const newCfg = {
-        dressuurStart: scheduleConfig.dressuurStart || null,
-        interval: scheduleConfig.interval || 7,
-        stijltrailStart: scheduleConfig.stijltrailStart || null,
-        trailInfo: scheduleConfig.trailInfo || '',
-        globalSequence: !!scheduleConfig.globalSequence,
-        pauses: pauses || {}
-      };
-
-      // preserve previous config into history
-      const prev = (gekozen && gekozen.startlijst_config) ? (typeof gekozen.startlijst_config === 'object' ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null)) : null;
-      const history = prev && prev.history && Array.isArray(prev.history) ? prev.history.slice() : [];
-      if (prev) {
-        history.push({ savedAt: new Date().toISOString(), config: prev });
-      }
-
-      const payload = {
-        startlijst_config: {
-          ...newCfg,
-          history
+      const toSave = rows.filter(r => changed.has(r.id));
+      // naive upsert: send all changed rows to supabase
+      for (const row of toSave) {
+        const payload = { ...row, wedstrijd_id: selectedWedstrijdId };
+        // if id starts with new- insert, otherwise update
+        if (String(row.id).startsWith('new-')) {
+          await supabase.from('inschrijvingen').insert(payload);
+        } else {
+          await supabase.from('inschrijvingen').update(payload).eq('id', row.id);
         }
-      };
-      const { error } = await supabase.from('wedstrijden').update(payload).eq('id', gekozen.id);
-      if (error) throw error;
-      // refresh wedstrijden list so gekozen reflects the saved config
-      setMsg('Planning opgeslagen ✔️');
-      // refetch wedstrijden via hook; a crude way is to reload the page of wedstrijden by calling fetchRows for rows and letting useWedstrijden revalidate via the outer hook
-      // best-effort: trigger a full refresh
-      window.dispatchEvent(new Event('startlijst:refresh'));
-    } catch (e) {
-      setErr(e?.message || String(e));
-    } finally {
-      setBusy(false);
-    }
+      }
+      setMsg('Wijzigingen opgeslagen');
+      setChanged(new Set());
+    } catch (e) { setErr(String(e?.message || e)); }
+    finally { setBusy(false); }
   }
 
-  // helper to get displayed start/trail time considering manual overrides on the row
-  function getDisplayedTimesForRow(item, idx, classItems, klasseCode) {
-    const manualStart = item.starttijd_manual;
-    const manualTrail = item.trailtijd_manual;
+  function formatStartnummer(r) { return r.startnummer || ''; }
 
-    // If global sequence is enabled, prefer globalTimes (which now respects manual overrides)
-    if (scheduleConfig.globalSequence && globalTimes) {
-      // compute the global index of this item
-      const globalIndex = (klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + (grouped.get(k)||[]).length, 0) ) + idx;
-      const gStart = globalTimes[globalIndex];
-      const start = manualStart ? (new Date(manualStart)) : gStart || null;
-
-      // Trail: if manual set, use it. Otherwise, if stijltrailStart present compute from delta between dressuur and stijltrail relative to gStart
-      if (manualTrail) {
-        return { start, trail: new Date(manualTrail), computedStart: null };
-      }
-      if (scheduleConfig.stijltrailStart && gStart) {
-        const dressStart = parseTimeForDate(scheduleConfig.dressuurStart);
-        const stijlBase = parseTimeForDate(scheduleConfig.stijltrailStart);
-        const delta = (dressStart && stijlBase) ? Math.round((stijlBase.getTime() - dressStart.getTime()) / 60000) : 0;
-        const trailTime = gStart ? new Date(gStart.getTime() + delta * 60000) : null;
-        return { start, trail: trailTime, computedStart: null };
-      }
-      // fallback: use gStart for trail if no stijltrailStart
-      return { start, trail: gStart ? new Date(gStart.getTime()) : null, computedStart: null };
-    }
-
-    // per-class sequence: compute using class-specific function which respects manual overrides
-    const times = computeStartTimes(classItems, klasseCode);
-    const computedStart = times[idx] || null;
-    const start = manualStart ? (new Date(manualStart)) : computedStart;
-
-    // compute trail either from manualTrail, or from stijltrailStart schedule
-    const trailTimes = computeTrailTimes(classItems, klasseCode);
-    const computedTrail = trailTimes[idx] || null;
-    const trail = manualTrail ? (new Date(manualTrail)) : computedTrail;
-    return { start, trail, computedStart };
-  }
-
-  // Export helpers
+  // Export helpers (kept minimal)
   function handleExportExcel(klasseCode) {
     const wb = XLSX.utils.book_new();
     if (klasseCode === '__all__') {
+      const combined = [];
       for (const [k, items] of grouped.entries()) {
-        const ws = XLSX.utils.json_to_sheet(
-          (items || []).map((item, idx) => {
-            const { start, trail } = getDisplayedTimesForRow(item, idx, items, k);
-            return {
-              Starttijd: formatTime(start),
-              Startnummer: item.startnummer || '',
-              Ruiter: item.ruiter,
-              Paard: item.paard,
-              Klasse: KLASSEN.find(x=>x.code=== (item.klasse || ''))?.label || item.klasse || '',
-              'Starttijd Trail': formatTime(trail),
-            };
-          })
-        );
-        XLSX.utils.book_append_sheet(wb, ws, (k || 'Onbekend').toString().slice(0,30));
+        for (let i=0;i<items.length;i++) {
+          const it = items[i]; const { start, trail } = getDisplayedTimesForRow(it, i, items, k);
+          combined.push({ Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', Startnummer: it.startnummer || '', Ruiter: it.ruiter, Paard: it.paard, Starttijd: formatTime(start), 'Starttijd Trail': formatTime(trail) });
+        }
       }
-      XLSX.writeFile(wb, `Startlijst_${gekozen?.naam ? gekozen.naam.replace(/\s+/g,'_') : 'wedstrijd'}.xlsx`);
+      const ws = XLSX.utils.json_to_sheet(combined);
+      XLSX.utils.book_append_sheet(wb, ws, 'Startlijst');
+      XLSX.writeFile(wb, `Startlijst_all.xlsx`);
       return;
     }
     const items = grouped.get(klasseCode) || [];
-    const ws = XLSX.utils.json_to_sheet(
-      items.map((item, idx) => {
-        const { start, trail } = getDisplayedTimesForRow(item, idx, items, klasseCode);
-        return {
-          Starttijd: formatTime(start),
-          Startnummer: item.startnummer || '',
-          Ruiter: item.ruiter,
-          Paard: item.paard,
-          Klasse: KLASSEN.find(x=>x.code=== (item.klasse || ''))?.label || item.klasse || '',
-          'Starttijd Trail': formatTime(trail),
-        };
-      })
-    );
+    const ws = XLSX.utils.json_to_sheet(items.map((it, idx) => { const { start, trail } = getDisplayedTimesForRow(it, idx, items, klasseCode); return { Starttijd: formatTime(start), Startnummer: it.startnummer || '', Ruiter: it.ruiter, Paard: it.paard, Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', 'Starttijd Trail': formatTime(trail) }; }));
     XLSX.utils.book_append_sheet(wb, ws, klasseCode || 'Onbekend');
     XLSX.writeFile(wb, `Startlijst_${klasseCode || 'onbekend'}.xlsx`);
   }
 
   async function handleExportPDF(klasseCode) {
-    const el = refs.current[klasseCode];
-    if (!el) return;
+    const el = refs.current[klasseCode]; if (!el) return;
     const canvas = await html2canvas(el, { backgroundColor: '#fff', scale: 2 });
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: [canvas.width, canvas.height + 60] });
     pdf.addImage(canvas, 'PNG', 10, 30, canvas.width - 20, canvas.height - 40);
-    pdf.text(`Startlijst ${klasseCode}`, 30, 20);
     pdf.save(`Startlijst_${klasseCode}.pdf`);
   }
 
-  async function handleExportAfbeelding(klasseCode) {
-    const el = refs.current[klasseCode];
-    if (!el) return;
-    const canvas = await html2canvas(el, { backgroundColor: '#fff', scale: 2 });
-    const link = document.createElement('a');
-    link.download = `Startlijst_${klasseCode}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  }
+  async function handleExportAfbeelding(klasseCode) { const el = refs.current[klasseCode]; if (!el) return; const canvas = await html2canvas(el, { backgroundColor: '#fff', scale: 2 }); const link = document.createElement('a'); link.download = `Startlijst_${klasseCode}.png`; link.href = canvas.toDataURL('image/png'); link.click(); }
+
+  // visible rows (filter)
+  const visible = rows.filter(r => !klasseFilter || (r.klasse || '') === klasseFilter);
 
   return (
     <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: 28 }}>
@@ -768,20 +231,14 @@ export default function Startlijst() {
                 {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ''}</option>)}
               </select>
             </div>
-
             <div>
               <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Klasse (filter)</label>
               <select value={klasseFilter} onChange={(e)=>setKlasseFilter(e.target.value)} style={{ width: '100%' }}>
                 {KLASSEN.map(k => <option key={k.code || 'all'} value={k.code}>{k.label}</option>)}
               </select>
             </div>
-
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', userSelect: 'none' }}>
-              {/* beheer is always enabled in this build; make checkbox read-only to avoid undefined setter */}
-              <input type="checkbox" checked={beheer} readOnly /> Beheer-modus
-            </label>
-
-            <Button onClick={fetchRows} disabled={busy || !selectedWedstrijdId}>{busy ? 'Vernieuwen...' : 'Vernieuw'}</Button>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', userSelect: 'none' }}><input type="checkbox" checked={beheer} readOnly /> Beheer-modus</label>
+            <Button onClick={()=>{ /* fetch already auto-runs on change */ }} disabled={busy || !selectedWedstrijdId}>{busy ? 'Vernieuwen...' : 'Vernieuw'}</Button>
             <Button onClick={()=>handleExportExcel('__all__')} disabled={!selectedWedstrijdId}>Export hele startlijst (Excel)</Button>
             {beheer && <Button onClick={saveChanges} disabled={busy || !selectedWedstrijdId || !changed.size}>{busy ? 'Opslaan...' : `Opslaan (${changed.size||0})`}</Button>}
           </div>
@@ -789,20 +246,16 @@ export default function Startlijst() {
           {err && <Alert type="error">{String(err)}</Alert>}
           {msg && <Alert type={String(msg).toLowerCase().includes('fout') ? 'error' : 'success'}>{msg}</Alert>}
 
-          {!selectedWedstrijdId && (
-            <div style={{ marginTop: 16, color: '#555' }}>Kies hierboven een wedstrijd om de startlijst te tonen. Tip: je kunt ook direct naar <code>#/startlijst?wedstrijdId=&lt;uuid&gt;</code> linken.</div>
-          )}
+          {!selectedWedstrijdId && (<div style={{ marginTop: 16, color: '#555' }}>Kies hierboven een wedstrijd om de startlijst te tonen.</div>)}
 
           {selectedWedstrijdId && (
             <>
               <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <div style={{ fontSize: 12, color: '#666' }}><b>Aantal inschrijvingen:</b> {visible.length}</div>
-                {beheer && (<><Button onClick={addRow} disabled={busy} variant="secondary">Nieuwe inschrijving</Button><Button onClick={renumber} disabled={busy || visible.length === 0} variant="secondary">Startnummers hernummeren</Button></>)}
-                {beheer && (<Button onClick={saveScheduleToWedstrijd} disabled={busy || !selectedWedstrijdId} variant="secondary">Opslaan planning</Button>)}
+                {beheer && (<><Button onClick={addRow} disabled={busy} variant="secondary">Nieuwe inschrijving</Button><Button onClick={renumber} disabled={busy || visible.length === 0} variant="secondary">Startnummers hernummeren</Button></>) }
               </div>
 
               <div style={{ marginTop: 8, display: 'grid', gap: 18 }}>
-                {/* Schedule/config panel */}
                 <div style={{ background: '#f8fbff', padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <div>
@@ -819,7 +272,7 @@ export default function Startlijst() {
                     </div>
                     <div style={{ marginLeft: 'auto' }}>
                       <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Pauzes</label>
-                      <small style={{ color: '#666' }}>Voeg pauzes toe via beheer-mode (na welke start; minuten)</small>
+                      <small style={{ color: '#666' }}>Voeg pauzes toe per klasse (na welke start; minuten)</small>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12 }}>
                       <label style={{ display: 'flex', gap: 8, alignItems: 'center', userSelect: 'none' }}>
@@ -828,23 +281,18 @@ export default function Startlijst() {
                       </label>
                     </div>
                   </div>
-                  <div style={{ marginTop: 8, fontSize: 13, color: '#234' }}><b>Info:</b> {scheduleConfig.trailInfo || 'Stel hierboven de dressuur starttijd, interval en de Stijltrail starttijd in.'}</div>
                 </div>
 
-                {(klasseOrder || []).map(klasseCode => {
+                {(Array.from(grouped.keys())).map(klasseCode => {
                   const items = grouped.get(klasseCode) || [];
                   return (
-                    <div key={klasseCode} draggable={beheer} onDragStart={(e)=>{ if(!beheer) return; e.dataTransfer.setData('text/plain', klasseCode); e.dataTransfer.effectAllowed='move'; setDraggingId(klasseCode); }} onDragOver={(e)=>e.preventDefault()} onDrop={(e)=>{ e.preventDefault(); const code = e.dataTransfer.getData('text/plain'); if (code) { const from = klasseOrder.indexOf(code); const to = klasseOrder.indexOf(klasseCode); if (from !== -1 && to !== -1 && from !== to) { const copy = [...klasseOrder]; const [it] = copy.splice(from,1); copy.splice(to, 0, it); setKlasseOrder(copy); } } setDraggingId(null); }} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff', boxShadow: draggingId === klasseCode ? '0 10px 30px rgba(12,40,80,0.08)' : '0 6px 18px rgba(12,40,80,0.04)', cursor: beheer ? 'grab' : 'default' }}>
+                    <div key={klasseCode} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                         <div style={{ fontWeight: 800, fontSize: 16 }}>{KLASSEN_EDIT.find(k => k.code === klasseCode)?.label || (klasseCode === 'onbekend' ? 'Onbekend' : klasseCode)}</div>
                         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <Button title="Verplaats klasse omhoog" onClick={() => moveClass(klasseCode, -1)} variant="secondary">↑</Button>
-                          <Button title="Verplaats klasse omlaag" onClick={() => moveClass(klasseCode, 1)} variant="secondary">↓</Button>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <Button onClick={() => handleExportExcel(klasseCode)} variant="secondary">Export Excel</Button>
-                            <Button onClick={() => handleExportPDF(klasseCode)} variant="secondary">Export PDF</Button>
-                            <Button onClick={() => handleExportAfbeelding(klasseCode)} variant="secondary">Export afbeelding</Button>
-                          </div>
+                          <Button onClick={() => handleExportExcel(klasseCode)} variant="secondary">Export Excel</Button>
+                          <Button onClick={() => handleExportPDF(klasseCode)} variant="secondary">Export PDF</Button>
+                          <Button onClick={() => handleExportAfbeelding(klasseCode)} variant="secondary">Export afbeelding</Button>
                         </div>
                       </div>
 
@@ -863,61 +311,48 @@ export default function Startlijst() {
                           </thead>
                           <tbody>
                             {(() => {
-                              const times = scheduleConfig.globalSequence && globalTimes ? globalTimes : computeStartTimes(items, klasseCode);
-                              return items.map((r, idx) => {
-                                // compute trail for globalSequence: prefer manual trailtijd_manual; otherwise compute from stijltrailStart
-                                const { start, trail, computedStart } = scheduleConfig.globalSequence && globalTimes ? (() => {
-                                  const globalIndex = (klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + (grouped.get(k)||[]).length, 0) ) + idx;
-                                  const gStart = globalTimes[globalIndex];
-                                  // if stijltrailStart is set we compute trail times relative to that; otherwise fallback to gStart
-                                  if (scheduleConfig.stijltrailStart) {
-                                    // compute offset between dressuur and stijltrail start as minutes, if possible
-                                    const dressStart = parseTimeForDate(scheduleConfig.dressuurStart);
-                                    const stijlBase = parseTimeForDate(scheduleConfig.stijltrailStart);
-                                    const delta = (dressStart && stijlBase) ? Math.round((stijlBase.getTime() - dressStart.getTime()) / 60000) : 0;
-                                    const trailTime = gStart ? new Date(gStart.getTime() + delta * 60000) : null;
-                                    return { start: gStart, trail: r.trailtijd_manual ? new Date(r.trailtijd_manual) : trailTime, computedStart: null };
-                                  }
-                                  // legacy: no stijltrailStart, return previous behaviour (no offset)
-                                  return { start: gStart, trail: r.trailtijd_manual ? new Date(r.trailtijd_manual) : (gStart ? new Date(gStart) : null), computedStart: null };
-                                })() : getDisplayedTimesForRow(r, idx, items, klasseCode);
-                                return (
-                                  <tr key={r.id} draggable={false} onDragOver={onDragOver} onDragEnter={(e)=>onDragEnter(e, r.id)} onDragLeave={onDragLeave} onDrop={(e)=>onDrop(e, idx, klasseCode)} style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
-                                    {visibleCols.starttijd && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.starttijd_manual || (computedStart ? formatForInput(computedStart) : '')} onChange={(e)=>onCellChange(r.id, 'starttijd_manual', e.target.value)} />) : formatTime(start)}</td>}
-                                    {visibleCols.startnummer && <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center', padding: 8 }}>{beheer ? (<><button aria-label="drag-handle" draggable={beheer} onDragStart={(e)=>onDragStart(e, r.id, klasseCode)} onDragEnd={()=>{ setDraggingId(null); setDragOverId(null); }} style={{ cursor: 'grab', padding: 6, borderRadius: 6, border: '1px solid #e6eefb', background: '#fafdff' }}>≡</button><input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} /></>) : (formatStartnummer(r) || (r.startnummer ?? idx + 1))}</td>}
+                              const classPauses = Array.isArray(pauses?.[klasseCode]) ? pauses[klasseCode] : [];
+                              const out = [];
+                              for (let idx = 0; idx < items.length; idx++) {
+                                const r = items[idx];
+                                const { start, trail } = getDisplayedTimesForRow(r, idx, items, klasseCode);
+                                out.push(
+                                  <tr key={r.id} style={{ borderTop: '1px solid #f0f0f0' }}>
+                                    {visibleCols.starttijd && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.starttijd_manual || (start ? formatForInput(start) : '')} onChange={(e)=>onCellChange(r.id, 'starttijd_manual', e.target.value)} />) : formatTime(start)}</td>}
+                                    {visibleCols.startnummer && <td style={{ padding: 8 }}>{beheer ? (<input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 80 }} />) : (r.startnummer || idx + 1)}</td>}
                                     {visibleCols.ruiter && <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>}
                                     {visibleCols.paard && <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>}
                                     {visibleCols.klasse && <td style={{ padding: 8 }}>{KLASSEN.find(k=>k.code === (r.klasse || ''))?.label || (r.klasse || '—')}</td>}
                                     {visibleCols.starttijdTrail && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.trailtijd_manual || (trail ? formatForInput(trail) : '')} onChange={(e)=>onCellChange(r.id, 'trailtijd_manual', e.target.value)} />) : formatTime(trail)}</td>}
-                                    {beheer && (<td style={{ whiteSpace: 'nowrap', padding: 8 }}><Button onClick={()=>{/* noop */}} variant="secondary">↕️</Button><Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button></td>)}
+                                    {beheer && (<td style={{ padding: 8 }}><Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button></td>)}
                                   </tr>
                                 );
-                              });
+                                const pauseAfter = classPauses.find(p => Number(p.afterIndex) === (idx + 1));
+                                if (pauseAfter) out.push(<tr key={`pause-${klasseCode}-${idx}`} style={{ background: '#fff8ec', color: '#6b4a00' }}><td colSpan={visibleCols.startnummer ? 6 : 5} style={{ padding: 8 }}>Pauze — {pauseAfter.minutes} min</td></tr>);
+                              }
+                              if (!out.length) return (<tr><td colSpan={beheer ? 6 : 5} style={{ color: '#777', padding: '18px 8px' }}>Nog geen inschrijvingen voor deze klasse.</td></tr>);
+                              return out;
                             })()}
-                            {items.length === 0 && (<tr><td colSpan={beheer ? 6 : 5} style={{ color: '#777', padding: '18px 8px' }}>Nog geen inschrijvingen voor deze klasse.</td></tr>)}
                           </tbody>
                         </table>
 
-                        {beheer && (
-                          <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: '#fcfeff', border: '1px dashed #e6f2ff' }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Pauzes voor {KLASSEN_EDIT.find(k=>k.code===klasseCode)?.label || klasseCode}</div>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}><small style={{ color: '#666' }}>Huidige pauzes:</small></div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                              {(pauses[klasseCode] || []).map((p, i) => (
-                                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                  <div style={{ fontSize: 13 }}>Na {p.afterIndex} starts — {p.minutes} min</div>
-                                  <Button variant="secondary" onClick={()=>{ setPauses(prev => { const copy = { ...(prev || {}) }; copy[klasseCode] = (copy[klasseCode] || []).filter((_,idx)=>idx !== i); return copy; }); }}>Verwijder</Button>
-                                </div>
-                              ))}
-                            </div>
-
-                            <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                              <input type="number" placeholder="Na (count)" id={`pause-after-${klasseCode}`} style={{ width: 100 }} />
-                              <input type="number" placeholder="Minuten" id={`pause-min-${klasseCode}`} style={{ width: 100 }} />
-                              <Button onClick={()=>{ const elA = document.getElementById(`pause-after-${klasseCode}`); const elM = document.getElementById(`pause-min-${klasseCode}`); const after = Number(elA?.value || 0); const minutes = Number(elM?.value || 0); if (!Number.isFinite(after) || !Number.isFinite(minutes)) return; setPauses(prev => { const copy = { ...(prev || {}) }; copy[klasseCode] = copy[klasseCode] || []; copy[klasseCode].push({ afterIndex: after, minutes }); return copy; }); if (elA) elA.value = ''; if (elM) elM.value = ''; }}>Voeg pauze toe</Button>
-                            </div>
+                        <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: '#fcfeff', border: '1px dashed #e6f2ff' }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Pauzes voor {KLASSEN_EDIT.find(k=>k.code===klasseCode)?.label || klasseCode}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {(pauses[klasseCode] || []).map((p, i) => (
+                              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <div style={{ fontSize: 13 }}>Na {p.afterIndex} starts — {p.minutes} min</div>
+                                <Button variant="secondary" onClick={()=>{ setPauses(prev => { const copy = { ...(prev || {}) }; copy[klasseCode] = (copy[klasseCode] || []).filter((_,idx)=>idx !== i); return copy; }); }}>Verwijder</Button>
+                              </div>
+                            ))}
                           </div>
-                        )}
+
+                          <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <input type="number" placeholder="Na (count)" id={`pause-after-${klasseCode}`} style={{ width: 100 }} />
+                            <input type="number" placeholder="Minuten" id={`pause-min-${klasseCode}`} style={{ width: 100 }} />
+                            <Button onClick={()=>{ const elA = document.getElementById(`pause-after-${klasseCode}`); const elM = document.getElementById(`pause-min-${klasseCode}`); const after = Number(elA?.value || 0); const minutes = Number(elM?.value || 0); if (!Number.isFinite(after) || !Number.isFinite(minutes)) return; setPauses(prev => { const copy = { ...(prev || {}) }; copy[klasseCode] = copy[klasseCode] || []; copy[klasseCode].push({ afterIndex: after, minutes }); return copy; }); if (elA) elA.value = ''; if (elM) elM.value = ''; }}>Voeg pauze toe</Button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -932,30 +367,6 @@ export default function Startlijst() {
           <p style={{ color: '#444', marginTop: 6 }}>Trail offset geeft aan hoeveel minuten na de dressuur-starttijd de trail begint voor die start. Pauzes voegen extra minuten toe op de planning na een gegeven positie.</p>
           <div style={{ marginTop: 8, fontWeight: 700 }}>Huidige instellingen</div>
           <div style={{ fontSize: 13, color: '#333', marginTop: 6 }}>Dressuur start: <b>{scheduleConfig.dressuurStart || '—'}</b><br/>Interval: <b>{scheduleConfig.interval} min</b><br/>Stijltrail start: <b>{scheduleConfig.stijltrailStart || '—'}</b></div>
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontWeight: 700 }}>Voorbeeld export (alle klassen)</div>
-            <div style={{ marginTop: 8 }}>
-              {(() => {
-                const rows = [];
-                for (const [k, items] of grouped.entries()) {
-                  for (let i=0;i<items.length;i++) {
-                    const it = items[i];
-                    const { start, trail } = getDisplayedTimesForRow(it, i, items, k);
-                    rows.push({ klasse: KLASSEN.find(x=>x.code===k)?.label || k, start: formatTime(start), trail: formatTime(trail), ruiter: it.ruiter || '—', startnummer: formatStartnummer(it) || (it.startnummer || i+1) });
-                  }
-                }
-                if (!rows.length) return <div style={{ color: '#777' }}>Geen inschrijvingen</div>;
-                return (
-                  <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
-                    <thead><tr><th style={{ textAlign: 'left' }}>Klasse</th><th style={{ textAlign: 'left' }}>#</th><th style={{ textAlign: 'left' }}>Ruiter</th><th style={{ textAlign: 'left' }}>Starttijd</th><th style={{ textAlign: 'left' }}>Trail</th></tr></thead>
-                    <tbody>
-                      {rows.slice(0,50).map((r,i)=>(<tr key={i}><td>{r.klasse}</td><td>{r.startnummer}</td><td>{r.ruiter}</td><td>{r.start}</td><td>{r.trail}</td></tr>))}
-                    </tbody>
-                  </table>
-                );
-              })()}
-            </div>
-          </div>
         </aside>
       </div>
     </div>
