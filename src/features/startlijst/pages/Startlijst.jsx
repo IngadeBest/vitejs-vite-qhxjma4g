@@ -68,13 +68,20 @@ export default function Startlijst() {
     const classPauses = Array.isArray(pauses?.[klasseCode]) ? pauses[klasseCode] : (Array.isArray(pauses?.['__default__']) ? pauses['__default__'] : []);
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
+      // if manual time set, use it and reset cumulative to manual offset
       if (item?.starttijd_manual) {
         const manualDate = new Date(item.starttijd_manual);
-        if (!Number.isNaN(manualDate.getTime())) { times.push(manualDate); if (base) cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000); else cumulative = 0; continue; }
+        if (!Number.isNaN(manualDate.getTime())) {
+          times.push(manualDate);
+          if (base) cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000);
+          else cumulative = 0;
+          continue;
+        }
       }
-      const afterIndex = i === 0 ? 0 : i;
-      const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex);
+      // between starts: add interval (except before first)
       if (i > 0) cumulative += interval;
+      // if a pause is defined AFTER previous count (i) then apply it before computing current start
+      const pauseHere = classPauses.find(p => Number(p.afterIndex) === i) || null;
       if (pauseHere) cumulative += Number(pauseHere.minutes || 0);
       const start = base ? new Date(base.getTime() + cumulative * 60000) : null;
       times.push(start);
@@ -95,15 +102,54 @@ export default function Startlijst() {
         if (!Number.isNaN(manualDate.getTime())) { times.push(manualDate); if (base) cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000); else cumulative = 0; continue; }
       }
       if (!base) { times.push(null); continue; }
-      const afterIndex = i === 0 ? 0 : i;
-      const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex);
       if (i > 0) cumulative += interval;
+      const pauseHere = classPauses.find(p => Number(p.afterIndex) === i) || null;
       if (pauseHere) cumulative += Number(pauseHere.minutes || 0);
       const start = base ? new Date(base.getTime() + cumulative * 60000) : null;
       times.push(start);
     }
     return times;
   }
+
+  // global continuous times across classes when enabled
+  const globalTimes = useMemo(() => {
+    if (!scheduleConfig.globalSequence) return null;
+    const base = parseTimeForDate(scheduleConfig.dressuurStart);
+    const interval = Number(scheduleConfig.interval) || 7;
+    const defaultPauses = Array.isArray(pauses?.['__default__']) ? pauses['__default__'] : [];
+    const times = [];
+    let cumulative = 0;
+    // counts per class to identify afterIndex
+    const perClassCounts = {};
+    for (const k of (klasseOrder || [])) perClassCounts[k] = 0;
+    for (const k of (klasseOrder || [])) {
+      const items = grouped.get(k) || [];
+      const classPauses = Array.isArray(pauses?.[k]) ? pauses[k] : [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        // manual start takes precedence and resets cumulative relative to base
+        if (item?.starttijd_manual) {
+          const manualDate = new Date(item.starttijd_manual);
+          if (!Number.isNaN(manualDate.getTime())) {
+            times.push(manualDate);
+            if (base) cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000);
+            else cumulative = 0;
+            perClassCounts[k] = (perClassCounts[k] || 0) + 1;
+            continue;
+          }
+        }
+        // add interval between flattened items (except first overall)
+        if (times.length > 0) cumulative += interval;
+        // apply pause defined for this class after previous count
+        const pauseHere = (classPauses.find(p => Number(p.afterIndex) === (perClassCounts[k] || 0)) || defaultPauses.find(p => Number(p.afterIndex) === (perClassCounts[k] || 0)) || null);
+        if (pauseHere) cumulative += Number(pauseHere.minutes || 0);
+        const start = base ? new Date(base.getTime() + cumulative * 60000) : null;
+        times.push(start);
+        perClassCounts[k] = (perClassCounts[k] || 0) + 1;
+      }
+    }
+    return times;
+  }, [scheduleConfig.globalSequence, scheduleConfig.dressuurStart, scheduleConfig.interval, klasseOrder, grouped, pauses]);
 
   // group rows by klasse
   const grouped = useMemo(() => {
@@ -154,11 +200,21 @@ export default function Startlijst() {
   function getDisplayedTimesForRow(item, idx, classItems, klasseCode) {
     const manualStart = item?.starttijd_manual;
     const manualTrail = item?.trailtijd_manual;
-    if (scheduleConfig.globalSequence) {
-      // simplified: fallback to per-class computation when global not fully implemented
-      const times = computeStartTimes(classItems, klasseCode);
-      const trailTimes = computeTrailTimes(classItems, klasseCode);
-      return { start: manualStart ? new Date(manualStart) : times[idx] || null, trail: manualTrail ? new Date(manualTrail) : trailTimes[idx] || null };
+    if (scheduleConfig.globalSequence && globalTimes) {
+      const prevCount = (klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + ((grouped.get(k) || []).length), 0));
+      const globalIndex = prevCount + idx;
+      const gStart = globalTimes[globalIndex];
+      const start = manualStart ? new Date(manualStart) : (gStart || null);
+      // trail: manual overrides win; otherwise compute from delta between dressuur and stijltrail if provided
+      if (manualTrail) return { start, trail: new Date(manualTrail), computedStart: null };
+      if (scheduleConfig.stijltrailStart && gStart) {
+        const dressStart = parseTimeForDate(scheduleConfig.dressuurStart);
+        const stijlBase = parseTimeForDate(scheduleConfig.stijltrailStart);
+        const delta = (dressStart && stijlBase) ? Math.round((stijlBase.getTime() - dressStart.getTime()) / 60000) : 0;
+        const trailTime = gStart ? new Date(gStart.getTime() + delta * 60000) : null;
+        return { start, trail: trailTime, computedStart: null };
+      }
+      return { start, trail: gStart ? new Date(gStart.getTime()) : null, computedStart: null };
     }
     const times = computeStartTimes(classItems, klasseCode);
     const trailTimes = computeTrailTimes(classItems, klasseCode);
@@ -206,10 +262,18 @@ export default function Startlijst() {
     const wb = XLSX.utils.book_new();
     if (klasseCode === '__all__') {
       const combined = [];
-      for (const [k, items] of grouped.entries()) {
+      const defaultPauses = Array.isArray(pauses?.['__default__']) ? pauses['__default__'] : [];
+      for (const k of (klasseOrder || Array.from(grouped.keys()))) {
+        const items = grouped.get(k) || [];
+        const classPauses = Array.isArray(pauses?.[k]) ? pauses[k] : [];
         for (let i=0;i<items.length;i++) {
           const it = items[i]; const { start, trail } = getDisplayedTimesForRow(it, i, items, k);
-          combined.push({ Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', Startnummer: it.startnummer || '', Ruiter: it.ruiter, Paard: it.paard, Starttijd: formatTime(start), 'Starttijd Trail': formatTime(trail) });
+          combined.push({
+            Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', Startnummer: it.startnummer || '', Ruiter: it.ruiter, Paard: it.paard, Starttijd: formatTime(start), 'Starttijd Trail': formatTime(trail)
+          });
+          // if a pause is defined after this start, insert a pause marker row
+          const pauseAfter = (classPauses.find(p => Number(p.afterIndex) === (i+1)) || defaultPauses.find(p => Number(p.afterIndex) === (i+1)) || null);
+          if (pauseAfter) combined.push({ Klasse: '', Startnummer: '', Ruiter: '', Paard: '', Starttijd: `Pauze — ${pauseAfter.minutes} min`, 'Starttijd Trail': '' });
         }
       }
       const ws = XLSX.utils.json_to_sheet(combined);
@@ -391,12 +455,16 @@ export default function Startlijst() {
             <div style={{ marginTop: 8 }}>
               {(() => {
                 const rowsPreview = [];
-                for (const k of (klasseOrder || [])) {
+                const defaultPauses = Array.isArray(pauses?.['__default__']) ? pauses['__default__'] : [];
+                for (const k of (klasseOrder || Array.from(grouped.keys()))) {
                   const items = grouped.get(k) || [];
+                  const classPauses = Array.isArray(pauses?.[k]) ? pauses[k] : [];
                   for (let i=0;i<items.length;i++) {
                     const it = items[i];
                     const { start, trail } = getDisplayedTimesForRow(it, i, items, k);
                     rowsPreview.push({ klasse: KLASSEN.find(x=>x.code===k)?.label || k, start: formatTime(start), trail: formatTime(trail), ruiter: it.ruiter || '—', startnummer: formatStartnummer(it) || (it.startnummer || i+1) });
+                    const pauseAfter = (classPauses.find(p => Number(p.afterIndex) === (i+1)) || defaultPauses.find(p => Number(p.afterIndex) === (i+1)) || null);
+                    if (pauseAfter) rowsPreview.push({ klasse: '', start: `Pauze — ${pauseAfter.minutes} min`, trail: '', ruiter: '', startnummer: '' });
                   }
                 }
                 if (!rowsPreview.length) return <div style={{ color: '#777' }}>Geen inschrijvingen</div>;
