@@ -40,6 +40,7 @@ export default function Startlijst() {
   const refs = useRef({});
 
   const [klasseOrder, setKlasseOrder] = useState([]);
+  const [dragState, setDragState] = useState({ type: null, id: null, fromClass: null });
   const [scheduleConfig, setScheduleConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', trailInfo: '', globalSequence: true });
   const [pauses, setPauses] = useState({});
   const [visibleCols] = useState({ starttijd: true, startnummer: true, ruiter: true, paard: true, klasse: true, starttijdTrail: true });
@@ -431,7 +432,16 @@ export default function Startlijst() {
                 {( (klasseOrder && klasseOrder.length) ? klasseOrder : Array.from(grouped.keys()) ).map(klasseCode => {
                   const items = grouped.get(klasseCode) || [];
                   return (
-                    <div key={klasseCode} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff' }}>
+                    <div key={klasseCode}
+                      draggable
+                      onDragStart={(e)=>{ setDragState({ type: 'class', id: klasseCode }); e.dataTransfer.effectAllowed = 'move'; }}
+                      onDragOver={(e)=>{ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                      onDrop={(e)=>{ e.preventDefault(); const ds = dragState; if (ds?.type === 'class' && ds.id) { // swap positions
+                          const from = ds.id; const to = klasseCode; setKlasseOrder(prev=>{ const arr = [...(prev && prev.length ? prev : Array.from(grouped.keys()))]; const fi = arr.indexOf(from); const ti = arr.indexOf(to); if (fi === -1 || ti === -1) return arr; arr.splice(fi,1); arr.splice(ti,0,from); return arr; }); setDragState({ type:null,id:null,fromClass:null }); }
+                        if (ds?.type === 'participant' && ds.id) { // move participant into this class at end
+                          const pid = ds.id; setRows(prev=>{ const p = prev.find(r=>r.id===pid); if (!p) return prev; const updated = prev.map(r=> r.id===pid ? { ...r, klasse: klasseCode } : r); setChanged(cs=>{ const c = new Set(cs); c.add(pid); return c; }); return updated; }); setDragState({ type:null,id:null,fromClass:null }); }
+                      }}
+                      style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                         <div style={{ fontWeight: 800, fontSize: 16 }}>{KLASSEN_EDIT.find(k => k.code === klasseCode)?.label || (klasseCode === 'onbekend' ? 'Onbekend' : klasseCode)}</div>
                         <div style={{ marginLeft: 8, display: 'flex', gap: 6 }}>
@@ -466,7 +476,28 @@ export default function Startlijst() {
                                 const r = items[idx];
                                 const { start, trail } = getDisplayedTimesForRow(r, idx, items, klasseCode);
                                 out.push(
-                                  <tr key={r.id} style={{ borderTop: '1px solid #f0f0f0' }}>
+                                  <tr key={r.id}
+                                    draggable
+                                    onDragStart={(e)=>{ setDragState({ type: 'participant', id: r.id, fromClass: klasseCode }); e.dataTransfer.effectAllowed = 'move'; }}
+                                    onDragOver={(e)=>{ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                                    onDrop={(e)=>{ e.preventDefault(); const ds = dragState; if (ds?.type === 'participant' && ds.id && ds.id !== r.id) {
+                                        // move participant before/after this row depending on drop
+                                        setRows(prev=>{
+                                          const all = [...prev];
+                                          const movingIdx = all.findIndex(x=>x.id===ds.id);
+                                          if (movingIdx === -1) return prev;
+                                          const moving = all.splice(movingIdx,1)[0];
+                                          // set its klasse to this klasseCode
+                                          moving.klasse = klasseCode;
+                                          // find index of this row in new all
+                                          const targetIdx = all.findIndex(x=>x.id===r.id);
+                                          all.splice(targetIdx,0,moving);
+                                          setChanged(cs=>{ const c = new Set(cs); c.add(ds.id); return c; });
+                                          return all;
+                                        });
+                                        setDragState({ type:null,id:null,fromClass:null });
+                                      } }}
+                                  style={{ borderTop: '1px solid #f0f0f0' }}>
                                     {visibleCols.starttijd && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.starttijd_manual || (start ? formatForInput(start) : '')} onChange={(e)=>onCellChange(r.id, 'starttijd_manual', e.target.value)} />) : formatTime(start)}</td>}
                                     {visibleCols.startnummer && <td style={{ padding: 8 }}>{beheer ? (<input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 80 }} />) : (r.startnummer || idx + 1)}</td>}
                                     {visibleCols.ruiter && <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>}
