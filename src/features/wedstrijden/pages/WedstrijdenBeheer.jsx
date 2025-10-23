@@ -319,16 +319,6 @@ export default function WedstrijdenBeheer() {
       )}
 
       {msg && <div style={{ marginTop: 12, color: "#333" }}>{msg}</div>}
-      {migrationSql && (
-        <section style={{marginTop:12, border:'1px dashed #e2e8f0', padding:12, borderRadius:8}}>
-          <h3 style={{marginTop:0}}>DB-migratie benodigd</h3>
-          <p style={{marginTop:4, color:'#555'}}>Kopieer onderstaande SQL en voer deze uit op je database (psql of Supabase SQL editor).</p>
-          <textarea readOnly rows={6} style={{width:'100%', fontFamily:'monospace', fontSize:13}} value={migrationSql}></textarea>
-          <div style={{marginTop:8}}>
-            <button onClick={()=>{ navigator.clipboard.writeText(migrationSql); setMsg('SQL gekopieerd naar Klembord'); }}>Kopieer SQL</button>
-          </div>
-        </section>
-      )}
     </div>
   );
 }
