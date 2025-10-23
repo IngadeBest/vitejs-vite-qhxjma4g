@@ -58,6 +58,20 @@ export default function Startlijst() {
       return null;
     } catch (e) { return null; }
   }
+  // parse a datetime-local string (YYYY-MM-DDTHH:MM) as local time to avoid timezone shifts
+  function parseDateTimeLocal(str) {
+    if (!str) return null;
+    try {
+      const m = String(str).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      if (m) {
+        const y = Number(m[1]); const mo = Number(m[2]); const d = Number(m[3]); const hh = Number(m[4]); const mm = Number(m[5]);
+        return new Date(y, mo - 1, d, hh, mm, 0);
+      }
+      const d = new Date(str);
+      if (!Number.isNaN(d.getTime())) return d;
+      return null;
+    } catch (e) { return null; }
+  }
   function formatTime(date) { if (!date) return ''; try { const d = new Date(date); const pad = (n) => String(n).padStart(2,'0'); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; } catch (e) { return '' } }
   function formatForInput(date) { if (!date) return ''; try { const d = new Date(date); if (Number.isNaN(d.getTime())) return ''; const pad = (n) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; } catch (e) { return '' } }
 
@@ -71,8 +85,8 @@ export default function Startlijst() {
       const item = items[i];
       // if manual time set, use it and reset cumulative to manual offset
       if (item?.starttijd_manual) {
-        const manualDate = new Date(item.starttijd_manual);
-        if (!Number.isNaN(manualDate.getTime())) {
+        const manualDate = parseDateTimeLocal(item.starttijd_manual) || parseTimeForDate(item.starttijd_manual);
+        if (manualDate && !Number.isNaN(manualDate.getTime())) {
           times.push(manualDate);
           if (base) cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000);
           else cumulative = 0;
@@ -99,8 +113,8 @@ export default function Startlijst() {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (item?.trailtijd_manual) {
-        const manualDate = new Date(item.trailtijd_manual);
-        if (!Number.isNaN(manualDate.getTime())) { times.push(manualDate); if (base) cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000); else cumulative = 0; continue; }
+        const manualDate = parseDateTimeLocal(item.trailtijd_manual) || parseTimeForDate(item.trailtijd_manual);
+        if (manualDate && !Number.isNaN(manualDate.getTime())) { times.push(manualDate); if (base) cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000); else cumulative = 0; continue; }
       }
       if (!base) { times.push(null); continue; }
       if (i > 0) cumulative += interval;
@@ -140,8 +154,8 @@ export default function Startlijst() {
         const item = items[i];
         // manual start takes precedence and resets cumulative relative to base
         if (item?.starttijd_manual) {
-          const manualDate = new Date(item.starttijd_manual);
-          if (!Number.isNaN(manualDate.getTime())) {
+          const manualDate = parseDateTimeLocal(item.starttijd_manual) || parseTimeForDate(item.starttijd_manual);
+          if (manualDate && !Number.isNaN(manualDate.getTime())) {
             times.push(manualDate);
             if (base) cumulative = Math.round((manualDate.getTime() - base.getTime()) / 60000);
             else cumulative = 0;
@@ -177,6 +191,8 @@ export default function Startlijst() {
       if (cfg) {
         setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart, interval: cfg.interval || s.interval, stijltrailStart: cfg.stijltrailStart || s.stijltrailStart, trailInfo: cfg.trailInfo || s.trailInfo, globalSequence: typeof cfg.globalSequence === 'boolean' ? cfg.globalSequence : s.globalSequence }));
         if (cfg.pauses && typeof cfg.pauses === 'object') setPauses(cfg.pauses);
+        // load persisted klasseOrder if present
+        if (cfg.klasseOrder && Array.isArray(cfg.klasseOrder)) setKlasseOrder(cfg.klasseOrder);
       }
     } catch (e) { /* ignore parse errors */ }
   }, [gekozen]);
@@ -198,8 +214,8 @@ export default function Startlijst() {
   }, [selectedWedstrijdId]);
 
   function getDisplayedTimesForRow(item, idx, classItems, klasseCode) {
-    const manualStart = item?.starttijd_manual;
-    const manualTrail = item?.trailtijd_manual;
+  const manualStart = item?.starttijd_manual ? (parseDateTimeLocal(item.starttijd_manual) || parseTimeForDate(item.starttijd_manual)) : null;
+  const manualTrail = item?.trailtijd_manual ? (parseDateTimeLocal(item.trailtijd_manual) || parseTimeForDate(item.trailtijd_manual)) : null;
     if (scheduleConfig.globalSequence && globalTimes) {
       const prevCount = (klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + ((grouped.get(k) || []).length), 0));
       const globalIndex = prevCount + idx;
