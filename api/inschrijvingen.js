@@ -89,7 +89,9 @@ export default async function handler(req, res) {
     }
     const map = wedstrijd.klasse_categorieen || {};
     const allowedCats = map[b.klasse] && map[b.klasse].length ? map[b.klasse] : null;
-    if (allowedCats && !allowedCats.includes(b.categorie)) {
+    // Only enforce category validation when the client actually provided a categorie value.
+    // Public form no longer submits categorie, so missing categorie should not cause a 400.
+    if (allowedCats && b.categorie != null && b.categorie !== '' && !allowedCats.includes(b.categorie)) {
       return res.status(400).json({ ok: false, error: 'CATEGORIE_NOT_ALLOWED', message: 'Geselecteerde categorie niet toegestaan voor deze klasse.'});
     }
 
