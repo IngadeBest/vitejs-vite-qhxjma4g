@@ -39,9 +39,21 @@ export default function WedstrijdenBeheer() {
   const [msg, setMsg] = useState("");
   const [allowedKlassen, setAllowedKlassen] = useState([]);
   const [startlijstConfig, setStartlijstConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', pauses: [] });
+  const [jeugdAllowed, setJeugdAllowed] = useState({}); // map klasse -> boolean
+  const [offsetOverridesText, setOffsetOverridesText] = useState('');
   const [migrationSql, setMigrationSql] = useState("");
 
-  const MIGRATION_SQL = `-- add allowed_klassen to wedstrijden\nALTER TABLE IF EXISTS wedstrijden\n  ADD COLUMN IF NOT EXISTS allowed_klassen jsonb DEFAULT '[]'::jsonb;`;
+    const MIGRATION_SQL = `-- add allowed_klassen to wedstrijden
+  ALTER TABLE IF EXISTS wedstrijden
+    ADD COLUMN IF NOT EXISTS allowed_klassen jsonb DEFAULT '[]'::jsonb;
+
+  -- add rubriek column to inschrijvingen (nullable), and default existing NULLs to 'senior' if desired
+  ALTER TABLE IF EXISTS inschrijvingen
+    ADD COLUMN IF NOT EXISTS rubriek text DEFAULT NULL;
+
+  -- OPTIONAL: mark existing null rubriek values as 'senior' (uncomment to run)
+  -- UPDATE inschrijvingen SET rubriek = 'senior' WHERE rubriek IS NULL;
+  `;
 
   async function addWedstrijd() {
     setMsg("");
@@ -103,6 +115,8 @@ export default function WedstrijdenBeheer() {
           } catch(e) { stijl = ''; }
         }
         setStartlijstConfig({ dressuurStart: cfg.dressuurStart || '', interval: cfg.interval || 7, stijltrailStart: stijl, pauses });
+        setJeugdAllowed(cfg.jeugdAllowed || {});
+        setOffsetOverridesText(cfg.offsetOverrides ? JSON.stringify(cfg.offsetOverrides, null, 2) : '');
       }
     } catch (e) {
       // ignore parse errors
@@ -168,7 +182,11 @@ export default function WedstrijdenBeheer() {
           dressuurStart: startlijstConfig.dressuurStart || null,
           interval: startlijstConfig.interval || 7,
           stijltrailStart: startlijstConfig.stijltrailStart || null,
-          pauses: startlijstConfig.pauses || {}
+          pauses: startlijstConfig.pauses || {},
+          jeugdAllowed: jeugdAllowed || {},
+          offsetOverrides: (() => {
+            try { return offsetOverridesText ? JSON.parse(offsetOverridesText) : {}; } catch(e) { return {}; }
+          })()
         }
       };
       const { error } = await supabase.from("wedstrijden").update(payload).eq("id", gekozen.id);
@@ -276,6 +294,23 @@ export default function WedstrijdenBeheer() {
                   </label>
                 );
               })}
+            </div>
+            <div style={{ marginTop: 12, borderTop: '1px solid #f0f4f8', paddingTop: 10 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Jeugd-rubriek</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {KLASSEN.map(k => (
+                  <label key={`jeugd-${k.code}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="checkbox" checked={!!jeugdAllowed[k.code]} onChange={(e)=>{ setJeugdAllowed(prev => ({ ...prev, [k.code]: e.target.checked })); }} />
+                    <span style={{ fontSize: 13 }}>{k.label} — jeugd toegestaan</span>
+                  </label>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Offset overrides (optioneel)</div>
+                <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>Voer JSON in zoals: {`{"we2:jeugd":801, "we0:senior":5}`}</div>
+                <textarea rows={4} value={offsetOverridesText} onChange={(e)=>setOffsetOverridesText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace' }} />
+              </div>
             </div>
           </div>
 

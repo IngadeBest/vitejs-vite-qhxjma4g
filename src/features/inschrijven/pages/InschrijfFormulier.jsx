@@ -26,6 +26,7 @@ export default function InschrijfFormulier() {
     telefoon: "",
     omroeper: "",
     opmerkingen: "",
+    rubriek: "senior",
   });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -52,6 +53,7 @@ export default function InschrijfFormulier() {
       wedstrijd_id: form.wedstrijd_id,
       wedstrijd: wedstrijdObj ? wedstrijdObj.naam : null, // denormalized voor leesbaarheid
       klasse: form.klasse,
+  rubriek: form.rubriek || null,
       ruiter: form.ruiter,
       paard: form.paard,
       email: form.email || null,
@@ -96,6 +98,12 @@ export default function InschrijfFormulier() {
         <select id="klasse_select" value={form.klasse} onChange={(e)=>setForm(s=>({...s, klasse:e.target.value}))}>
           <option value="">— kies klasse —</option>
           {KLASSEN.map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
+        </select>
+
+        <label htmlFor="rubriek_select">Rubriek</label>
+        <select id="rubriek_select" value={form.rubriek} onChange={(e)=>setForm(s=>({...s, rubriek:e.target.value}))}>
+          <option value="senior">Senior</option>
+          <option value="jeugd">Jeugd</option>
         </select>
 
         <label htmlFor="ruiter_input">Ruiter*</label>

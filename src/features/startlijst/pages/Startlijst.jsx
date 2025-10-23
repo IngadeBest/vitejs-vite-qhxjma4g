@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
+import { padStartnummer, lookupOffset } from "@/lib/startnummer";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
@@ -44,7 +45,7 @@ export default function Startlijst() {
   const [dragState, setDragState] = useState({ type: null, id: null, fromClass: null });
   const [scheduleConfig, setScheduleConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', trailInfo: '', globalSequence: true });
   const [pauses, setPauses] = useState({});
-  const [visibleCols] = useState({ starttijd: true, startnummer: true, ruiter: true, paard: true, klasse: true, starttijdTrail: true });
+  const [visibleCols] = useState({ starttijd: true, startnummer: true, ruiter: true, paard: true, klasse: true, rubriek: true, starttijdTrail: true });
   // --- helpers and computation functions ---
   function parseTimeForDate(timeStr) {
     if (!timeStr) return null;
@@ -76,32 +77,14 @@ export default function Startlijst() {
   function formatTime(date) { if (!date) return ''; try { const d = new Date(date); const pad = (n) => String(n).padStart(2,'0'); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; } catch (e) { return '' } }
   function formatForInput(date) { if (!date) return ''; try { const d = new Date(date); if (Number.isNaN(d.getTime())) return ''; const pad = (n) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; } catch (e) { return '' } }
 
-  // class-based startnummer offsets (agreement): we0 -> 001, we1 -> 101, we2 -> 201, we3 -> 301, we4 -> 401, junior -> 501, yr -> 601, we2p -> 701
-  function klasseStartOffset(code) {
-    switch((code || '').toLowerCase()) {
-      case 'we0': return 1;
-      case 'we1': return 101;
-      case 'we2': return 201;
-      case 'we3': return 301;
-      case 'we4': return 401;
-      case 'junior': return 501;
-      case 'yr': return 601; // Young Riders
-      case 'we2p': return 701; // WE2+
-      default: return 1;
-    }
-  }
-
-  function formatStartnummer(r, idx = null, klasseCode = null) {
-    // If explicit startnummer present, use that (numeric) and pad to 3 digits
+  function formatStartnummer(r, idx = null, klasseCode = null, rubriek = 'senior') {
+    // explicit startnummer wins
     if (r && r.startnummer != null && String(r.startnummer).toString().trim() !== '') {
-      const n = Number(String(r.startnummer));
-      if (!Number.isNaN(n)) return String(n).padStart(3, '0');
-      return String(r.startnummer).slice(0,3).padStart(3,'0');
+      return padStartnummer(r.startnummer);
     }
-    // If no explicit number, but we have klasse and index, compute offset
     if (klasseCode && typeof idx === 'number') {
-      const base = klasseStartOffset(klasseCode) || 1;
-      return String(base + idx).padStart(3, '0');
+      const base = lookupOffset(klasseCode, rubriek, gekozen?.startlijst_config);
+      return padStartnummer(base + idx);
     }
     return '';
   }
@@ -367,9 +350,8 @@ export default function Startlijst() {
       const out = [];
       for (const k of order) {
         const list = m.get(k) || [];
-        const base = klasseStartOffset(k);
         for (let i = 0; i < list.length; i++) {
-          const r = { ...list[i], startnummer: base + i };
+          const r = { ...list[i], startnummer: lookupOffset(k, list[i].rubriek || 'senior', gekozen?.startlijst_config) + i };
           out.push(r);
         }
       }
@@ -425,7 +407,7 @@ export default function Startlijst() {
         for (let i=0;i<items.length;i++) {
           const it = items[i]; const { start, trail } = getDisplayedTimesForRow(it, i, items, k);
           combined.push({
-            Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', Startnummer: formatStartnummer(it, i, k), Ruiter: it.ruiter, Paard: it.paard, Starttijd: formatTime(start), 'Starttijd Trail': formatTime(trail)
+            Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', Startnummer: formatStartnummer(it, i, k, it.rubriek || 'senior'), Ruiter: it.ruiter, Paard: it.paard, Starttijd: formatTime(start), 'Starttijd Trail': formatTime(trail)
           });
           // if a pause is defined after this start, insert a pause marker row
           const pauseAfter = (classPauses.find(p => Number(p.afterIndex) === (i+1)) || defaultPauses.find(p => Number(p.afterIndex) === (i+1)) || null);
@@ -568,6 +550,7 @@ export default function Startlijst() {
                               {visibleCols.ruiter && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Ruiter</th>}
                               {visibleCols.paard && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Paard</th>}
                               {visibleCols.klasse && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Klasse</th>}
+                              {visibleCols.rubriek && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Rubriek</th>}
                               {visibleCols.starttijdTrail && <th style={{ borderBottom: '1px solid #e0edf8', padding: 8 }}>Starttijd Trail</th>}
                               {beheer && <th style={{ borderBottom: '1px solid #e0edf8', width: 120, padding: 8 }}>Acties</th>}
                             </tr>
@@ -603,7 +586,7 @@ export default function Startlijst() {
                                       } }}
                                   style={{ borderTop: '1px solid #f0f0f0' }}>
                                     {visibleCols.starttijd && <td style={{ padding: 8 }}>{beheer ? (()=>{ const m = r.starttijd_manual ? (parseDateTimeLocal(r.starttijd_manual) || parseTimeForDate(r.starttijd_manual)) : null; return (<input type="datetime-local" value={ m ? formatForInput(m) : (start ? formatForInput(start) : '') } onChange={(e)=>onCellChange(r.id, 'starttijd_manual', e.target.value)} />) })() : formatTime(start)}</td>}
-                                    {visibleCols.startnummer && <td style={{ padding: 8 }}>{beheer ? (<input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 80 }} />) : formatStartnummer(r, idx, klasseCode)}</td>}
+                                    {visibleCols.startnummer && <td style={{ padding: 8 }}>{beheer ? (<input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 80 }} />) : formatStartnummer(r, idx, klasseCode, r.rubriek)}</td>}
                                     {visibleCols.ruiter && <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>}
                                     {visibleCols.paard && <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>}
                                     {visibleCols.klasse && <td style={{ padding: 8 }}>{KLASSEN.find(k=>k.code === (r.klasse || ''))?.label || (r.klasse || '—')}</td>}
@@ -616,7 +599,10 @@ export default function Startlijst() {
                                   </tr>
                                 );
                                 const pauseAfter = classPauses.find(p => Number(p.afterIndex) === (idx + 1));
-                                if (pauseAfter) out.push(<tr key={`pause-${klasseCode}-${idx}`} style={{ background: '#fff8ec', color: '#6b4a00' }}><td colSpan={visibleCols.startnummer ? 6 : 5} style={{ padding: 8 }}>Pauze — {pauseAfter.minutes} min</td></tr>);
+                                if (pauseAfter) {
+                                  const visibleCount = Object.values(visibleCols).filter(Boolean).length + (beheer ? 1 : 0);
+                                  out.push(<tr key={`pause-${klasseCode}-${idx}`} style={{ background: '#fff8ec', color: '#6b4a00' }}><td colSpan={visibleCount} style={{ padding: 8 }}>Pauze — {pauseAfter.minutes} min</td></tr>);
+                                }
                               }
                               if (!out.length) return (<tr><td colSpan={beheer ? 6 : 5} style={{ color: '#777', padding: '18px 8px' }}>Nog geen inschrijvingen voor deze klasse.</td></tr>);
                               return out;
@@ -668,7 +654,7 @@ export default function Startlijst() {
                     const it = items[i];
                     const { start, trail } = getDisplayedTimesForRow(it, i, items, k);
                     // ensure startnummer is padded and uses class/idx when possible
-                    const previewSn = (typeof it.startnummer !== 'undefined' && it.startnummer !== null && String(it.startnummer).toString().trim() !== '') ? formatStartnummer(it) : formatStartnummer(it, i, k) || '';
+                    const previewSn = (typeof it.startnummer !== 'undefined' && it.startnummer !== null && String(it.startnummer).toString().trim() !== '') ? formatStartnummer(it) : formatStartnummer(it, i, k, it.rubriek || 'senior') || '';
                     rowsPreview.push({ klasse: KLASSEN.find(x=>x.code===k)?.label || k, start: formatTime(start), trail: formatTime(trail), ruiter: it.ruiter || '—', startnummer: previewSn });
                     const pauseAfter = (classPauses.find(p => Number(p.afterIndex) === (i+1)) || defaultPauses.find(p => Number(p.afterIndex) === (i+1)) || null);
                     if (pauseAfter) rowsPreview.push({ klasse: '', start: `Pauze — ${pauseAfter.minutes} min`, trail: '', ruiter: '', startnummer: '' });
