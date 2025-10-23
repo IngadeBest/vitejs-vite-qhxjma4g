@@ -40,6 +40,7 @@ export default function Startlijst() {
   const refs = useRef({});
 
   const [klasseOrder, setKlasseOrder] = useState([]);
+  const lastInitFor = useRef(null);
   const [dragState, setDragState] = useState({ type: null, id: null, fromClass: null });
   const [scheduleConfig, setScheduleConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', trailInfo: '', globalSequence: true });
   const [pauses, setPauses] = useState({});
@@ -206,11 +207,22 @@ export default function Startlijst() {
     return times;
   }, [scheduleConfig.globalSequence, scheduleConfig.dressuurStart, scheduleConfig.interval, klasseOrder, grouped, pauses]);
 
-  // initialize klasseOrder after rows are loaded (avoid setState during render)
+  // initialize or refresh klasseOrder after rows are loaded (avoid setState during render)
   useEffect(() => {
     const keys = Array.from(grouped.keys()).sort();
-    if (keys.length && !klasseOrder.length) setKlasseOrder(keys);
-  }, [grouped, klasseOrder.length]);
+    if (!keys.length) return;
+    // if we previously initialized klasseOrder for this wedstrijd (from persisted cfg), don't override
+    if (lastInitFor.current === selectedWedstrijdId && (klasseOrder && klasseOrder.length)) return;
+    // if current order equals the desired keys (as set), do nothing
+    const cur = new Set(klasseOrder || []);
+    const keysSet = new Set(keys);
+    const same = keys.length === (klasseOrder || []).length && keys.every(k => cur.has(k));
+    if (!same) {
+      setKlasseOrder(keys);
+      // mark we've initialized from grouped for this wedstrijd
+      lastInitFor.current = selectedWedstrijdId;
+    }
+  }, [grouped, selectedWedstrijdId, klasseOrder]);
 
   // chosen wedstrijd (gekozen) and load its startlijst_config into scheduleConfig / pauses
   const gekozen = useMemo(() => wedstrijden.find((w) => w.id === selectedWedstrijdId) || null, [wedstrijden, selectedWedstrijdId]);
@@ -222,7 +234,7 @@ export default function Startlijst() {
         setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart, interval: cfg.interval || s.interval, stijltrailStart: cfg.stijltrailStart || s.stijltrailStart, trailInfo: cfg.trailInfo || s.trailInfo, globalSequence: typeof cfg.globalSequence === 'boolean' ? cfg.globalSequence : s.globalSequence }));
         if (cfg.pauses && typeof cfg.pauses === 'object') setPauses(cfg.pauses);
         // load persisted klasseOrder if present
-        if (cfg.klasseOrder && Array.isArray(cfg.klasseOrder)) setKlasseOrder(cfg.klasseOrder);
+        if (cfg.klasseOrder && Array.isArray(cfg.klasseOrder)) { setKlasseOrder(cfg.klasseOrder); lastInitFor.current = gekozen.id; }
       }
     } catch (e) { /* ignore parse errors */ }
   }, [gekozen]);
