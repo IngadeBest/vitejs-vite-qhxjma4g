@@ -123,7 +123,17 @@ export default function Startlijst() {
     try {
       const cfg = (gekozen.startlijst_config && typeof gekozen.startlijst_config === 'object') ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null);
       if (cfg) {
-  setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart || '', interval: cfg.interval || s.interval || 7, stijltrailStart: cfg.stijltrailStart || cfg.trailOffset || s.stijltrailStart || '', trailInfo: cfg.trailInfo || s.trailInfo || '' }));
+        // prefer stijltrailStart (HH:MM). If legacy trailOffset exists, compute stijltrailStart using dressuurStart + offset
+        let stijl = cfg.stijltrailStart || '';
+        if (!stijl && (cfg.trailOffset || cfg.trailOffset === 0) && cfg.dressuurStart) {
+          try {
+            const parts = String(cfg.dressuurStart).split(':').map(s => Number(s));
+            const d = new Date(); d.setHours(parts[0]||0, parts[1]||0, 0, 0);
+            const t = new Date(d.getTime() + (Number(cfg.trailOffset||0) * 60000));
+            stijl = t.toTimeString().slice(0,5);
+          } catch(e) { stijl = ''; }
+        }
+        setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart || '', interval: cfg.interval || s.interval || 7, stijltrailStart: stijl || s.stijltrailStart || '', trailInfo: cfg.trailInfo || s.trailInfo || '' }));
         // support both legacy array-shaped pauses and the newer object mapping per klasse
         if (cfg.pauses) {
           if (Array.isArray(cfg.pauses)) {
@@ -733,7 +743,22 @@ export default function Startlijst() {
                             {(() => {
                               const times = scheduleConfig.globalSequence && globalTimes ? globalTimes : computeStartTimes(items, klasseCode);
                               return items.map((r, idx) => {
-                                const { start, trail, computedStart } = scheduleConfig.globalSequence && globalTimes ? { start: globalTimes[(klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + (grouped.get(k)||[]).length, 0) ) + idx], trail: r.trailtijd_manual ? new Date(r.trailtijd_manual) : (globalTimes[(klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + (grouped.get(k)||[]).length, 0) ) + idx] ? new Date(globalTimes[(klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + (grouped.get(k)||[]).length, 0) ) + idx].getTime() + (Number(scheduleConfig.trailOffset||0)*60000)) : null), computedStart: null } : getDisplayedTimesForRow(r, idx, items, klasseCode);
+                                // compute trail for globalSequence: prefer manual trailtijd_manual; otherwise compute from stijltrailStart
+                                const { start, trail, computedStart } = scheduleConfig.globalSequence && globalTimes ? (() => {
+                                  const globalIndex = (klasseOrder.slice(0, klasseOrder.indexOf(klasseCode)).reduce((acc, k) => acc + (grouped.get(k)||[]).length, 0) ) + idx;
+                                  const gStart = globalTimes[globalIndex];
+                                  // if stijltrailStart is set we compute trail times relative to that; otherwise fallback to gStart
+                                  if (scheduleConfig.stijltrailStart) {
+                                    // compute offset between dressuur and stijltrail start as minutes, if possible
+                                    const dressStart = parseTimeForDate(scheduleConfig.dressuurStart);
+                                    const stijlBase = parseTimeForDate(scheduleConfig.stijltrailStart);
+                                    const delta = (dressStart && stijlBase) ? Math.round((stijlBase.getTime() - dressStart.getTime()) / 60000) : 0;
+                                    const trailTime = gStart ? new Date(gStart.getTime() + delta * 60000) : null;
+                                    return { start: gStart, trail: r.trailtijd_manual ? new Date(r.trailtijd_manual) : trailTime, computedStart: null };
+                                  }
+                                  // legacy: no stijltrailStart, return previous behaviour (no offset)
+                                  return { start: gStart, trail: r.trailtijd_manual ? new Date(r.trailtijd_manual) : (gStart ? new Date(gStart) : null), computedStart: null };
+                                })() : getDisplayedTimesForRow(r, idx, items, klasseCode);
                                 return (
                                   <tr key={r.id} draggable={false} onDragOver={onDragOver} onDragEnter={(e)=>onDragEnter(e, r.id)} onDragLeave={onDragLeave} onDrop={(e)=>onDrop(e, idx, klasseCode)} style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
                                     {visibleCols.starttijd && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.starttijd_manual || (computedStart ? new Date(computedStart).toISOString().slice(0,16) : '')} onChange={(e)=>onCellChange(r.id, 'starttijd_manual', e.target.value)} />) : formatTime(start)}</td>}

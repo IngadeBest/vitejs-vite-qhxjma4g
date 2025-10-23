@@ -38,7 +38,7 @@ export default function WedstrijdenBeheer() {
 
   const [msg, setMsg] = useState("");
   const [allowedKlassen, setAllowedKlassen] = useState([]);
-  const [startlijstConfig, setStartlijstConfig] = useState({ dressuurStart: '', interval: 7, trailOffset: 0, pauses: [] });
+  const [startlijstConfig, setStartlijstConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', pauses: [] });
   const [migrationSql, setMigrationSql] = useState("");
 
   const MIGRATION_SQL = `-- add allowed_klassen to wedstrijden\nALTER TABLE IF EXISTS wedstrijden\n  ADD COLUMN IF NOT EXISTS allowed_klassen jsonb DEFAULT '[]'::jsonb;`;
@@ -75,7 +75,7 @@ export default function WedstrijdenBeheer() {
   function syncConfigFromSelected() {
     if (!gekozen) {
       setAllowedKlassen([]);
-      setStartlijstConfig({ dressuurStart: '', interval: 7, trailOffset: 0, pauses: [] });
+        setStartlijstConfig({ dressuurStart: '', interval: 7, stijltrailStart: '', pauses: [] });
       // keep the new-form collapsed when no selection
       setShowNew(false);
       return;
@@ -90,7 +90,19 @@ export default function WedstrijdenBeheer() {
       if (cfg) {
         // support both legacy array pauses and new object-shaped pauses
         const pauses = cfg.pauses && !Array.isArray(cfg.pauses) ? cfg.pauses : { ['__default__']: (Array.isArray(cfg.pauses) ? cfg.pauses : []) };
-        setStartlijstConfig({ dressuurStart: cfg.dressuurStart || '', interval: cfg.interval || 7, trailOffset: cfg.trailOffset || 0, pauses });
+        // support legacy trailOffset by converting to stijltrailStart if necessary
+        let stijl = cfg.stijltrailStart || '';
+        if (!stijl && (cfg.trailOffset || cfg.trailOffset === 0) && cfg.dressuurStart) {
+          // compute stijl start as dressuurStart + trailOffset minutes
+          try {
+            const parts = String(cfg.dressuurStart).split(':').map(s=>Number(s));
+            const d = new Date();
+            d.setHours(parts[0]||0, parts[1]||0, 0, 0);
+            const t = new Date(d.getTime() + (Number(cfg.trailOffset||0) * 60000));
+            stijl = t.toTimeString().slice(0,5);
+          } catch(e) { stijl = ''; }
+        }
+        setStartlijstConfig({ dressuurStart: cfg.dressuurStart || '', interval: cfg.interval || 7, stijltrailStart: stijl, pauses });
       }
     } catch (e) {
       // ignore parse errors
@@ -152,10 +164,10 @@ export default function WedstrijdenBeheer() {
       const payload = {
         allowed_klassen: allowedKlassen,
         organisator_email: nieuwEmail || null,
-        startlijst_config: {
+          startlijst_config: {
           dressuurStart: startlijstConfig.dressuurStart || null,
           interval: startlijstConfig.interval || 7,
-          trailOffset: startlijstConfig.trailOffset || 0,
+          stijltrailStart: startlijstConfig.stijltrailStart || null,
           pauses: startlijstConfig.pauses || {}
         }
       };
