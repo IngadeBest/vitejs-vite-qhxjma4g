@@ -175,6 +175,8 @@ export default function WedstrijdenBeheer() {
       if (error) throw error;
       setMsg("Wedstrijd instellingen opgeslagen ✔️");
       setMigrationSql("");
+  // notify other parts of the app to refresh wedstrijden
+  window.dispatchEvent(new Event('wedstrijden:refresh'));
     } catch (e) {
       // likely column doesn't exist — instruct admin to run DB migration
       const em = (e?.message || String(e));

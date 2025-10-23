@@ -8,7 +8,8 @@ export function useWedstrijden(onlyOpen = false) {
 
   useEffect(() => {
     let alive = true;
-    (async () => {
+
+    async function fetchWedstrijden() {
       setLoading(true);
       setError(null);
       try {
@@ -22,8 +23,15 @@ export function useWedstrijden(onlyOpen = false) {
       } finally {
         if (alive) setLoading(false);
       }
-    })();
-    return () => { alive = false; };
+    }
+
+    fetchWedstrijden();
+
+    // allow other parts of the app to request a refresh
+    const onRefresh = () => { if (alive) fetchWedstrijden(); };
+    window.addEventListener('wedstrijden:refresh', onRefresh);
+
+    return () => { alive = false; window.removeEventListener('wedstrijden:refresh', onRefresh); };
   }, [onlyOpen]);
 
   return { items, loading, error };
