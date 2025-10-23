@@ -54,12 +54,17 @@ export default function ProefEditor({ cfg, setCfg, saveProef, gekozen }) {
           <option value="speed">Speedtrail</option>
         </select>
         <label style={{gridColumn:'3'}}>Klasse</label>
-        <select value={cfg.klasse} onChange={(e)=>setCfg(s=>({...s, klasse:e.target.value}))}>
-          <option value="we1">WE1</option>
-          <option value="we2">WE2</option>
-          <option value="we3">WE3</option>
-          <option value="we4">WE4</option>
-        </select>
+        {(() => {
+          // determine allowed classes: prefer those configured on the selected wedstrijd
+          const defaultList = ['we1','we2','we3','we4'];
+          const allowed = (gekozen && Array.isArray(gekozen.allowed_klassen) && gekozen.allowed_klassen.length) ? gekozen.allowed_klassen : defaultList;
+          const LABELS = { we0: 'WE0', we1: 'WE1', we2: 'WE2', we2p: 'WE2+', we3: 'WE3', we4: 'WE4', yr: 'Young Riders', junior: 'Junioren' };
+          return (
+            <select value={cfg.klasse} onChange={(e)=>setCfg(s=>({...s, klasse:e.target.value}))}>
+              {allowed.map(code => <option key={code} value={code}>{LABELS[code] || code.toUpperCase()}</option>)}
+            </select>
+          );
+        })()}
 
         <label>Naam/proefcode*</label>
         <input placeholder="Bijv. WE1-A, Stijltrail-1, Speedtrail-1" value={cfg.proef_naam} onChange={(e)=>setCfg(s=>({...s, proef_naam:e.target.value}))}/>

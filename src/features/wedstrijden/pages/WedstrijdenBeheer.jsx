@@ -107,6 +107,11 @@ export default function WedstrijdenBeheer() {
         setStartlijstConfig({ dressuurStart: cfg.dressuurStart || '', interval: cfg.interval || 7, stijltrailStart: stijl, pauses });
         setJeugdAllowed(cfg.jeugdAllowed || {});
         setOffsetOverridesText(cfg.offsetOverrides ? JSON.stringify(cfg.offsetOverrides, null, 2) : '');
+        // ensure proef-editor default klasse is the first allowed class for this wedstrijd
+        const allowed = Array.isArray(gekozen.allowed_klassen) && gekozen.allowed_klassen.length ? gekozen.allowed_klassen : (Array.isArray(cfg.allowed_klassen) ? cfg.allowed_klassen : []);
+        if (allowed && allowed.length) {
+          setCfg(s => ({ ...s, klasse: allowed[0] }));
+        }
       }
     } catch (e) {
       // ignore parse errors
