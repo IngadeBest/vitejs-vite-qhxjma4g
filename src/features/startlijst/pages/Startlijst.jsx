@@ -39,6 +39,7 @@ export default function Startlijst() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
+  const [schemaHint, setSchemaHint] = useState('');
   const refs = useRef({});
 
   const [klasseOrder, setKlasseOrder] = useState([]);
@@ -252,8 +253,14 @@ export default function Startlijst() {
         const { data, error } = await supabase.from('inschrijvingen').select('*').eq('wedstrijd_id', selectedWedstrijdId).order('startnummer', { ascending: true });
         if (error) throw error;
         setRows(data || []);
+        setSchemaHint('');
       } catch (e) {
-        setErr(String(e.message || e));
+        const em = String(e?.message || e);
+        setErr(em);
+        // if the error looks like a missing column or bad request, offer a small SQL hint to add likely missing columns
+        if (/column .* does not exist|Could not find the|bad request/i.test(em) || (typeof em === 'string' && em.toLowerCase().includes("could not find"))) {
+          setSchemaHint("-- Indien kolom ontbreekt: voeg 'klasse' toe aan inschrijvingen:\nALTER TABLE inschrijvingen ADD COLUMN IF NOT EXISTS klasse text;\n\n-- en maak index:\nCREATE INDEX IF NOT EXISTS idx_inschrijvingen_klasse ON inschrijvingen(klasse);");
+        }
       } finally { setBusy(false); }
     }
     fetchRows();
@@ -487,6 +494,15 @@ export default function Startlijst() {
 
           {err && <Alert type="error">{String(err)}</Alert>}
           {msg && <Alert type={String(msg).toLowerCase().includes('fout') ? 'error' : 'success'}>{msg}</Alert>}
+          {schemaHint && (
+            <div style={{ marginTop: 12, padding: 12, border: '1px dashed #e6f2ff', background: '#fcfeff' }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Database probleem - mogelijke fix</div>
+              <div style={{ fontSize: 13, color: '#333', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>{schemaHint}</div>
+              <div style={{ marginTop: 8 }}>
+                <button onClick={()=>{ try { navigator.clipboard.writeText(schemaHint); setMsg('SQL gekopieerd naar Klembord'); } catch(e){ setMsg('Kopie mislukt'); } }}>Kopieer SQL</button>
+              </div>
+            </div>
+          )}
 
           {!selectedWedstrijdId && (<div style={{ marginTop: 16, color: '#555' }}>Kies hierboven een wedstrijd om de startlijst te tonen.</div>)}
 

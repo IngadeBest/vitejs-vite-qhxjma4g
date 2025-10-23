@@ -197,6 +197,7 @@ export default function ProtocolGenerator() {
   const [dbMsg, setDbMsg] = useState("");
   const [dbMax, setDbMax] = useState(null);
   const [items, setItems] = useState([]);
+  const [dbHint, setDbHint] = useState('');
 
   // Deelnemers (CSV) + preview index + preview URL
   const [csvRows, setCsvRows] = useState([]);
@@ -267,7 +268,14 @@ export default function ProtocolGenerator() {
       }));
       setDbRows(norm);
       setDbMsg(`Gevonden ${norm.length} deelnemers uit DB`);
-    } catch (e) { setDbMsg('Kon deelnemers niet laden: ' + (e?.message || String(e))); }
+      setDbHint('');
+    } catch (e) {
+      const em = (e?.message || String(e));
+      setDbMsg('Kon deelnemers niet laden: ' + em);
+      if (/column .* does not exist|Could not find the|bad request/i.test(String(em)) || String(em).toLowerCase().includes('could not find')) {
+        setDbHint("-- Indien kolom ontbreekt: voeg 'klasse' toe aan inschrijvingen:\nALTER TABLE inschrijvingen ADD COLUMN IF NOT EXISTS klasse text;\nCREATE INDEX IF NOT EXISTS idx_inschrijvingen_klasse ON inschrijvingen(klasse);");
+      }
+    }
   }
 
   function padStartnummer(v) {
@@ -488,6 +496,15 @@ export default function ProtocolGenerator() {
                 }}>Importeer startlijst uit opslag</button>
               </div>
             </div>
+            {dbHint && (
+              <div style={{ marginTop: 12, padding: 8, border: '1px dashed #e6f2ff', background: '#fcfeff' }}>
+                <div style={{ fontWeight: 700 }}>Database probleem - mogelijke fix</div>
+                <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', marginTop: 6 }}>{dbHint}</div>
+                <div style={{ marginTop: 8 }}>
+                  <button onClick={()=>{ try { navigator.clipboard.writeText(dbHint); setDbMsg('SQL gekopieerd naar Klembord'); } catch(e){ setDbMsg('Kopie mislukt'); } }}>Kopieer SQL</button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div style={{ border:"1px solid #e5e7eb", borderRadius:12, padding:12, background:"#fff" }}>
