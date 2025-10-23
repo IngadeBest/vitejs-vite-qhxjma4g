@@ -233,6 +233,13 @@ export default function ProtocolGenerator() {
     return () => { alive = false; };
   }, [config.wedstrijd_id, config.klasse, config.onderdeel]);
 
+  function padStartnummer(v) {
+    if (v == null) return '';
+    const n = Number(v);
+    if (!Number.isNaN(n)) return String(n).padStart(3, '0');
+    return String(v).toString().slice(0,3).padStart(3,'0');
+  }
+
   // CSV helpers
   function csvToRows(text) {
     const sep = text.includes(";") && !text.includes(",") ? ";" : ",";
@@ -284,7 +291,7 @@ export default function ProtocolGenerator() {
       wedstrijd_naam: selectedWedstrijd?.naam || "",
       datum: config.datum || "",
       jury: config.jury || "",
-      startnummer: d.startnummer || String(idx + 1),
+  startnummer: padStartnummer(d.startnummer || String(idx + 1)),
       ruiter: d.ruiter || "",
       paard: d.paard || "",
       max_score: dbMax,

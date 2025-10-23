@@ -75,6 +75,36 @@ export default function Startlijst() {
   function formatTime(date) { if (!date) return ''; try { const d = new Date(date); const pad = (n) => String(n).padStart(2,'0'); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; } catch (e) { return '' } }
   function formatForInput(date) { if (!date) return ''; try { const d = new Date(date); if (Number.isNaN(d.getTime())) return ''; const pad = (n) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; } catch (e) { return '' } }
 
+  // class-based startnummer offsets (agreement): we0 -> 001, we1 -> 101, we2 -> 201, we3 -> 301, we4 -> 401, junior -> 501, yr -> 601, we2p -> 701
+  function klasseStartOffset(code) {
+    switch((code || '').toLowerCase()) {
+      case 'we0': return 1;
+      case 'we1': return 101;
+      case 'we2': return 201;
+      case 'we3': return 301;
+      case 'we4': return 401;
+      case 'junior': return 501;
+      case 'yr': return 601; // Young Riders
+      case 'we2p': return 701; // WE2+
+      default: return 1;
+    }
+  }
+
+  function formatStartnummer(r, idx = null, klasseCode = null) {
+    // If explicit startnummer present, use that (numeric) and pad to 3 digits
+    if (r && r.startnummer != null && String(r.startnummer).toString().trim() !== '') {
+      const n = Number(String(r.startnummer));
+      if (!Number.isNaN(n)) return String(n).padStart(3, '0');
+      return String(r.startnummer).slice(0,3).padStart(3,'0');
+    }
+    // If no explicit number, but we have klasse and index, compute offset
+    if (klasseCode && typeof idx === 'number') {
+      const base = klasseStartOffset(klasseCode) || 1;
+      return String(base + idx).padStart(3, '0');
+    }
+    return '';
+  }
+
   function computeStartTimes(items, klasseCode) {
     const base = parseTimeForDate(scheduleConfig.dressuurStart);
     const interval = Number(scheduleConfig.interval) || 7;
@@ -313,7 +343,33 @@ export default function Startlijst() {
   function deleteRow(id) { setRows(prev => prev.filter(r => r.id !== id)); setChanged(prev => { const copy = new Set(prev); copy.delete(id); return copy; }); }
   function addRow() { const newRow = { id: `new-${Date.now()}`, wedstrijd_id: selectedWedstrijdId, startnummer: null, ruiter: '', paard: '', klasse: '', starttijd_manual: null, trailtijd_manual: null }; setRows(prev => [ ...prev, newRow ]); setChanged(prev => { const copy = new Set(prev); copy.add(newRow.id); return copy; }); }
   function renumber() {
-    setRows(prev => prev.map((r,i)=> ({ ...r, startnummer: i+1 })));
+    // renumber per klasse with agreed offsets
+    setRows(prev => {
+      const m = new Map();
+      for (const r of prev) {
+        const key = r.klasse || 'onbekend';
+        if (!m.has(key)) m.set(key, []);
+        m.get(key).push(r);
+      }
+      const order = (klasseOrder && klasseOrder.length) ? klasseOrder : Array.from(m.keys());
+      const out = [];
+      for (const k of order) {
+        const list = m.get(k) || [];
+        const base = klasseStartOffset(k);
+        for (let i = 0; i < list.length; i++) {
+          const r = { ...list[i], startnummer: base + i };
+          out.push(r);
+        }
+      }
+      // append any classes not in order
+      for (const [k, list] of m) {
+        if (!order.includes(k)) {
+          const base = klasseStartOffset(k);
+          for (let i = 0; i < list.length; i++) out.push({ ...list[i], startnummer: base + i });
+        }
+      }
+      return out;
+    });
     setChanged(prev => { const copy = new Set(prev); (rows || []).forEach(r => copy.add(r.id)); return copy; });
   }
 
@@ -343,7 +399,7 @@ export default function Startlijst() {
     finally { setBusy(false); }
   }
 
-  function formatStartnummer(r) { return (r && r.startnummer != null) ? String(r.startnummer) : ''; }
+  
 
   // Export helpers (kept minimal)
   function handleExportExcel(klasseCode) {
@@ -357,7 +413,7 @@ export default function Startlijst() {
         for (let i=0;i<items.length;i++) {
           const it = items[i]; const { start, trail } = getDisplayedTimesForRow(it, i, items, k);
           combined.push({
-            Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', Startnummer: it.startnummer || '', Ruiter: it.ruiter, Paard: it.paard, Starttijd: formatTime(start), 'Starttijd Trail': formatTime(trail)
+            Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', Startnummer: formatStartnummer(it, i, k), Ruiter: it.ruiter, Paard: it.paard, Starttijd: formatTime(start), 'Starttijd Trail': formatTime(trail)
           });
           // if a pause is defined after this start, insert a pause marker row
           const pauseAfter = (classPauses.find(p => Number(p.afterIndex) === (i+1)) || defaultPauses.find(p => Number(p.afterIndex) === (i+1)) || null);
@@ -370,7 +426,7 @@ export default function Startlijst() {
       return;
     }
     const items = grouped.get(klasseCode) || [];
-    const ws = XLSX.utils.json_to_sheet(items.map((it, idx) => { const { start, trail } = getDisplayedTimesForRow(it, idx, items, klasseCode); return { Starttijd: formatTime(start), Startnummer: it.startnummer || '', Ruiter: it.ruiter, Paard: it.paard, Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', 'Starttijd Trail': formatTime(trail) }; }));
+  const ws = XLSX.utils.json_to_sheet(items.map((it, idx) => { const { start, trail } = getDisplayedTimesForRow(it, idx, items, klasseCode); return { Starttijd: formatTime(start), Startnummer: formatStartnummer(it, idx, klasseCode), Ruiter: it.ruiter, Paard: it.paard, Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', 'Starttijd Trail': formatTime(trail) }; }));
     XLSX.utils.book_append_sheet(wb, ws, klasseCode || 'Onbekend');
     XLSX.writeFile(wb, `Startlijst ${gekozen?.naam || klasseCode || 'onbekend'}.xlsx`);
   }
@@ -535,7 +591,7 @@ export default function Startlijst() {
                                       } }}
                                   style={{ borderTop: '1px solid #f0f0f0' }}>
                                     {visibleCols.starttijd && <td style={{ padding: 8 }}>{beheer ? (()=>{ const m = r.starttijd_manual ? (parseDateTimeLocal(r.starttijd_manual) || parseTimeForDate(r.starttijd_manual)) : null; return (<input type="datetime-local" value={ m ? formatForInput(m) : (start ? formatForInput(start) : '') } onChange={(e)=>onCellChange(r.id, 'starttijd_manual', e.target.value)} />) })() : formatTime(start)}</td>}
-                                    {visibleCols.startnummer && <td style={{ padding: 8 }}>{beheer ? (<input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 80 }} />) : (r.startnummer || idx + 1)}</td>}
+                                    {visibleCols.startnummer && <td style={{ padding: 8 }}>{beheer ? (<input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 80 }} />) : formatStartnummer(r, idx, klasseCode)}</td>}
                                     {visibleCols.ruiter && <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>}
                                     {visibleCols.paard && <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>}
                                     {visibleCols.klasse && <td style={{ padding: 8 }}>{KLASSEN.find(k=>k.code === (r.klasse || ''))?.label || (r.klasse || '—')}</td>}
