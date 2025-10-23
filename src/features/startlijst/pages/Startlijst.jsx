@@ -52,7 +52,7 @@ export default function Startlijst() {
     stijltrailStart: '', // 'HH:MM' absolute start for stijltrail
     trailInfo: '',
     // if true: use one continuous schedule across all classes (global sequence)
-    globalSequence: false,
+    globalSequence: true,
   });
   const [pauses, setPauses] = useState({}); // { [klasseCode]: [{ afterIndex: number, minutes: number }] }
   const [visibleCols, setVisibleCols] = useState({ starttijd: true, startnummer: true, ruiter: true, paard: true, klasse: true, starttijdTrail: true });
@@ -133,7 +133,7 @@ export default function Startlijst() {
             stijl = t.toTimeString().slice(0,5);
           } catch(e) { stijl = ''; }
         }
-        setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart || '', interval: cfg.interval || s.interval || 7, stijltrailStart: stijl || s.stijltrailStart || '', trailInfo: cfg.trailInfo || s.trailInfo || '' }));
+  setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart || '', interval: cfg.interval || s.interval || 7, stijltrailStart: stijl || s.stijltrailStart || '', trailInfo: cfg.trailInfo || s.trailInfo || '', globalSequence: (typeof cfg.globalSequence === 'boolean') ? cfg.globalSequence : s.globalSequence }));
         // support both legacy array-shaped pauses and the newer object mapping per klasse
         if (cfg.pauses) {
           if (Array.isArray(cfg.pauses)) {
@@ -538,15 +538,23 @@ export default function Startlijst() {
     const interval = Number(scheduleConfig.interval) || 7;
     const times = [];
     let cumulative = 0;
-    // global pauses read from pauses['__default__'] or []
-    const gp = (pauses && pauses['__default__']) ? pauses['__default__'] : [];
+    // for global sequencing, respect pauses defined per-klasse and also fallback to __default__ pauses
+    const defaultPauses = (pauses && pauses['__default__']) ? pauses['__default__'] : [];
+    const perClassCounts = {};
     for (let i = 0; i < all.length; i++) {
-      const afterIndex = i === 0 ? 0 : i;
-      const pauseHere = Array.isArray(gp) ? gp.find(p => Number(p.afterIndex) === afterIndex) : null;
+      const item = all[i];
+      const k = item.klasse || '__default__';
+      const idxInClass = perClassCounts[k] || 0;
+      const afterIndex = idxInClass === 0 ? 0 : idxInClass;
+      const classPausesRaw = (pauses && pauses[k]) ? pauses[k] : [];
+      const classPauses = Array.isArray(classPausesRaw) ? classPausesRaw : [];
+      // prefer class-specific pause entry, otherwise check default pauses
+      const pauseHere = classPauses.find(p => Number(p.afterIndex) === afterIndex) || defaultPauses.find(p => Number(p.afterIndex) === afterIndex) || null;
       if (i > 0) cumulative += interval;
       if (pauseHere) cumulative += Number(pauseHere.minutes || 0);
       const start = base ? new Date(base.getTime() + cumulative * 60000) : null;
       times.push(start);
+      perClassCounts[k] = (perClassCounts[k] || 0) + 1;
     }
     return times;
   }, [scheduleConfig.globalSequence, scheduleConfig.dressuurStart, scheduleConfig.interval, klasseOrder, grouped, pauses]);
@@ -561,6 +569,7 @@ export default function Startlijst() {
         interval: scheduleConfig.interval || 7,
         stijltrailStart: scheduleConfig.stijltrailStart || null,
         trailInfo: scheduleConfig.trailInfo || '',
+        globalSequence: !!scheduleConfig.globalSequence,
         pauses: pauses || {}
       };
 
@@ -732,6 +741,12 @@ export default function Startlijst() {
                     <div style={{ marginLeft: 'auto' }}>
                       <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Pauzes</label>
                       <small style={{ color: '#666' }}>Voeg pauzes toe via beheer-mode (na welke start; minuten)</small>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12 }}>
+                      <label style={{ display: 'flex', gap: 8, alignItems: 'center', userSelect: 'none' }}>
+                        <input type="checkbox" checked={!!scheduleConfig.globalSequence} onChange={(e)=>setScheduleConfig(s=>({...s, globalSequence: e.target.checked}))} />
+                        Doortellen over klassen (globale volgorde)
+                      </label>
                     </div>
                   </div>
                   <div style={{ marginTop: 8, fontSize: 13, color: '#234' }}><b>Info:</b> {scheduleConfig.trailInfo || 'Stel hierboven de dressuur starttijd, interval en de Stijltrail starttijd in.'}</div>
