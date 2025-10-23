@@ -198,6 +198,7 @@ export default function ProtocolGenerator() {
 
   // Deelnemers (CSV) + preview index + preview URL
   const [csvRows, setCsvRows] = useState([]);
+  const [dbRows, setDbRows] = useState([]); // deelnemers geladen uit DB
   const [selectIndex, setSelectIndex] = useState(0);
   const [pdfUrl, setPdfUrl] = useState(null);
   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
@@ -232,6 +233,34 @@ export default function ProtocolGenerator() {
     })();
     return () => { alive = false; };
   }, [config.wedstrijd_id, config.klasse, config.onderdeel]);
+
+  // helper: klasse-based startnummer offsets (same mapping as Startlijst)
+  function klasseStartOffset(code) {
+    switch((code || '').toLowerCase()) {
+      case 'we0': return 1;
+      case 'we1': return 101;
+      case 'we2': return 201;
+      case 'we3': return 301;
+      case 'we4': return 401;
+      case 'junior': return 501;
+      case 'yr': return 601;
+      case 'we2p': return 701;
+      default: return 1;
+    }
+  }
+
+  // load deelnemers directly from inschrijvingen table for selected wedstrijd+klasse
+  async function loadDeelnemersFromDB() {
+    if (!config.wedstrijd_id || !config.klasse) { setDbMsg('Selecteer wedstrijd en klasse eerst'); return; }
+    setDbMsg('Laden...');
+    try {
+      const { data, error } = await supabase.from('inschrijvingen').select('ruiter,paard,startnummer').eq('wedstrijd_id', config.wedstrijd_id).eq('klasse', config.klasse).order('startnummer', { ascending: true });
+      if (error) throw error;
+      const norm = (data || []).map((r, i) => ({ ruiter: r.ruiter || '', paard: r.paard || '', startnummer: (r.startnummer != null && r.startnummer !== '') ? String(r.startnummer) : String(klasseStartOffset(config.klasse) + i) }));
+      setDbRows(norm);
+      setDbMsg(`Gevonden ${norm.length} deelnemers uit DB`);
+    } catch (e) { setDbMsg('Kon deelnemers niet laden: ' + (e?.message || String(e))); }
+  }
 
   function padStartnummer(v) {
     if (v == null) return '';
@@ -282,8 +311,9 @@ export default function ProtocolGenerator() {
     r.readAsText(file, "utf-8");
   };
 
-  const protocollen = useMemo(() =>
-    csvRows.map((d, idx) => ({
+  const protocollen = useMemo(() => {
+    const src = (dbRows && dbRows.length) ? dbRows : csvRows;
+    return (src || []).map((d, idx) => ({
       onderdeel: config.onderdeel,
       klasse: config.klasse,
       klasse_naam: KLASSEN.find((k) => k.code === config.klasse)?.naam || config.klasse,
@@ -291,14 +321,14 @@ export default function ProtocolGenerator() {
       wedstrijd_naam: selectedWedstrijd?.naam || "",
       datum: config.datum || "",
       jury: config.jury || "",
-  // use provided startnummer or default to index+1; pad to 3 digits
-  startnummer: padStartnummer(d.startnummer || String(idx + 1)),
+  // use provided startnummer or default to class-offset + index; pad to 3 digits
+  startnummer: padStartnummer(d.startnummer || String( (dbRows && dbRows.length) ? (Number(d.startnummer) || String(klasseStartOffset(config.klasse) + idx)) : String(idx + 1) )),
       ruiter: d.ruiter || "",
       paard: d.paard || "",
       max_score: dbMax,
       onderdeel_label: ONDERDELEN.find(o=>o.code===config.onderdeel)?.label || config.onderdeel
-    })),
-  [csvRows, config, selectedWedstrijd, dbMax]);
+    }));
+  }, [csvRows, dbRows, config, selectedWedstrijd, dbMax]);
 
   // PDF actions
   const previewPdf = () => {
@@ -409,6 +439,7 @@ export default function ProtocolGenerator() {
               <b>Startlijst</b>
               <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                 <input type="file" accept=".csv,text/csv" onChange={(e)=>onCSV(e.target.files?.[0])}/>
+                <button onClick={loadDeelnemersFromDB}>Laad deelnemers uit DB</button>
                 <button onClick={()=>{
                   const s = [
                     "ruiter,paard,startnummer",
@@ -462,7 +493,7 @@ export default function ProtocolGenerator() {
 
         <div style={{ marginTop: 24, display: "flex", gap: 10 }}>
           <button onClick={() => setStap(1)}>Terug</button>
-          <button onClick={() => setStap(3)} disabled={!items.length || csvRows.length === 0}>Volgende: Overzicht & PDF</button>
+          <button onClick={() => setStap(3)} disabled={!items.length || (csvRows.length === 0 && dbRows.length === 0)}>Volgende: Overzicht & PDF</button>
         </div>
       </div>
     </>
