@@ -291,6 +291,7 @@ export default function ProtocolGenerator() {
       wedstrijd_naam: selectedWedstrijd?.naam || "",
       datum: config.datum || "",
       jury: config.jury || "",
+  // use provided startnummer or default to index+1; pad to 3 digits
   startnummer: padStartnummer(d.startnummer || String(idx + 1)),
       ruiter: d.ruiter || "",
       paard: d.paard || "",
