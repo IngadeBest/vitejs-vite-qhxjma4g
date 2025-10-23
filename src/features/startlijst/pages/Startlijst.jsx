@@ -305,9 +305,16 @@ export default function Startlijst() {
           omroeper: r.omroeper || null,
           opmerkingen: r.opmerkingen || null,
           startnummer: r.startnummer != null && r.startnummer !== "" ? Number(r.startnummer) : null,
-          starttijd_manual: r.starttijd_manual || null,
-          trailtijd_manual: r.trailtijd_manual || null,
+          // ensure datetime-local values are converted to full ISO strings (zulu) for timestamptz columns
+          starttijd_manual: r.starttijd_manual ? parseLocalDateTimeToISO(r.starttijd_manual) : null,
+          trailtijd_manual: r.trailtijd_manual ? parseLocalDateTimeToISO(r.trailtijd_manual) : null,
         }));
+
+      // validate manual datetimes are parseable
+      const invalidDates = toSave.filter(s => (s.starttijd_manual === null && editRows.find(r=>r.id===s.id).starttijd_manual) || (s.trailtijd_manual === null && editRows.find(r=>r.id===s.id).trailtijd_manual));
+      if (invalidDates.length) {
+        throw new Error('Een of meer ingevoerde datums/tijden zijn ongeldig. Controleer starttijd/trailtijd per inschrijving.');
+      }
 
       // Validation: startnummers must be unique per wedstrijd and max 3 digits
       const nums = toSave.map(s => s.startnummer).filter(n => n != null);
@@ -462,6 +469,17 @@ export default function Startlijst() {
       if (Number.isNaN(d.getTime())) return '';
       return d.toISOString().slice(0,16);
     } catch (e) { return '' }
+  }
+
+  // Parse a datetime-local (YYYY-MM-DDTHH:MM) or ISO string into a timezone-aware ISO string
+  function parseLocalDateTimeToISO(val) {
+    if (!val) return null;
+    try {
+      // Some inputs may already be full ISO; Date() handles both
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) return null;
+      return d.toISOString();
+    } catch (e) { return null; }
   }
 
   function computeStartTimes(items, klasseCode) {
