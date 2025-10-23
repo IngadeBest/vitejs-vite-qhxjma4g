@@ -57,8 +57,8 @@ export default function Startlijst() {
       return null;
     } catch (e) { return null; }
   }
-  function formatTime(date) { if (!date) return ''; try { const d = new Date(date); return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return '' } }
-  function formatForInput(date) { if (!date) return ''; try { const d = new Date(date); if (Number.isNaN(d.getTime())) return ''; return d.toISOString().slice(0,16); } catch (e) { return '' } }
+  function formatTime(date) { if (!date) return ''; try { const d = new Date(date); const pad = (n) => String(n).padStart(2,'0'); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; } catch (e) { return '' } }
+  function formatForInput(date) { if (!date) return ''; try { const d = new Date(date); if (Number.isNaN(d.getTime())) return ''; const pad = (n) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; } catch (e) { return '' } }
 
   function computeStartTimes(items, klasseCode) {
     const base = parseTimeForDate(scheduleConfig.dressuurStart);
@@ -113,11 +113,27 @@ export default function Startlijst() {
       if (!m.has(key)) m.set(key, []);
       m.get(key).push(r);
     }
-    // ensure order exists
-    const order = Array.from(m.keys()).sort();
-    if (!klasseOrder.length) setKlasseOrder(order);
     return m;
   }, [rows]);
+
+  // initialize klasseOrder after rows are loaded (avoid setState during render)
+  useEffect(() => {
+    const keys = Array.from(grouped.keys()).sort();
+    if (keys.length && !klasseOrder.length) setKlasseOrder(keys);
+  }, [grouped, klasseOrder.length]);
+
+  // chosen wedstrijd (gekozen) and load its startlijst_config into scheduleConfig / pauses
+  const gekozen = useMemo(() => wedstrijden.find((w) => w.id === selectedWedstrijdId) || null, [wedstrijden, selectedWedstrijdId]);
+  useEffect(() => {
+    if (!gekozen) return;
+    try {
+      const cfg = (gekozen.startlijst_config && typeof gekozen.startlijst_config === 'object') ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null);
+      if (cfg) {
+        setScheduleConfig(s => ({ ...s, dressuurStart: cfg.dressuurStart || s.dressuurStart, interval: cfg.interval || s.interval, stijltrailStart: cfg.stijltrailStart || s.stijltrailStart, trailInfo: cfg.trailInfo || s.trailInfo, globalSequence: typeof cfg.globalSequence === 'boolean' ? cfg.globalSequence : s.globalSequence }));
+        if (cfg.pauses && typeof cfg.pauses === 'object') setPauses(cfg.pauses);
+      }
+    } catch (e) { /* ignore parse errors */ }
+  }, [gekozen]);
 
   // load rows for selected wedstrijd
   useEffect(() => {
@@ -157,7 +173,10 @@ export default function Startlijst() {
 
   function deleteRow(id) { setRows(prev => prev.filter(r => r.id !== id)); setChanged(prev => { const copy = new Set(prev); copy.delete(id); return copy; }); }
   function addRow() { const newRow = { id: `new-${Date.now()}`, wedstrijd_id: selectedWedstrijdId, startnummer: null, ruiter: '', paard: '', klasse: '', starttijd_manual: null, trailtijd_manual: null }; setRows(prev => [ ...prev, newRow ]); setChanged(prev => { const copy = new Set(prev); copy.add(newRow.id); return copy; }); }
-  function renumber() { setRows(prev => prev.map((r,i)=> ({ ...r, startnummer: i+1 }))); }
+  function renumber() {
+    setRows(prev => prev.map((r,i)=> ({ ...r, startnummer: i+1 })));
+    setChanged(prev => { const copy = new Set(prev); (rows || []).forEach(r => copy.add(r.id)); return copy; });
+  }
 
   async function saveChanges() {
     if (!selectedWedstrijdId) return setErr('Geen wedstrijd geselecteerd');
@@ -180,7 +199,7 @@ export default function Startlijst() {
     finally { setBusy(false); }
   }
 
-  function formatStartnummer(r) { return r.startnummer || ''; }
+  function formatStartnummer(r) { return (r && r.startnummer != null) ? String(r.startnummer) : ''; }
 
   // Export helpers (kept minimal)
   function handleExportExcel(klasseCode) {
@@ -367,6 +386,31 @@ export default function Startlijst() {
           <p style={{ color: '#444', marginTop: 6 }}>Trail offset geeft aan hoeveel minuten na de dressuur-starttijd de trail begint voor die start. Pauzes voegen extra minuten toe op de planning na een gegeven positie.</p>
           <div style={{ marginTop: 8, fontWeight: 700 }}>Huidige instellingen</div>
           <div style={{ fontSize: 13, color: '#333', marginTop: 6 }}>Dressuur start: <b>{scheduleConfig.dressuurStart || '—'}</b><br/>Interval: <b>{scheduleConfig.interval} min</b><br/>Stijltrail start: <b>{scheduleConfig.stijltrailStart || '—'}</b></div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontWeight: 700 }}>Voorbeeld export (alle klassen)</div>
+            <div style={{ marginTop: 8 }}>
+              {(() => {
+                const rowsPreview = [];
+                for (const k of (klasseOrder || [])) {
+                  const items = grouped.get(k) || [];
+                  for (let i=0;i<items.length;i++) {
+                    const it = items[i];
+                    const { start, trail } = getDisplayedTimesForRow(it, i, items, k);
+                    rowsPreview.push({ klasse: KLASSEN.find(x=>x.code===k)?.label || k, start: formatTime(start), trail: formatTime(trail), ruiter: it.ruiter || '—', startnummer: formatStartnummer(it) || (it.startnummer || i+1) });
+                  }
+                }
+                if (!rowsPreview.length) return <div style={{ color: '#777' }}>Geen inschrijvingen</div>;
+                return (
+                  <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+                    <thead><tr><th style={{ textAlign: 'left' }}>Klasse</th><th style={{ textAlign: 'left' }}>#</th><th style={{ textAlign: 'left' }}>Ruiter</th><th style={{ textAlign: 'left' }}>Starttijd</th><th style={{ textAlign: 'left' }}>Trail</th></tr></thead>
+                    <tbody>
+                      {rowsPreview.slice(0,50).map((r,i)=>(<tr key={i}><td>{r.klasse}</td><td>{r.startnummer}</td><td>{r.ruiter}</td><td>{r.start}</td><td>{r.trail}</td></tr>))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+          </div>
         </aside>
       </div>
     </div>
