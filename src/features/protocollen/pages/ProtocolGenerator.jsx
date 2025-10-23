@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/lib/supabaseClient";
+import { padStartnummer, lookupOffset } from '@/lib/startnummer';
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 
 /* Klassen & Onderdelen */
@@ -201,6 +202,7 @@ export default function ProtocolGenerator() {
   const [csvRows, setCsvRows] = useState([]);
   const [dbRows, setDbRows] = useState([]); // deelnemers geladen uit DB
   const [selectIndex, setSelectIndex] = useState(0);
+  const [selectedRubriek, setSelectedRubriek] = useState('senior');
   const [pdfUrl, setPdfUrl] = useState(null);
   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
 
@@ -255,9 +257,14 @@ export default function ProtocolGenerator() {
     if (!config.wedstrijd_id || !config.klasse) { setDbMsg('Selecteer wedstrijd en klasse eerst'); return; }
     setDbMsg('Laden...');
     try {
-      const { data, error } = await supabase.from('inschrijvingen').select('ruiter,paard,startnummer').eq('wedstrijd_id', config.wedstrijd_id).eq('klasse', config.klasse).order('startnummer', { ascending: true });
+      const { data, error } = await supabase.from('inschrijvingen').select('ruiter,paard,startnummer,rubriek').eq('wedstrijd_id', config.wedstrijd_id).eq('klasse', config.klasse).order('startnummer', { ascending: true });
       if (error) throw error;
-      const norm = (data || []).map((r, i) => ({ ruiter: r.ruiter || '', paard: r.paard || '', startnummer: (r.startnummer != null && r.startnummer !== '') ? String(r.startnummer) : String(klasseStartOffset(config.klasse) + i) }));
+      const norm = (data || []).map((r, i) => ({
+        ruiter: r.ruiter || '',
+        paard: r.paard || '',
+        rubriek: r.rubriek || selectedRubriek || 'senior',
+        startnummer: (r.startnummer != null && r.startnummer !== '') ? String(r.startnummer) : String( lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i )
+      }));
       setDbRows(norm);
       setDbMsg(`Gevonden ${norm.length} deelnemers uit DB`);
     } catch (e) { setDbMsg('Kon deelnemers niet laden: ' + (e?.message || String(e))); }
@@ -322,8 +329,9 @@ export default function ProtocolGenerator() {
       wedstrijd_naam: selectedWedstrijd?.naam || "",
       datum: config.datum || "",
       jury: config.jury || "",
+      rubriek: d.rubriek || selectedRubriek || 'senior',
   // use provided startnummer or default to class-offset + index; pad to 3 digits
-  startnummer: padStartnummer(d.startnummer || String( (dbRows && dbRows.length) ? (Number(d.startnummer) || String(klasseStartOffset(config.klasse) + idx)) : String(idx + 1) )),
+  startnummer: padStartnummer(d.startnummer || String( (dbRows && dbRows.length) ? (Number(d.startnummer) || String( lookupOffset(config.klasse, d.rubriek || selectedRubriek || 'senior', selectedWedstrijd?.startlijst_config) + idx )) : String(idx + 1) )),
       ruiter: d.ruiter || "",
       paard: d.paard || "",
       max_score: dbMax,
@@ -351,10 +359,11 @@ export default function ProtocolGenerator() {
     if (!protocollen.length) return;
     const p = protocollen[selectIndex] || protocollen[0];
     const blob = makePdfBlob(p, items);
-    const a = document.createElement("a");
-    const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_").slice(0, 40);
-    a.href = URL.createObjectURL(blob);
-    a.download = `${safe(p.onderdeel)}-${safe(p.startnummer)}-${safe(p.ruiter)}-${safe(p.paard)}.pdf`;
+  const a = document.createElement("a");
+  const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_").slice(0, 40);
+  a.href = URL.createObjectURL(blob);
+  const sn = padStartnummer(p.startnummer);
+  a.download = `${safe(p.onderdeel)}-${safe(sn)}-${safe(p.ruiter)}-${safe(p.paard)}.pdf`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
@@ -404,6 +413,12 @@ export default function ProtocolGenerator() {
 
           <label>Jury (optioneel)</label>
           <input value={config.jury} onChange={(e)=>setConfig(c=>({...c, jury:e.target.value}))}/>
+
+          <label>Rubriek</label>
+          <select value={selectedRubriek} onChange={(e)=>setSelectedRubriek(e.target.value)}>
+            <option value="senior">Senior</option>
+            <option value="jeugd">Jeugd</option>
+          </select>
         </div>
 
         <div style={{ marginTop: 6, fontSize: 12, color: "#555" }}>{dbMsg}</div>

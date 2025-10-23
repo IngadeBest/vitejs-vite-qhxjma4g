@@ -41,19 +41,9 @@ export default function WedstrijdenBeheer() {
   const [startlijstConfig, setStartlijstConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', pauses: [] });
   const [jeugdAllowed, setJeugdAllowed] = useState({}); // map klasse -> boolean
   const [offsetOverridesText, setOffsetOverridesText] = useState('');
-  const [migrationSql, setMigrationSql] = useState("");
+  // migration SQL UI removed per user request
 
-    const MIGRATION_SQL = `-- add allowed_klassen to wedstrijden
-  ALTER TABLE IF EXISTS wedstrijden
-    ADD COLUMN IF NOT EXISTS allowed_klassen jsonb DEFAULT '[]'::jsonb;
-
-  -- add rubriek column to inschrijvingen (nullable), and default existing NULLs to 'senior' if desired
-  ALTER TABLE IF EXISTS inschrijvingen
-    ADD COLUMN IF NOT EXISTS rubriek text DEFAULT NULL;
-
-  -- OPTIONAL: mark existing null rubriek values as 'senior' (uncomment to run)
-  -- UPDATE inschrijvingen SET rubriek = 'senior' WHERE rubriek IS NULL;
-  `;
+    
 
   async function addWedstrijd() {
     setMsg("");
@@ -191,16 +181,14 @@ export default function WedstrijdenBeheer() {
       };
       const { error } = await supabase.from("wedstrijden").update(payload).eq("id", gekozen.id);
       if (error) throw error;
-      setMsg("Wedstrijd instellingen opgeslagen ✔️");
-      setMigrationSql("");
+  setMsg("Wedstrijd instellingen opgeslagen ✔️");
   // notify other parts of the app to refresh wedstrijden
   window.dispatchEvent(new Event('wedstrijden:refresh'));
     } catch (e) {
       // likely column doesn't exist — instruct admin to run DB migration
       const em = (e?.message || String(e));
       const hint = "Controleer of de kolom 'allowed_klassen' bestaat in de tabel 'wedstrijden'.";
-      setMsg("Opslaan mislukt: " + em + " — " + hint);
-      setMigrationSql(MIGRATION_SQL);
+  setMsg("Opslaan mislukt: " + em + " — " + hint);
     }
   }
 

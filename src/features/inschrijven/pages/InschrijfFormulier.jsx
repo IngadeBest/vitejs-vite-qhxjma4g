@@ -26,7 +26,7 @@ export default function InschrijfFormulier() {
     telefoon: "",
     omroeper: "",
     opmerkingen: "",
-    rubriek: "senior",
+    rubriek: "senior", // Default value for rubriek
   });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -100,11 +100,24 @@ export default function InschrijfFormulier() {
           {KLASSEN.map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
         </select>
 
-        <label htmlFor="rubriek_select">Rubriek</label>
-        <select id="rubriek_select" value={form.rubriek} onChange={(e)=>setForm(s=>({...s, rubriek:e.target.value}))}>
-          <option value="senior">Senior</option>
-          <option value="jeugd">Jeugd</option>
-        </select>
+        {/** Only show rubriek select if this wedstrijd allows jeugd for the selected klasse */}
+        {(() => {
+          const wedstrijd = gekozenWedstrijd || {};
+          const startlijstConfig = (wedstrijd.startlijst_config) || {};
+          const jeugdAllowed = (startlijstConfig.jeugdAllowed && startlijstConfig.jeugdAllowed[form.klasse]) || false;
+          if (!jeugdAllowed) {
+            return null;
+          }
+          return (
+            <>
+              <label htmlFor="rubriek_select">Rubriek</label>
+              <select id="rubriek_select" value={form.rubriek} onChange={(e)=>setForm(s=>({...s, rubriek:e.target.value}))}>
+                <option value="senior">Senior</option>
+                <option value="jeugd">Jeugd</option>
+              </select>
+            </>
+          );
+        })()}
 
         <label htmlFor="ruiter_input">Ruiter*</label>
         <Input id="ruiter_input" ref={firstInputRef} value={form.ruiter} onChange={(e)=>setForm(s=>({...s, ruiter:e.target.value}))} />

@@ -31,6 +31,7 @@ export default function Startlijst() {
 
   const [selectedWedstrijdId, setSelectedWedstrijdId] = useState(qId);
   const [klasseFilter, setKlasseFilter] = useState("");
+  const [rubriekFilter, setRubriekFilter] = useState('');
   const beheer = true;
 
   const [rows, setRows] = useState([]); // source rows
@@ -444,7 +445,11 @@ export default function Startlijst() {
   }
 
   // visible rows (filter)
-  const visible = rows.filter(r => !klasseFilter || (r.klasse || '') === klasseFilter);
+  const visible = rows.filter(r => {
+    if (klasseFilter && (r.klasse || '') !== klasseFilter) return false;
+    if (rubriekFilter && (r.rubriek || 'senior') !== rubriekFilter) return false;
+    return true;
+  });
 
   return (
     <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: 28 }}>
@@ -464,6 +469,14 @@ export default function Startlijst() {
               <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Klasse (filter)</label>
               <select value={klasseFilter} onChange={(e)=>setKlasseFilter(e.target.value)} style={{ width: '100%' }}>
                 {KLASSEN.map(k => <option key={k.code || 'all'} value={k.code}>{k.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#666' }}>Rubriek (filter)</label>
+              <select value={rubriekFilter} onChange={(e)=>setRubriekFilter(e.target.value)} style={{ width: '100%' }}>
+                <option value="">Alle rubrieken</option>
+                <option value="senior">Senior</option>
+                <option value="jeugd">Jeugd</option>
               </select>
             </div>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', userSelect: 'none' }}><input type="checkbox" checked={beheer} readOnly /> Beheer-modus</label>
