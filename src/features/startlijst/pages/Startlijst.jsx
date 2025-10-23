@@ -226,6 +226,53 @@ export default function Startlijst() {
     setChanged(prev => { const copy = new Set(prev); copy.add(id); return copy; });
   }
 
+  // move a class up/down in klasseOrder
+  function moveClass(klasseCode, dir) {
+    setKlasseOrder(prev => {
+      const copy = [...(prev || [])];
+      const idx = copy.indexOf(klasseCode);
+      if (idx === -1) return copy;
+      const ni = dir === 'up' ? idx - 1 : idx + 1;
+      if (ni < 0 || ni >= copy.length) return copy;
+      [copy[idx], copy[ni]] = [copy[ni], copy[idx]];
+      return copy;
+    });
+  }
+
+  // move a participant up/down within its klasse
+  function moveParticipant(id, klasseCode, dir) {
+    setRows(prev => {
+      // group prev rows by klasse
+      const m = new Map();
+      for (const r of prev) {
+        const key = r.klasse || 'onbekend';
+        if (!m.has(key)) m.set(key, []);
+        m.get(key).push(r);
+      }
+      const arr = m.get(klasseCode) || [];
+      const idx = arr.findIndex(x => x.id === id);
+      if (idx === -1) return prev;
+      const ni = dir === 'up' ? idx - 1 : idx + 1;
+      if (ni < 0 || ni >= arr.length) return prev;
+      const copyArr = [...arr];
+      [copyArr[idx], copyArr[ni]] = [copyArr[ni], copyArr[idx]];
+      m.set(klasseCode, copyArr);
+      // reconstruct rows preserving original class order from prev
+      const classOrderFromPrev = Array.from(new Set(prev.map(r => r.klasse || 'onbekend')));
+      const newRows = [];
+      for (const k of classOrderFromPrev) {
+        const list = m.get(k) || [];
+        for (const r of list) newRows.push(r);
+      }
+      // append any classes not in original order
+      for (const [k, list] of m) {
+        if (!classOrderFromPrev.includes(k)) for (const r of list) newRows.push(r);
+      }
+      setChanged(prevSet => { const c = new Set(prevSet); c.add(id); return c; });
+      return newRows;
+    });
+  }
+
   function deleteRow(id) { setRows(prev => prev.filter(r => r.id !== id)); setChanged(prev => { const copy = new Set(prev); copy.delete(id); return copy; }); }
   function addRow() { const newRow = { id: `new-${Date.now()}`, wedstrijd_id: selectedWedstrijdId, startnummer: null, ruiter: '', paard: '', klasse: '', starttijd_manual: null, trailtijd_manual: null }; setRows(prev => [ ...prev, newRow ]); setChanged(prev => { const copy = new Set(prev); copy.add(newRow.id); return copy; }); }
   function renumber() {
@@ -248,6 +295,11 @@ export default function Startlijst() {
           await supabase.from('inschrijvingen').update(payload).eq('id', row.id);
         }
       }
+      // persist startlijst configuration (including klasseOrder and pauses) on the wedstrijd
+      try {
+        const cfg = { ...scheduleConfig, pauses: pauses || {}, klasseOrder: klasseOrder || [] };
+        await supabase.from('wedstrijden').update({ startlijst_config: cfg }).eq('id', selectedWedstrijdId);
+      } catch (e) { /* non-fatal */ }
       setMsg('Wijzigingen opgeslagen');
       setChanged(new Set());
     } catch (e) { setErr(String(e?.message || e)); }
@@ -276,14 +328,14 @@ export default function Startlijst() {
         }
       }
       const ws = XLSX.utils.json_to_sheet(combined);
-      XLSX.utils.book_append_sheet(wb, ws, 'Startlijst');
-      XLSX.writeFile(wb, `Startlijst_all.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, 'Startlijst');
+  XLSX.writeFile(wb, `Startlijst ${gekozen?.naam || 'onbekend'}.xlsx`);
       return;
     }
     const items = grouped.get(klasseCode) || [];
     const ws = XLSX.utils.json_to_sheet(items.map((it, idx) => { const { start, trail } = getDisplayedTimesForRow(it, idx, items, klasseCode); return { Starttijd: formatTime(start), Startnummer: it.startnummer || '', Ruiter: it.ruiter, Paard: it.paard, Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', 'Starttijd Trail': formatTime(trail) }; }));
     XLSX.utils.book_append_sheet(wb, ws, klasseCode || 'Onbekend');
-    XLSX.writeFile(wb, `Startlijst_${klasseCode || 'onbekend'}.xlsx`);
+    XLSX.writeFile(wb, `Startlijst ${gekozen?.naam || klasseCode || 'onbekend'}.xlsx`);
   }
 
   async function handleExportPDF(klasseCode) {
@@ -291,10 +343,18 @@ export default function Startlijst() {
     const canvas = await html2canvas(el, { backgroundColor: '#fff', scale: 2 });
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: [canvas.width, canvas.height + 60] });
     pdf.addImage(canvas, 'PNG', 10, 30, canvas.width - 20, canvas.height - 40);
-    pdf.save(`Startlijst_${klasseCode}.pdf`);
+    pdf.save(`Startlijst ${gekozen?.naam || klasseCode}.pdf`);
   }
 
-  async function handleExportAfbeelding(klasseCode) { const el = refs.current[klasseCode]; if (!el) return; const canvas = await html2canvas(el, { backgroundColor: '#fff', scale: 2 }); const link = document.createElement('a'); link.download = `Startlijst_${klasseCode}.png`; link.href = canvas.toDataURL('image/png'); link.click(); }
+  async function handleExportAfbeelding(klasseCode) {
+    const el = refs.current[klasseCode];
+    if (!el) return;
+    const canvas = await html2canvas(el, { backgroundColor: '#fff', scale: 2 });
+    const link = document.createElement('a');
+    link.download = `Startlijst ${gekozen?.naam || klasseCode}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
 
   // visible rows (filter)
   const visible = rows.filter(r => !klasseFilter || (r.klasse || '') === klasseFilter);
@@ -361,16 +421,23 @@ export default function Startlijst() {
                         <input type="checkbox" checked={!!scheduleConfig.globalSequence} onChange={(e)=>setScheduleConfig(s=>({...s, globalSequence: e.target.checked}))} />
                         Doortellen over klassen (globale volgorde)
                       </label>
+                      <div style={{ marginLeft: 12, fontSize: 12, color: '#666', maxWidth: 280 }}>
+                        Wanneer ingeschakeld worden de starttijden niet opnieuw begonnen per klasse maar doorgeteld over alle klassen volgens de ingestelde klasse-volgorde. Handig wanneer je één doorlopende ringplanning wilt.
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {(Array.from(grouped.keys())).map(klasseCode => {
+                {( (klasseOrder && klasseOrder.length) ? klasseOrder : Array.from(grouped.keys()) ).map(klasseCode => {
                   const items = grouped.get(klasseCode) || [];
                   return (
                     <div key={klasseCode} style={{ background: '#fff', borderRadius: 8, padding: 12, border: '1px solid #eef6ff' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                         <div style={{ fontWeight: 800, fontSize: 16 }}>{KLASSEN_EDIT.find(k => k.code === klasseCode)?.label || (klasseCode === 'onbekend' ? 'Onbekend' : klasseCode)}</div>
+                        <div style={{ marginLeft: 8, display: 'flex', gap: 6 }}>
+                          <Button variant="secondary" onClick={() => moveClass(klasseCode, 'up')}>↑</Button>
+                          <Button variant="secondary" onClick={() => moveClass(klasseCode, 'down')}>↓</Button>
+                        </div>
                         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
                           <Button onClick={() => handleExportExcel(klasseCode)} variant="secondary">Export Excel</Button>
                           <Button onClick={() => handleExportPDF(klasseCode)} variant="secondary">Export PDF</Button>
@@ -406,7 +473,11 @@ export default function Startlijst() {
                                     {visibleCols.paard && <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>}
                                     {visibleCols.klasse && <td style={{ padding: 8 }}>{KLASSEN.find(k=>k.code === (r.klasse || ''))?.label || (r.klasse || '—')}</td>}
                                     {visibleCols.starttijdTrail && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.trailtijd_manual || (trail ? formatForInput(trail) : '')} onChange={(e)=>onCellChange(r.id, 'trailtijd_manual', e.target.value)} />) : formatTime(trail)}</td>}
-                                    {beheer && (<td style={{ padding: 8 }}><Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button></td>)}
+                                    {beheer && (<td style={{ padding: 8, display: 'flex', gap: 6 }}>
+                                      <Button variant="secondary" onClick={()=>moveParticipant(r.id, klasseCode, 'up')}>▲</Button>
+                                      <Button variant="secondary" onClick={()=>moveParticipant(r.id, klasseCode, 'down')}>▼</Button>
+                                      <Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button>
+                                    </td>)}
                                   </tr>
                                 );
                                 const pauseAfter = classPauses.find(p => Number(p.afterIndex) === (idx + 1));
