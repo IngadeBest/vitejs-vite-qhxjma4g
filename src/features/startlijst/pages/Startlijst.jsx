@@ -197,6 +197,26 @@ export default function Startlijst() {
     } catch (e) { /* ignore parse errors */ }
   }, [gekozen]);
 
+  // dev sanity logs: lightweight checks to help diagnose timezone / ordering issues
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    try {
+      console.groupCollapsed && console.groupCollapsed('Startlijst sanity');
+      console.log('gekozen:', gekozen ? { id: gekozen.id, naam: gekozen.naam, datum: gekozen.datum } : null);
+      console.log('klasseOrder:', klasseOrder);
+      const sample = rows.slice(0,10).map(r => ({ id: r.id, startnummer: r.startnummer, klasse: r.klasse, starttijd_manual: r.starttijd_manual, parsed_manual: r.starttijd_manual ? (parseDateTimeLocal(r.starttijd_manual) || parseTimeForDate(r.starttijd_manual)) : null }));
+      console.log('rows sample (parsed):', sample);
+      if (scheduleConfig.globalSequence && globalTimes) {
+        const gaps = [];
+        for (let i = 1; i < Math.min(globalTimes.length, 50); i++) {
+          const a = globalTimes[i-1]; const b = globalTimes[i]; if (a && b) gaps.push((b.getTime() - a.getTime())/60000);
+        }
+        console.log('globalTimes sample gaps (min):', gaps.slice(0,10));
+      }
+      console.groupEnd && console.groupEnd();
+    } catch (e) { console.warn('sanity log failed', e); }
+  }, [gekozen, klasseOrder, rows, scheduleConfig.globalSequence, globalTimes]);
+
   // load rows for selected wedstrijd
   useEffect(() => {
     async function fetchRows() {
