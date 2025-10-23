@@ -110,6 +110,16 @@ export default function Startlijst() {
     }
     return times;
   }
+  // group rows by klasse
+  const grouped = useMemo(() => {
+    const m = new Map();
+    for (const r of rows) {
+      const key = r.klasse || 'onbekend';
+      if (!m.has(key)) m.set(key, []);
+      m.get(key).push(r);
+    }
+    return m;
+  }, [rows]);
 
   // global continuous times across classes when enabled
   const globalTimes = useMemo(() => {
@@ -150,17 +160,6 @@ export default function Startlijst() {
     }
     return times;
   }, [scheduleConfig.globalSequence, scheduleConfig.dressuurStart, scheduleConfig.interval, klasseOrder, grouped, pauses]);
-
-  // group rows by klasse
-  const grouped = useMemo(() => {
-    const m = new Map();
-    for (const r of rows) {
-      const key = r.klasse || 'onbekend';
-      if (!m.has(key)) m.set(key, []);
-      m.get(key).push(r);
-    }
-    return m;
-  }, [rows]);
 
   // initialize klasseOrder after rows are loaded (avoid setState during render)
   useEffect(() => {
