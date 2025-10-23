@@ -454,6 +454,16 @@ export default function Startlijst() {
     } catch (e) { return '' }
   }
 
+  // return a value suitable for <input type="datetime-local" value=...>
+  function formatForInput(date) {
+    if (!date) return '';
+    try {
+      const d = new Date(date);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toISOString().slice(0,16);
+    } catch (e) { return '' }
+  }
+
   function computeStartTimes(items, klasseCode) {
     // items: ordered array for the class
     const base = parseTimeForDate(scheduleConfig.dressuurStart);
@@ -761,12 +771,12 @@ export default function Startlijst() {
                                 })() : getDisplayedTimesForRow(r, idx, items, klasseCode);
                                 return (
                                   <tr key={r.id} draggable={false} onDragOver={onDragOver} onDragEnter={(e)=>onDragEnter(e, r.id)} onDragLeave={onDragLeave} onDrop={(e)=>onDrop(e, idx, klasseCode)} style={{ borderTop: '1px solid #f0f0f0', background: dragOverId === r.id ? '#f0fbff' : undefined, opacity: draggingId === r.id ? 0.6 : 1, transition: 'background 140ms, transform 140ms, opacity 120ms' }}>
-                                    {visibleCols.starttijd && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.starttijd_manual || (computedStart ? new Date(computedStart).toISOString().slice(0,16) : '')} onChange={(e)=>onCellChange(r.id, 'starttijd_manual', e.target.value)} />) : formatTime(start)}</td>}
+                                    {visibleCols.starttijd && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.starttijd_manual || (computedStart ? formatForInput(computedStart) : '')} onChange={(e)=>onCellChange(r.id, 'starttijd_manual', e.target.value)} />) : formatTime(start)}</td>}
                                     {visibleCols.startnummer && <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8, alignItems: 'center', padding: 8 }}>{beheer ? (<><button aria-label="drag-handle" draggable={beheer} onDragStart={(e)=>onDragStart(e, r.id, klasseCode)} onDragEnd={()=>{ setDraggingId(null); setDragOverId(null); }} style={{ cursor: 'grab', padding: 6, borderRadius: 6, border: '1px solid #e6eefb', background: '#fafdff' }}>≡</button><input type="number" value={r.startnummer ?? ''} onChange={(e)=>onCellChange(r.id, 'startnummer', e.target.value)} style={{ width: 64 }} /></>) : (formatStartnummer(r) || (r.startnummer ?? idx + 1))}</td>}
                                     {visibleCols.ruiter && <td style={{ padding: 8 }}>{beheer ? <input value={r.ruiter || ''} onChange={(e)=>onCellChange(r.id, 'ruiter', e.target.value)} style={{ width: '100%' }} /> : (r.ruiter || '—')}</td>}
                                     {visibleCols.paard && <td style={{ padding: 8 }}>{beheer ? <input value={r.paard || ''} onChange={(e)=>onCellChange(r.id, 'paard', e.target.value)} style={{ width: '100%' }} /> : (r.paard || '—')}</td>}
                                     {visibleCols.klasse && <td style={{ padding: 8 }}>{KLASSEN.find(k=>k.code === (r.klasse || ''))?.label || (r.klasse || '—')}</td>}
-                                    {visibleCols.starttijdTrail && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.trailtijd_manual || (trail ? new Date(trail).toISOString().slice(0,16) : '')} onChange={(e)=>onCellChange(r.id, 'trailtijd_manual', e.target.value)} />) : formatTime(trail)}</td>}
+                                    {visibleCols.starttijdTrail && <td style={{ padding: 8 }}>{beheer ? (<input type="datetime-local" value={r.trailtijd_manual || (trail ? formatForInput(trail) : '')} onChange={(e)=>onCellChange(r.id, 'trailtijd_manual', e.target.value)} />) : formatTime(trail)}</td>}
                                     {beheer && (<td style={{ whiteSpace: 'nowrap', padding: 8 }}><Button onClick={()=>{/* noop */}} variant="secondary">↕️</Button><Button onClick={()=>deleteRow(r.id)} variant="secondary" style={{ color: 'crimson' }}>Verwijderen</Button></td>)}
                                   </tr>
                                 );
