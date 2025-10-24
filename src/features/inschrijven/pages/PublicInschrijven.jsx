@@ -6,6 +6,7 @@ import { notifyOrganisator } from "@/lib/notifyOrganisator";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Card } from "@/ui/card";
+import Container from "@/ui/Container";
 import { Alert } from "@/ui/alert";
 
 // Klassen incl. WE2+ en extra klassen voor leeftijdsgroepen
@@ -189,7 +190,7 @@ export default function PublicInschrijven() {
 
   if (done) {
     return (
-      <div style={{ maxWidth: 720, margin: "24px auto" }}>
+      <Container maxWidth={720}>
         <Card>
           <h2>Dank je wel!</h2>
           <p>
@@ -198,12 +199,12 @@ export default function PublicInschrijven() {
           </p>
           <p>Je ontvangt binnenkort een bevestiging van inschrijving per e-mail.</p>
         </Card>
-      </div>
+      </Container>
     );
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: '24px auto' }}>
+    <Container maxWidth={1100}>
       <h2>Inschrijfformulier Ruiters</h2>
       <p style={{ color: "#555" }}>Velden met * zijn verplicht.</p>
 
@@ -333,6 +334,6 @@ export default function PublicInschrijven() {
   )}
 
   {err && <Alert type="error">{String(err)}</Alert>}
-    </div>
+    </Container>
   );
 }

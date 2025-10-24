@@ -30,6 +30,8 @@ function sorteerKlasses(klasses) {
   return [...resultaat, ...rest];
 }
 
+import Container from "@/ui/Container";
+
 export default function Einduitslag() {
   const [ruiters, setRuiters] = useState([]);
   const [proeven, setProeven] = useState([]);
@@ -204,15 +206,14 @@ export default function Einduitslag() {
 
   return (
     <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: 24 }}>
-      <div style={{
-        maxWidth: 900,
-        background: "#fff",
-        borderRadius: 16,
-        boxShadow: "0 6px 24px #20457422",
-        margin: "0 auto",
-        padding: "40px 32px 28px 32px",
-        fontFamily: "system-ui, sans-serif"
-      }}>
+      <Container maxWidth={900}>
+        <div style={{
+          background: "#fff",
+          borderRadius: 16,
+          boxShadow: "0 6px 24px #20457422",
+          padding: "40px 32px 28px 32px",
+          fontFamily: "system-ui, sans-serif"
+        }}>
         <h2 style={{ fontSize: 33, fontWeight: 900, color: "#204574", letterSpacing: 1.2, marginBottom: 22 }}>
           Einduitslag per klasse
         </h2>
@@ -280,7 +281,8 @@ export default function Einduitslag() {
             </div>
           );
         })}
-      </div>
+        </div>
+      </Container>
     </div>
   );
 }

@@ -31,6 +31,7 @@ body {
   min-height: 100vh;
   background-color: var(--wp-bg, inherit);
   color: var(--wp-fore, inherit);
+  font-family: var(--wp-font-family);
 }
 
 /* WorkingPoint UI tokens */
