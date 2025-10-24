@@ -61,6 +61,23 @@ body {
 .wp-alert-error { background: #fff1f0; border: 1px solid #ffa39e; color: #610b0b; }
 .wp-alert-info { background: #f0f7ff; border: 1px solid #dbeeff; color: #083344; }
 
+/* Inschrijf form responsive layout */
+.inschrijf-form {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 1fr;
+  gap: 10px 12px;
+  align-items: center;
+}
+.inschrijf-form label { text-align: right; padding-right: 8px; font-weight: 600; }
+.inschrijf-form .full { grid-column: 1 / 3; }
+
+@media (max-width: 720px) {
+  .inschrijf-form { grid-template-columns: 1fr; }
+  .inschrijf-form label { text-align: left; padding-right: 0; }
+  .inschrijf-form .full { grid-column: auto; }
+  .inschrijf-form .full button { width: 100%; }
+}
+
 
 h1 {
   font-size: 3.2em;

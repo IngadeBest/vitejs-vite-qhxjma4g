@@ -41,8 +41,8 @@ export default function WedstrijdenBeheer() {
   const [startlijstConfig, setStartlijstConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', pauses: [] });
   const [jeugdAllowed, setJeugdAllowed] = useState({}); // map klasse -> boolean
   const [offsetOverridesText, setOffsetOverridesText] = useState('');
-  const [capacitiesText, setCapacitiesText] = useState('');
-  const [alternatesText, setAlternatesText] = useState('');
+  const [capacitiesMap, setCapacitiesMap] = useState({});
+  const [alternatesMap, setAlternatesMap] = useState({});
   // migration SQL UI removed per user request
 
     
@@ -108,9 +108,9 @@ export default function WedstrijdenBeheer() {
         }
         setStartlijstConfig({ dressuurStart: cfg.dressuurStart || '', interval: cfg.interval || 7, stijltrailStart: stijl, pauses });
         setJeugdAllowed(cfg.jeugdAllowed || {});
-        setOffsetOverridesText(cfg.offsetOverrides ? JSON.stringify(cfg.offsetOverrides, null, 2) : '');
-  setCapacitiesText(cfg.capacities ? JSON.stringify(cfg.capacities, null, 2) : '');
-  setAlternatesText(cfg.alternates ? JSON.stringify(cfg.alternates, null, 2) : '');
+    setOffsetOverridesText(cfg.offsetOverrides ? JSON.stringify(cfg.offsetOverrides, null, 2) : '');
+    setCapacitiesMap(cfg.capacities && typeof cfg.capacities === 'object' ? cfg.capacities : {});
+    setAlternatesMap(cfg.alternates && typeof cfg.alternates === 'object' ? cfg.alternates : {});
         // ensure proef-editor default klasse is the first allowed class for this wedstrijd
         const allowed = Array.isArray(gekozen.allowed_klassen) && gekozen.allowed_klassen.length ? gekozen.allowed_klassen : (Array.isArray(cfg.allowed_klassen) ? cfg.allowed_klassen : []);
         if (allowed && allowed.length) {
@@ -186,8 +186,8 @@ export default function WedstrijdenBeheer() {
           offsetOverrides: (() => {
             try { return offsetOverridesText ? JSON.parse(offsetOverridesText) : {}; } catch(e) { return {}; }
           })(),
-          capacities: (() => { try { return capacitiesText ? JSON.parse(capacitiesText) : {}; } catch(e) { return {}; } })(),
-          alternates: (() => { try { return alternatesText ? JSON.parse(alternatesText) : {}; } catch(e) { return {}; } })()
+          capacities: capacitiesMap || {},
+          alternates: alternatesMap || {}
         }
       };
       const { error } = await supabase.from("wedstrijden").update(payload).eq("id", gekozen.id);
@@ -310,13 +310,45 @@ export default function WedstrijdenBeheer() {
                 <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>Voer JSON in zoals: {`{"we2:jeugd":801, "we0:senior":5}`}</div>
                 <textarea rows={4} value={offsetOverridesText} onChange={(e)=>setOffsetOverridesText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace' }} />
 
-                <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6 }}>Capaciteiten per klasse (optioneel)</div>
-                <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>Voer JSON in zoals: {`{"we1":48, "we2":40}`}</div>
-                <textarea rows={3} value={capacitiesText} onChange={(e)=>setCapacitiesText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace' }} />
-
-                <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6 }}>Alternatieve wedstrijd per klasse (optioneel)</div>
-                <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>Voer JSON in zoals: {`{"we1":"<uuid-van-alternate-wedstrijd>"}`}</div>
-                <textarea rows={2} value={alternatesText} onChange={(e)=>setAlternatesText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace' }} />
+                <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6 }}>Capaciteiten & alternatieven per klasse</div>
+                <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>Voer per klasse het maximaal aantal deelnemers in en (optioneel) een alternatieve wedstrijd.</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 8, alignItems: 'center' }}>
+                  <div style={{ fontWeight: 700 }}>Klasse</div>
+                  <div style={{ fontWeight: 700 }}>Capacity</div>
+                  <div style={{ fontWeight: 700 }}>Alternatief (wedstrijd)</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                  {KLASSEN.map(k => (
+                    <div key={k.code} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 8, alignItems: 'center' }}>
+                      <div>{k.label}</div>
+                      <div>
+                        <input type="number" min={0} placeholder="Geen limiet" value={capacitiesMap[k.code] ?? ''} onChange={(e)=>{
+                          const v = e.target.value === '' ? undefined : Number(e.target.value);
+                          setCapacitiesMap(prev => {
+                            const copy = { ...prev };
+                            if (v === undefined) delete copy[k.code]; else copy[k.code] = v;
+                            return copy;
+                          });
+                        }} style={{ width: '100%', padding: '6px', borderRadius: 6, border: '1px solid #ddd' }} />
+                      </div>
+                      <div>
+                        <select value={alternatesMap[k.code] || ''} onChange={(e)=>{
+                          const val = e.target.value || undefined;
+                          setAlternatesMap(prev => {
+                            const copy = { ...prev };
+                            if (!val) delete copy[k.code]; else copy[k.code] = val;
+                            return copy;
+                          });
+                        }} style={{ width: '100%', padding: '6px', borderRadius: 6, border: '1px solid #ddd' }}>
+                          <option value="">— geen —</option>
+                          {wedstrijden.filter(w=>w.id !== (gekozen && gekozen.id)).map(w => (
+                            <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

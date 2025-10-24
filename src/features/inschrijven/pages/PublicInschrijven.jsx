@@ -210,7 +210,7 @@ export default function PublicInschrijven() {
       <Card variant="info" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial" }}>
       <form
         onSubmit={onSubmit}
-        style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "10px 12px", alignItems: "center" }}
+        className="inschrijf-form"
       >
         <label htmlFor="wedstrijd_select">Wedstrijd*</label>
         <select
@@ -249,6 +249,7 @@ export default function PublicInschrijven() {
           value={form.ruiter}
           onChange={(e) => setForm((s) => ({ ...s, ruiter: e.target.value }))}
           placeholder="Naam ruiter"
+          style={{ width: '100%' }}
         />
 
         <label htmlFor="paard_input">Paard*</label>
@@ -257,18 +258,19 @@ export default function PublicInschrijven() {
           value={form.paard}
           onChange={(e) => setForm((s) => ({ ...s, paard: e.target.value }))}
           placeholder="Naam paard"
+          style={{ width: '100%' }}
         />
 
         <label htmlFor="geslacht_select">Geslacht paard</label>
-        <select id="geslacht_select" value={form.geslacht_paard} onChange={(e) => setForm((s) => ({ ...s, geslacht_paard: e.target.value }))}>
+        <select id="geslacht_select" value={form.geslacht_paard} onChange={(e) => setForm((s) => ({ ...s, geslacht_paard: e.target.value }))} style={{ width: '100%' }}>
           <option value="">— kies —</option>
           <option value="merrie">Merrie</option>
           <option value="ruin">Ruin</option>
           <option value="hengst">Hengst</option>
         </select>
 
-        <label htmlFor="leeftijd_input">Leeftijd ruiter (optioneel)</label>
-        <Input id="leeftijd_input" type="number" min="1" max="150" value={form.leeftijd_ruiter} onChange={(e)=>setForm(s=>({...s, leeftijd_ruiter: e.target.value}))} placeholder="Bijv. 32" />
+  <label htmlFor="leeftijd_input">Leeftijd ruiter (optioneel)</label>
+  <Input id="leeftijd_input" type="number" min="1" max="150" value={form.leeftijd_ruiter} onChange={(e)=>setForm(s=>({...s, leeftijd_ruiter: e.target.value}))} placeholder="Bijv. 32" style={{ width: '100%' }} />
 
         <label htmlFor="email_input">E-mail*</label>
         <Input
@@ -277,6 +279,7 @@ export default function PublicInschrijven() {
           value={form.email}
           onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
           placeholder="jij@example.com"
+          style={{ width: '100%' }}
         />
         {/* inline validation */}
         <div style={{ gridColumn: "2 / 3", color: form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "crimson" : "#666", fontSize: 13 }}>
@@ -291,6 +294,7 @@ export default function PublicInschrijven() {
           onChange={(e) => setForm((s) => ({ ...s, omroeper: e.target.value }))}
           placeholder="Korte introductie / bijzonderheden"
           className="border rounded px-2 py-1 w-full"
+          style={{ width: '100%' }}
         />
 
         <label htmlFor="opmerkingen_input">Opmerkingen (optioneel)</label>
@@ -301,6 +305,7 @@ export default function PublicInschrijven() {
           onChange={(e) => setForm((s) => ({ ...s, opmerkingen: e.target.value }))}
           placeholder="Speciale wensen/stal"
           className="border rounded px-2 py-1 w-full"
+          style={{ width: '100%' }}
         />
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }} htmlFor="weh_lid_cb">
@@ -308,8 +313,10 @@ export default function PublicInschrijven() {
           <span>WEH-lid</span>
         </label>
 
-        <div></div>
-        <Button type="submit" disabled={busy || disabled} aria-busy={busy}>{busy ? "Verzenden..." : "Inschrijven"}</Button>
+        <div className="full"></div>
+        <div className="full" style={{ textAlign: 'right' }}>
+          <Button type="submit" disabled={busy || disabled} aria-busy={busy}>{busy ? "Verzenden..." : "Inschrijven"}</Button>
+        </div>
       </form>
       </Card>
 
