@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
+import { supabase } from "@/lib/supabaseClient";
 import { notifyOrganisator } from "@/lib/notifyOrganisator";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
@@ -40,6 +41,9 @@ export default function PublicInschrijven() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
+  const [capacityLimit, setCapacityLimit] = useState(null);
+  const [currentCount, setCurrentCount] = useState(null);
+  const [capacityLoading, setCapacityLoading] = useState(false);
 
   const gekozenWedstrijd = useMemo(
     () => wedstrijden.find((w) => w.id === form.wedstrijd_id) || null,
@@ -52,6 +56,54 @@ export default function PublicInschrijven() {
       ? gekozenWedstrijd.allowed_klassen
       : KLASSEN.map((k) => k.code);
   }, [gekozenWedstrijd]);
+
+  // when selected wedstrijd + klasse changes, load capacity info and current count
+  React.useEffect(() => {
+    let mounted = true;
+    async function loadCapacity() {
+      setCapacityLimit(null);
+      setCurrentCount(null);
+      if (!gekozenWedstrijd || !form.klasse) return;
+      setCapacityLoading(true);
+      try {
+        const cfg = gekozenWedstrijd.startlijst_config && typeof gekozenWedstrijd.startlijst_config === 'object' ? gekozenWedstrijd.startlijst_config : (gekozenWedstrijd.startlijst_config ? JSON.parse(gekozenWedstrijd.startlijst_config) : null);
+        const cap = cfg && cfg.capacities ? (cfg.capacities[form.klasse] ?? null) : null;
+        const alternate = cfg && cfg.alternates ? (cfg.alternates[form.klasse] ?? null) : null;
+        if (!mounted) return;
+        setCapacityLimit(typeof cap === 'number' ? cap : (cap === null ? null : Number(cap)));
+
+        if (cap !== undefined && cap !== null) {
+          // count current inscriptions using supabase client for accurate count
+          const { count, error } = await supabase
+            .from('inschrijvingen')
+            .select('id', { count: 'exact', head: true })
+            .eq('wedstrijd_id', gekozenWedstrijd.id)
+            .eq('klasse', form.klasse);
+          if (error) {
+            // ignore — we simply won't show count
+            setCurrentCount(null);
+          } else {
+            if (!mounted) return;
+            setCurrentCount(count || 0);
+          }
+        } else {
+          setCurrentCount(null);
+        }
+        // store alternate as a lightweight hint on the gekozen object (not persisted)
+        if (alternate) {
+          // attach for UI convenience
+          setForm(s => ({ ...s })); // trigger re-render
+          // we don't mutate gekozenWedstrijd directly
+        }
+      } catch (e) {
+        // ignore
+      } finally {
+        if (mounted) setCapacityLoading(false);
+      }
+    }
+    loadCapacity();
+    return () => { mounted = false; };
+  }, [gekozenWedstrijd, form.klasse]);
 
   // categorie removed, no per-klasse categorieen to enforce
 
@@ -88,6 +140,31 @@ export default function PublicInschrijven() {
       // client validation
       if (gekozenWedstrijd) {
         if (!allowedKlassenForWedstrijd.includes(payload.klasse)) throw new Error('Geselecteerde klasse is niet toegestaan voor deze wedstrijd.');
+      }
+
+      // capacity double-check (client-side). Server should also verify to avoid race conditions.
+      try {
+        const cfg = gekozenWedstrijd && (gekozenWedstrijd.startlijst_config && typeof gekozenWedstrijd.startlijst_config === 'object') ? gekozenWedstrijd.startlijst_config : (gekozenWedstrijd && gekozenWedstrijd.startlijst_config ? JSON.parse(gekozenWedstrijd.startlijst_config) : null);
+        const cap = cfg && cfg.capacities ? (cfg.capacities[payload.klasse] ?? null) : null;
+        if (cap !== undefined && cap !== null) {
+          const { count, error } = await supabase
+            .from('inschrijvingen')
+            .select('id', { count: 'exact', head: true })
+            .eq('wedstrijd_id', payload.wedstrijd_id)
+            .eq('klasse', payload.klasse);
+          if (error) throw error;
+          if ((count || 0) >= Number(cap)) {
+            // if an alternate is configured, suggest it
+            const alternate = cfg.alternates ? cfg.alternates[payload.klasse] : null;
+            if (alternate) {
+              throw new Error(`De klasse is volzet (${count}/${cap}). Er is een alternatieve wedstrijd ingesteld. Kies deze of contacteer de organisatie.`);
+            }
+            throw new Error(`De klasse is volzet (${count}/${cap}). Neem contact op met de organisatie.`);
+          }
+        }
+      } catch (e) {
+        // surface capacity error to user
+        throw e;
       }
 
       const res = await fetch('/api/inschrijvingen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -235,6 +312,18 @@ export default function PublicInschrijven() {
         <Button type="submit" disabled={busy || disabled} aria-busy={busy}>{busy ? "Verzenden..." : "Inschrijven"}</Button>
       </form>
       </Card>
+
+  {capacityLoading && <div style={{ marginTop: 8, color: '#666' }}>Controleren beschikbare plaatsen…</div>}
+
+  {capacityLimit !== null && currentCount !== null && (
+    <div style={{ marginTop: 10 }}>
+      {currentCount >= capacityLimit ? (
+        <Alert type="error">De geselecteerde klasse is volzet ({currentCount}/{capacityLimit}).</Alert>
+      ) : (
+        <div style={{ color: '#333', fontSize: 13 }}>Beschikbare plaatsen: {capacityLimit - currentCount} van {capacityLimit} beschikbaar.</div>
+      )}
+    </div>
+  )}
 
   {err && <Alert type="error">{String(err)}</Alert>}
     </div>

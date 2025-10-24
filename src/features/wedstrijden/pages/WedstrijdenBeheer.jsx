@@ -41,6 +41,8 @@ export default function WedstrijdenBeheer() {
   const [startlijstConfig, setStartlijstConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', pauses: [] });
   const [jeugdAllowed, setJeugdAllowed] = useState({}); // map klasse -> boolean
   const [offsetOverridesText, setOffsetOverridesText] = useState('');
+  const [capacitiesText, setCapacitiesText] = useState('');
+  const [alternatesText, setAlternatesText] = useState('');
   // migration SQL UI removed per user request
 
     
@@ -107,6 +109,8 @@ export default function WedstrijdenBeheer() {
         setStartlijstConfig({ dressuurStart: cfg.dressuurStart || '', interval: cfg.interval || 7, stijltrailStart: stijl, pauses });
         setJeugdAllowed(cfg.jeugdAllowed || {});
         setOffsetOverridesText(cfg.offsetOverrides ? JSON.stringify(cfg.offsetOverrides, null, 2) : '');
+  setCapacitiesText(cfg.capacities ? JSON.stringify(cfg.capacities, null, 2) : '');
+  setAlternatesText(cfg.alternates ? JSON.stringify(cfg.alternates, null, 2) : '');
         // ensure proef-editor default klasse is the first allowed class for this wedstrijd
         const allowed = Array.isArray(gekozen.allowed_klassen) && gekozen.allowed_klassen.length ? gekozen.allowed_klassen : (Array.isArray(cfg.allowed_klassen) ? cfg.allowed_klassen : []);
         if (allowed && allowed.length) {
@@ -181,7 +185,9 @@ export default function WedstrijdenBeheer() {
           jeugdAllowed: jeugdAllowed || {},
           offsetOverrides: (() => {
             try { return offsetOverridesText ? JSON.parse(offsetOverridesText) : {}; } catch(e) { return {}; }
-          })()
+          })(),
+          capacities: (() => { try { return capacitiesText ? JSON.parse(capacitiesText) : {}; } catch(e) { return {}; } })(),
+          alternates: (() => { try { return alternatesText ? JSON.parse(alternatesText) : {}; } catch(e) { return {}; } })()
         }
       };
       const { error } = await supabase.from("wedstrijden").update(payload).eq("id", gekozen.id);
@@ -303,6 +309,14 @@ export default function WedstrijdenBeheer() {
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Offset overrides (optioneel)</div>
                 <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>Voer JSON in zoals: {`{"we2:jeugd":801, "we0:senior":5}`}</div>
                 <textarea rows={4} value={offsetOverridesText} onChange={(e)=>setOffsetOverridesText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace' }} />
+
+                <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6 }}>Capaciteiten per klasse (optioneel)</div>
+                <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>Voer JSON in zoals: {`{"we1":48, "we2":40}`}</div>
+                <textarea rows={3} value={capacitiesText} onChange={(e)=>setCapacitiesText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace' }} />
+
+                <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6 }}>Alternatieve wedstrijd per klasse (optioneel)</div>
+                <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>Voer JSON in zoals: {`{"we1":"<uuid-van-alternate-wedstrijd>"}`}</div>
+                <textarea rows={2} value={alternatesText} onChange={(e)=>setAlternatesText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace' }} />
               </div>
             </div>
           </div>
