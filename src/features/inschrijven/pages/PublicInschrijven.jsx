@@ -203,7 +203,7 @@ export default function PublicInschrijven() {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: "24px auto" }}>
+    <div style={{ maxWidth: 1100, margin: '24px auto' }}>
       <h2>Inschrijfformulier Ruiters</h2>
       <p style={{ color: "#555" }}>Velden met * zijn verplicht.</p>
 
@@ -318,8 +318,8 @@ export default function PublicInschrijven() {
           <Button type="submit" disabled={busy || disabled} aria-busy={busy}>{busy ? "Verzenden..." : "Inschrijven"}</Button>
         </div>
       </form>
-      </Card>
-
+    </Card>
+      
   {capacityLoading && <div style={{ marginTop: 8, color: '#666' }}>Controleren beschikbare plaatsen…</div>}
 
   {capacityLimit !== null && currentCount !== null && (
