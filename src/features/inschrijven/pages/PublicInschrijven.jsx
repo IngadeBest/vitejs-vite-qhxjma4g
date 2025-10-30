@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
+
 import { notifyOrganisator } from "@/lib/notifyOrganisator";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
