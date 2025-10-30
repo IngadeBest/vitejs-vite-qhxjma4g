@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+// heavy libs: imported on-demand below to avoid module-init side-effects in the main bundle
 
 // HELPER: 'mm:ss:hh'
 function formatTime(secs) {
@@ -166,26 +164,32 @@ export default function Einduitslag() {
 
   // --- EXPORTS ---
   function handleExportExcel(klasse, onderdelen, eindstand) {
-    const ws = XLSX.utils.json_to_sheet(
-      eindstand.map(item => ({
-        Plaats: item.plaats,
-        Ruiter: item.naam,
-        Paard: item.paard,
-        ...Object.fromEntries(onderdelen.map(o =>
-          [o, item.onderdelen[o]?.scoreLabel + (item.onderdelen[o]?.plaats ? ` (${item.onderdelen[o].plaats})` : "")]
-        )),
-        "Totaal punten": item.totaalpunten
-      }))
-    );
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, klasse);
-    XLSX.writeFile(wb, `Einduitslag_${klasse}.xlsx`);
+    return (async () => {
+      const mod = await import('xlsx');
+      const XLSX = (mod && (mod.default || mod)) || mod;
+      const ws = XLSX.utils.json_to_sheet(
+        eindstand.map(item => ({
+          Plaats: item.plaats,
+          Ruiter: item.naam,
+          Paard: item.paard,
+          ...Object.fromEntries(onderdelen.map(o =>
+            [o, item.onderdelen[o]?.scoreLabel + (item.onderdelen[o]?.plaats ? ` (${item.onderdelen[o].plaats})` : "")]
+          )),
+          "Totaal punten": item.totaalpunten
+        }))
+      );
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, klasse);
+      XLSX.writeFile(wb, `Einduitslag_${klasse}.xlsx`);
+    })();
   }
 
   async function handleExportPDF(klasse) {
     const el = refs.current[klasse];
+    const [{ default: html2canvas }, modJsPDF] = await Promise.all([import('html2canvas'), import('jspdf')]);
+    const jsPDFLib = (modJsPDF && (modJsPDF.default || modJsPDF.jsPDF)) || modJsPDF;
     const canvas = await html2canvas(el, { backgroundColor: "#fff", scale: 2 });
-    const pdf = new jsPDF({
+    const pdf = new (jsPDFLib.default || jsPDFLib)({
       orientation: "landscape",
       unit: "pt",
       format: [canvas.width, canvas.height + 60]
@@ -197,6 +201,7 @@ export default function Einduitslag() {
 
   async function handleExportAfbeelding(klasse) {
     const el = refs.current[klasse];
+    const { default: html2canvas } = await import('html2canvas');
     const canvas = await html2canvas(el, { backgroundColor: "#fff", scale: 2 });
     const link = document.createElement("a");
     link.download = `Einduitslag_${klasse}.png`;

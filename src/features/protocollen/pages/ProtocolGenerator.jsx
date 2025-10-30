@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+// jsPDF / autoTable are heavy and can execute code on module init in some builds.
+// Load them on-demand in the functions that need them to avoid initialization-order
+// errors in the app bundle (see Startlijst dynamic import approach).
+let autoTable = null;
 import { supabase } from "@/lib/supabaseClient";
 import { padStartnummer, lookupOffset } from '@/lib/startnummer';
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
@@ -172,8 +174,12 @@ function protocolToDoc(doc, p, items) {
   totalsBox(doc, afterAlg + 6, isSpeed ? null : maxPoints, isSpeed ? "Tijd / Strafseconden / Totaal" : null);
   signatureLine(doc);
 }
-function makePdfBlob(protocol, items) {
-  const doc = new jsPDF({ unit: "pt", format: "A4" });
+async function makePdfBlob(protocol, items) {
+  const mod = await import('jspdf');
+  const modAuto = await import('jspdf-autotable');
+  const jsPDFLib = (mod && (mod.default || mod.jsPDF)) || mod;
+  autoTable = (modAuto && (modAuto.default || modAuto)) || modAuto;
+  const doc = new (jsPDFLib.default || jsPDFLib)({ unit: "pt", format: "A4" });
   protocolToDoc(doc, protocol, items);
   return doc.output("blob");
 }
@@ -343,36 +349,40 @@ export default function ProtocolGenerator() {
   }, [csvRows, dbRows, config, selectedWedstrijd, dbMax]);
 
   // PDF actions
-  const previewPdf = () => {
+  const previewPdf = async () => {
     if (!protocollen.length) return;
     const p = protocollen[selectIndex] || protocollen[0];
-    const blob = makePdfBlob(p, items);
+    const blob = await makePdfBlob(p, items);
     const url = URL.createObjectURL(blob);
     setPdfUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
   };
-  const openNewTab = () => {
+  const openNewTab = async () => {
     if (!protocollen.length) return;
     const p = protocollen[selectIndex] || protocollen[0];
-    const blob = makePdfBlob(p, items);
+    const blob = await makePdfBlob(p, items);
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank", "noopener,noreferrer");
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
-  const downloadSingle = () => {
+  const downloadSingle = async () => {
     if (!protocollen.length) return;
     const p = protocollen[selectIndex] || protocollen[0];
-    const blob = makePdfBlob(p, items);
-  const a = document.createElement("a");
-  const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_").slice(0, 40);
-  a.href = URL.createObjectURL(blob);
-  const sn = padStartnummer(p.startnummer);
-  a.download = `${safe(p.onderdeel)}-${safe(sn)}-${safe(p.ruiter)}-${safe(p.paard)}.pdf`;
+    const blob = await makePdfBlob(p, items);
+    const a = document.createElement("a");
+    const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_").slice(0, 40);
+    a.href = URL.createObjectURL(blob);
+    const sn = padStartnummer(p.startnummer);
+    a.download = `${safe(p.onderdeel)}-${safe(sn)}-${safe(p.ruiter)}-${safe(p.paard)}.pdf`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
-  const downloadBatch = () => {
+  const downloadBatch = async () => {
     if (!protocollen.length) return;
-    const doc = new jsPDF({ unit: "pt", format: "A4" });
+    const mod = await import('jspdf');
+    const modAuto = await import('jspdf-autotable');
+    const jsPDFLib = (mod && (mod.default || mod.jsPDF)) || mod;
+    autoTable = (modAuto && (modAuto.default || modAuto)) || modAuto;
+    const doc = new (jsPDFLib.default || jsPDFLib)({ unit: "pt", format: "A4" });
     protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items); });
     doc.save(`protocollen_${config.onderdeel}.pdf`);
   };
