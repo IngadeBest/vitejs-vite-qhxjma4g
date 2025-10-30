@@ -14,11 +14,11 @@ const KLASSEN = [
   { code: "we4", label: "WE4" },
 ];
 
-export default function InschrijfFormulier() {
+export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = null }) {
   const { items: wedstrijden, loading } = useWedstrijden(false);
 
   const [form, setForm] = useState({
-    wedstrijd_id: "",
+    wedstrijd_id: initialWedstrijdId || "",
     klasse: "",
     ruiter: "",
     paard: "",
@@ -70,10 +70,12 @@ export default function InschrijfFormulier() {
       }
       const { error } = await supabase.from("inschrijvingen").insert(payload);
       if (error) throw error;
-      setMsg("Inschrijving opgeslagen ✔️");
-      setForm(s => ({ ...s, ruiter:"", paard:"", email:"", telefoon:"", omroeper:"", opmerkingen:"" }));
-      // focus first input for faster next entry
-      setTimeout(() => firstInputRef.current?.focus?.(), 50);
+  setMsg("Inschrijving opgeslagen ✔️");
+  setForm(s => ({ ...s, ruiter:"", paard:"", email:"", telefoon:"", omroeper:"", opmerkingen:"" }));
+  // focus first input for faster next entry
+  setTimeout(() => firstInputRef.current?.focus?.(), 50);
+  // notify parent if provided (e.g. Startlijst wants to reload rows)
+  try { if (typeof onSaved === 'function') onSaved(payload); } catch (e) { /* ignore */ }
     } catch (err) {
       setMsg("Fout bij opslaan: " + (err?.message || String(err)));
     } finally {

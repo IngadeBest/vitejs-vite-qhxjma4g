@@ -5,6 +5,9 @@ import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { Alert } from "@/ui/alert";
 import { Button } from "@/ui/button";
+import Container from "@/ui/Container";
+import InschrijfFormulier from "@/features/inschrijven/pages/InschrijfFormulier";
+import Modal from "@/ui/Modal";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -43,6 +46,7 @@ export default function Startlijst() {
   const refs = useRef({});
 
   const [klasseOrder, setKlasseOrder] = useState([]);
+  const [showNewForm, setShowNewForm] = useState(false);
   const lastInitFor = useRef(null);
   const [dragState, setDragState] = useState({ type: null, id: null, fromClass: null });
   const [scheduleConfig, setScheduleConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', trailInfo: '', globalSequence: true });
@@ -245,26 +249,25 @@ export default function Startlijst() {
   }, [gekozen, klasseOrder, rows, scheduleConfig.globalSequence, globalTimes]);
 
   // load rows for selected wedstrijd
-  useEffect(() => {
-    async function fetchRows() {
-      if (!selectedWedstrijdId) return setRows([]);
-      setBusy(true); setErr('');
-      try {
-        const { data, error } = await supabase.from('inschrijvingen').select('*').eq('wedstrijd_id', selectedWedstrijdId).order('startnummer', { ascending: true });
-        if (error) throw error;
-        setRows(data || []);
-        setSchemaHint('');
-      } catch (e) {
-        const em = String(e?.message || e);
-        setErr(em);
-        // if the error looks like a missing column or bad request, offer a small SQL hint to add likely missing columns
-        if (/column .* does not exist|Could not find the|bad request/i.test(em) || (typeof em === 'string' && em.toLowerCase().includes("could not find"))) {
-          setSchemaHint("-- Indien kolom ontbreekt: voeg 'klasse' toe aan inschrijvingen:\nALTER TABLE inschrijvingen ADD COLUMN IF NOT EXISTS klasse text;\n\n-- en maak index:\nCREATE INDEX IF NOT EXISTS idx_inschrijvingen_klasse ON inschrijvingen(klasse);");
-        }
-      } finally { setBusy(false); }
-    }
-    fetchRows();
-  }, [selectedWedstrijdId]);
+  async function fetchRows() {
+    if (!selectedWedstrijdId) return setRows([]);
+    setBusy(true); setErr('');
+    try {
+      const { data, error } = await supabase.from('inschrijvingen').select('*').eq('wedstrijd_id', selectedWedstrijdId).order('startnummer', { ascending: true });
+      if (error) throw error;
+      setRows(data || []);
+      setSchemaHint('');
+    } catch (e) {
+      const em = String(e?.message || e);
+      setErr(em);
+      // if the error looks like a missing column or bad request, offer a small SQL hint to add likely missing columns
+      if (/column .* does not exist|Could not find the|bad request/i.test(em) || (typeof em === 'string' && em.toLowerCase().includes("could not find"))) {
+        setSchemaHint("-- Indien kolom ontbreekt: voeg 'klasse' toe aan inschrijvingen:\nALTER TABLE inschrijvingen ADD COLUMN IF NOT EXISTS klasse text;\n\n-- en maak index:\nCREATE INDEX IF NOT EXISTS idx_inschrijvingen_klasse ON inschrijvingen(klasse);");
+      }
+    } finally { setBusy(false); }
+  }
+
+  useEffect(() => { fetchRows(); }, [selectedWedstrijdId]);
 
   function getDisplayedTimesForRow(item, idx, classItems, klasseCode) {
   const manualStart = item?.starttijd_manual ? (parseDateTimeLocal(item.starttijd_manual) || parseTimeForDate(item.starttijd_manual)) : null;
@@ -460,8 +463,9 @@ export default function Startlijst() {
 
   return (
     <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: 28 }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 340px', gap: 18 }}>
-        <main style={{ background: '#fff', borderRadius: 16, boxShadow: '0 6px 24px #20457422', padding: '30px 28px', fontFamily: 'system-ui, sans-serif' }}>
+      <Container maxWidth={1100}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 18 }}>
+          <main style={{ background: '#fff', borderRadius: 16, boxShadow: '0 6px 24px #20457422', padding: '30px 28px', fontFamily: 'system-ui, sans-serif' }}>
           <h2 style={{ fontSize: 28, fontWeight: 900, color: '#204574', marginBottom: 14 }}>Startlijst per klasse</h2>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto auto auto', gap: 8, alignItems: 'end' }}>
@@ -510,8 +514,17 @@ export default function Startlijst() {
             <>
               <div style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <div style={{ fontSize: 12, color: '#666' }}><b>Aantal inschrijvingen:</b> {visible.length}</div>
-                {beheer && (<><Button onClick={addRow} disabled={busy} variant="secondary">Nieuwe inschrijving</Button><Button onClick={renumber} disabled={busy || visible.length === 0} variant="secondary">Startnummers hernummeren</Button></>) }
+                {beheer && (<>
+                  <Button onClick={()=>setShowNewForm(true)} disabled={busy} variant="secondary">Nieuwe inschrijving</Button>
+                  <Button onClick={renumber} disabled={busy || visible.length === 0} variant="secondary">Startnummers hernummeren</Button>
+                </>) }
               </div>
+
+              {showNewForm && (
+                <Modal title="Nieuwe inschrijving" onClose={()=>setShowNewForm(false)}>
+                  <InschrijfFormulier initialWedstrijdId={selectedWedstrijdId} onSaved={(payload)=>{ setShowNewForm(false); fetchRows(); setMsg('Inschrijving toegevoegd'); }} />
+                </Modal>
+              )}
 
               <div style={{ marginTop: 8, display: 'grid', gap: 18 }}>
                 <div style={{ background: '#f8fbff', padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
@@ -702,7 +715,8 @@ export default function Startlijst() {
             </div>
           </div>
         </aside>
-      </div>
+        </div>
+      </Container>
     </div>
   );
 }

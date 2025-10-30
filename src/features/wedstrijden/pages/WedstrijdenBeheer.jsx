@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import ProefEditor from "@/features/wedstrijden/components/ProefEditor";
+import Container from "@/ui/Container";
 
 const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
@@ -205,15 +206,14 @@ export default function WedstrijdenBeheer() {
 
     return (
     <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: 24 }}>
-      <div style={{
-        maxWidth: 1000,
-        background: "#fff",
-        borderRadius: 12,
-        boxShadow: "0 6px 18px #20457422",
-        margin: "0 auto",
-        padding: "32px 28px",
-        fontFamily: "system-ui, sans-serif"
-      }}>
+      <Container maxWidth={1000}>
+        <div style={{
+          background: "#fff",
+          borderRadius: 12,
+          boxShadow: "0 6px 18px #20457422",
+          padding: "32px 28px",
+          fontFamily: "system-ui, sans-serif"
+        }}>
         <h2 style={{ fontSize: 28, fontWeight: 900, color: "#204574", letterSpacing: 0.6, marginBottom: 18 }}>
           Wedstrijden beheer
         </h2>
@@ -368,6 +368,8 @@ export default function WedstrijdenBeheer() {
       ) : (
         <div style={{ marginTop: 12, color: '#666' }}>Selecteer een bestaande wedstrijd om proeven toe te voegen.</div>
       )}
+
+      </Container>
 
       {msg && <div style={{ marginTop: 12, color: "#333" }}>{msg}</div>}
     </div>

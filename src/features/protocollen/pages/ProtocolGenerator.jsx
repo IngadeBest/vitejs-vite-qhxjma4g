@@ -278,12 +278,7 @@ export default function ProtocolGenerator() {
     }
   }
 
-  function padStartnummer(v) {
-    if (v == null) return '';
-    const n = Number(v);
-    if (!Number.isNaN(n)) return String(n).padStart(3, '0');
-    return String(v).toString().slice(0,3).padStart(3,'0');
-  }
+  // use shared padStartnummer from '@/lib/startnummer'
 
   // CSV helpers
   function csvToRows(text) {
