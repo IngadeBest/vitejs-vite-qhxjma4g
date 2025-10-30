@@ -8,9 +8,7 @@ import { Button } from "@/ui/button";
 import Container from "@/ui/Container";
 import InschrijfFormulier from "@/features/inschrijven/pages/InschrijfFormulier";
 import Modal from "@/ui/Modal";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+// heavy export libs are dynamically imported to avoid loading them on initial page render
 
 // Klassen (incl. WE2+ = 'we2p')
 const KLASSEN = [
@@ -423,7 +421,10 @@ export default function Startlijst() {
 
   // Export helpers (kept minimal)
   function handleExportExcel(klasseCode) {
-    const wb = XLSX.utils.book_new();
+    return (async () => {
+      const mod = await import('xlsx');
+      const XLSX = mod.default || mod;
+      const wb = XLSX.utils.book_new();
     if (klasseCode === '__all__') {
       const combined = [];
       const defaultPauses = Array.isArray(pauses?.['__default__']) ? pauses['__default__'] : [];
@@ -441,20 +442,23 @@ export default function Startlijst() {
         }
       }
       const ws = XLSX.utils.json_to_sheet(combined);
-  XLSX.utils.book_append_sheet(wb, ws, 'Startlijst');
-  XLSX.writeFile(wb, `Startlijst ${gekozen?.naam || 'onbekend'}.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, 'Startlijst');
+      XLSX.writeFile(wb, `Startlijst ${gekozen?.naam || 'onbekend'}.xlsx`);
       return;
     }
     const items = grouped.get(klasseCode) || [];
-  const ws = XLSX.utils.json_to_sheet(items.map((it, idx) => { const { start, trail } = getDisplayedTimesForRow(it, idx, items, klasseCode); return { Starttijd: formatTime(start), Startnummer: formatStartnummer(it, idx, klasseCode), Ruiter: it.ruiter, Paard: it.paard, Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', 'Starttijd Trail': formatTime(trail) }; }));
-    XLSX.utils.book_append_sheet(wb, ws, klasseCode || 'Onbekend');
-    XLSX.writeFile(wb, `Startlijst ${gekozen?.naam || klasseCode || 'onbekend'}.xlsx`);
+      const ws = XLSX.utils.json_to_sheet(items.map((it, idx) => { const { start, trail } = getDisplayedTimesForRow(it, idx, items, klasseCode); return { Starttijd: formatTime(start), Startnummer: formatStartnummer(it, idx, klasseCode), Ruiter: it.ruiter, Paard: it.paard, Klasse: KLASSEN.find(x=>x.code=== (it.klasse || ''))?.label || it.klasse || '', 'Starttijd Trail': formatTime(trail) }; }));
+      XLSX.utils.book_append_sheet(wb, ws, klasseCode || 'Onbekend');
+      XLSX.writeFile(wb, `Startlijst ${gekozen?.naam || klasseCode || 'onbekend'}.xlsx`);
+    })();
   }
 
   async function handleExportPDF(klasseCode) {
     const el = refs.current[klasseCode]; if (!el) return;
+    const [{ default: html2canvas }, modJsPDF] = await Promise.all([import('html2canvas'), import('jspdf')]);
+    const jsPDFLib = (modJsPDF && (modJsPDF.default || modJsPDF.jsPDF)) || modJsPDF;
     const canvas = await html2canvas(el, { backgroundColor: '#fff', scale: 2 });
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: [canvas.width, canvas.height + 60] });
+    const pdf = new (jsPDFLib.default || jsPDFLib)({ orientation: 'landscape', unit: 'pt', format: [canvas.width, canvas.height + 60] });
     pdf.addImage(canvas, 'PNG', 10, 30, canvas.width - 20, canvas.height - 40);
     pdf.save(`Startlijst ${gekozen?.naam || klasseCode}.pdf`);
   }
@@ -462,6 +466,7 @@ export default function Startlijst() {
   async function handleExportAfbeelding(klasseCode) {
     const el = refs.current[klasseCode];
     if (!el) return;
+    const { default: html2canvas } = await import('html2canvas');
     const canvas = await html2canvas(el, { backgroundColor: '#fff', scale: 2 });
     const link = document.createElement('a');
     link.download = `Startlijst ${gekozen?.naam || klasseCode}.png`;
