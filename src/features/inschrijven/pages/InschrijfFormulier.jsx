@@ -68,7 +68,23 @@ export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = 
       if (gekozenWedstrijd && !allowedKlassenForWedstrijd.includes(payload.klasse)) {
         throw new Error('Geselecteerde klasse is niet toegestaan voor deze wedstrijd.');
       }
-      const { error } = await supabase.from("inschrijvingen").insert(payload);
+      // Try insert. If DB schema lacks 'rubriek' column, retry without it and inform the admin.
+      let res = await supabase.from("inschrijvingen").insert(payload);
+      let error = res?.error;
+      if (error && /rubriek|column .* does not exist/i.test(String(error.message || error))) {
+        // retry without rubriek
+        const payload2 = { ...payload };
+        delete payload2.rubriek;
+        const retry = await supabase.from("inschrijvingen").insert(payload2);
+        if (retry?.error) throw retry.error;
+        // success but inform admin
+        setMsg("Inschrijving opgeslagen ✔️ (let op: database mist kolom 'rubriek' — voer de migratie uit voor volledige ondersteuning)");
+        // notify parent
+        try { if (typeof onSaved === 'function') onSaved(payload2); } catch (e) { /* ignore */ }
+        setForm(s => ({ ...s, ruiter:"", paard:"", email:"", telefoon:"", omroeper:"", opmerkingen:"" }));
+        setBusy(false);
+        return;
+      }
       if (error) throw error;
   setMsg("Inschrijving opgeslagen ✔️");
   setForm(s => ({ ...s, ruiter:"", paard:"", email:"", telefoon:"", omroeper:"", opmerkingen:"" }));

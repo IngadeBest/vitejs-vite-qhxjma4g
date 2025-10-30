@@ -53,13 +53,28 @@ export default function Startlijst() {
   const [pauses, setPauses] = useState({});
   const [visibleCols] = useState({ starttijd: true, startnummer: true, ruiter: true, paard: true, klasse: true, rubriek: true, starttijdTrail: true });
   // --- helpers and computation functions ---
-  function parseTimeForDate(timeStr) {
+  // parse a time string (HH:MM) or full ISO and return a Date on the provided baseDate (wedstrijd datum)
+  // baseDate may be a Date or a date string (YYYY-MM-DD). If not provided, falls back to today.
+  function parseTimeForDate(timeStr, baseDate) {
     if (!timeStr) return null;
     try {
       // accept HH:MM or full ISO
       if (/^\d{2}:\d{2}$/.test(timeStr)) {
-        const today = new Date(); const [hh, mm] = timeStr.split(':').map(Number);
-        return new Date(today.getFullYear(), today.getMonth(), today.getDate(), hh || 0, mm || 0, 0);
+        let year, month, day;
+        if (baseDate) {
+          let d = baseDate;
+          if (typeof d === 'string') {
+            // try parse YYYY-MM-DD (common wedstrijd.datum shape)
+            const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) { year = Number(m[1]); month = Number(m[2]) - 1; day = Number(m[3]); }
+            else { const parsed = new Date(d); if (!Number.isNaN(parsed.getTime())) { year = parsed.getFullYear(); month = parsed.getMonth(); day = parsed.getDate(); } }
+          } else if (d instanceof Date) {
+            year = d.getFullYear(); month = d.getMonth(); day = d.getDate();
+          }
+        }
+        const today = new Date();
+        const [hh, mm] = timeStr.split(':').map(Number);
+        return new Date((year !== undefined ? year : today.getFullYear()), (month !== undefined ? month : today.getMonth()), (day !== undefined ? day : today.getDate()), hh || 0, mm || 0, 0);
       }
       const d = new Date(timeStr);
       if (!Number.isNaN(d.getTime())) return d;
@@ -96,7 +111,7 @@ export default function Startlijst() {
   }
 
   function computeStartTimes(items, klasseCode) {
-    const base = parseTimeForDate(scheduleConfig.dressuurStart);
+  const base = parseTimeForDate(scheduleConfig.dressuurStart, gekozen?.datum);
     const interval = Number(scheduleConfig.interval) || 7;
     if (!items || !items.length) return [];
     const times = []; let cumulative = 0;
@@ -125,7 +140,7 @@ export default function Startlijst() {
   }
 
   function computeTrailTimes(items, klasseCode) {
-    const base = parseTimeForDate(scheduleConfig.stijltrailStart);
+  const base = parseTimeForDate(scheduleConfig.stijltrailStart, gekozen?.datum);
     const interval = Number(scheduleConfig.interval) || 7;
     if (!items || !items.length) return [];
     const times = []; let cumulative = 0;
@@ -159,7 +174,7 @@ export default function Startlijst() {
   // global continuous times across classes when enabled
   const globalTimes = useMemo(() => {
     if (!scheduleConfig.globalSequence) return null;
-    const base = parseTimeForDate(scheduleConfig.dressuurStart);
+  const base = parseTimeForDate(scheduleConfig.dressuurStart, gekozen?.datum);
     const interval = Number(scheduleConfig.interval) || 7;
     const defaultPauses = Array.isArray(pauses?.['__default__']) ? pauses['__default__'] : [];
     const times = [];
@@ -278,10 +293,10 @@ export default function Startlijst() {
       const gStart = globalTimes[globalIndex];
       const start = manualStart ? new Date(manualStart) : (gStart || null);
       // trail: manual overrides win; otherwise compute from delta between dressuur and stijltrail if provided
-      if (manualTrail) return { start, trail: new Date(manualTrail), computedStart: null };
+        if (manualTrail) return { start, trail: new Date(manualTrail), computedStart: null };
       if (scheduleConfig.stijltrailStart && gStart) {
-        const dressStart = parseTimeForDate(scheduleConfig.dressuurStart);
-        const stijlBase = parseTimeForDate(scheduleConfig.stijltrailStart);
+        const dressStart = parseTimeForDate(scheduleConfig.dressuurStart, gekozen?.datum);
+        const stijlBase = parseTimeForDate(scheduleConfig.stijltrailStart, gekozen?.datum);
         const delta = (dressStart && stijlBase) ? Math.round((stijlBase.getTime() - dressStart.getTime()) / 60000) : 0;
         const trailTime = gStart ? new Date(gStart.getTime() + delta * 60000) : null;
         return { start, trail: trailTime, computedStart: null };
