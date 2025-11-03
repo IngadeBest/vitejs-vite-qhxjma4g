@@ -1,215 +1,446 @@
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
-import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
-import { padStartnummer, lookupOffset } from "@/lib/startnummer";
-import Container from "@/ui/Container";
-import { Alert } from "@/ui/alert";
-import { Button } from "@/ui/button";
 
-/**
- * VEILIGE, EENDUIDIGE STARTLIJSTPAGINA
- * - Geen top-level logica die andere const/let aanroept (voorkomt TDZ/hoisting issues die in productie als
- *   "Cannot access 'k' before initialization" verschijnen).
- * - Geen cirkelimports.
- * - Alle helpers staan BÍNnen de component of vóór gebruik.
- */
+// ======= Helpers =======
+const LS_KEY = "wp_startlijst_cache_v1";
 
-const KLASSEN = [
-  { code: "", label: "Alle klassen" },
-  { code: "we0", label: "Introductieklasse (WE0)" },
-  { code: "we1", label: "WE1" },
-  { code: "we2", label: "WE2" },
-  { code: "we2p", label: "WE2+" },
-  { code: "we3", label: "WE3" },
-  { code: "we4", label: "WE4" },
-  { code: "yr", label: "Young Riders" },
-  { code: "junior", label: "Junioren" },
-];
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  if (!lines.length) return [];
+  const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+  const idx = {
+    ruiter: header.indexOf("ruiter"),
+    paard: header.indexOf("paard"),
+    startnummer: header.indexOf("startnummer"),
+  };
+  return lines.slice(1).map((ln, i) => {
+    const cols = ln.split(",").map(s => s.trim());
+    return {
+      id: `row_${Date.now()}_${i}`,
+      type: "entry",
+      ruiter: idx.ruiter >= 0 ? cols[idx.ruiter] : cols[0] || "",
+      paard: idx.paard >= 0 ? cols[idx.paard] : cols[1] || "",
+      startnummer: (idx.startnummer >= 0 ? cols[idx.startnummer] : cols[2] || "").padStart(2, "0"),
+    };
+  });
+}
 
-export default function Startlijst() {
-  const [params, setParams] = useSearchParams();
-  const [filter, setFilter] = useState({
-    wedstrijd_id: params.get("wedstrijd_id") || "",
-    klasse: params.get("klasse") || "",
-    rubriek: params.get("rubriek") || "senior",
+function setQueryParam(name, value) {
+  const url = new URL(window.location.href);
+  if (value === undefined || value === null || value === "") {
+    url.searchParams.delete(name);
+  } else {
+    url.searchParams.set(name, String(value));
+  }
+  history.replaceState(null, "", url.toString());
+}
+function getQueryParam(name) {
+  const url = new URL(window.location.href);
+  return url.searchParams.get(name) || "";
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function generateSimplePDF(title, rows) {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  doc.setFontSize(16);
+  doc.text(title, 40, 50);
+
+  const body = rows.map((r, i) => {
+    if (r.type === "break") {
+      return [ "", "", `— PAUZE: ${r.label || ""} (${r.duration || 0} min) —`, "" ];
+    }
+    return [ String(i + 1), r.startnummer, r.ruiter, r.paard ];
   });
 
-  const { items: wedstrijden, loading: wLoading, error: wError } = useWedstrijden(false);
-  const [rows, setRows] = useState([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  // helpers (definieer vóór gebruik, geen afhankelijkheid naar later gedefinieerde const/let)
-  const asInt = (v, d = 0) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : d;
-  };
-  const fmt = (v) => (v == null ? "" : String(v));
-
-  // lees startlijstdataset
-  useEffect(() => {
-    let alive = true;
-    async function run() {
-      setBusy(true);
-      setError("");
-      try {
-        if (!filter.wedstrijd_id) {
-          setRows([]);
-          return;
-        }
-        const q = supabase
-          .from("inschrijvingen")
-          .select("*")
-          .eq("wedstrijd_id", filter.wedstrijd_id)
-          .order("klasse", { ascending: true })
-          .order("startnummer", { ascending: true });
-
-        const { data, error } = await q;
-        if (error) throw error;
-
-        const wedstrijd = wedstrijden.find((w) => String(w.id) === String(filter.wedstrijd_id));
-        const mapped = (data || []).map((r) => {
-          // bereken offset en eind-startnummer
-          const offset = lookupOffset(r.klasse, r.rubriek || "senior", wedstrijd);
-          const eindNr = padStartnummer(asInt(r.startnummer, 0) + asInt(offset, 0));
-          return {
-            id: r.id,
-            ruiter: r.ruiter || r.naam || "",
-            paard: r.paard || "",
-            klasse: r.klasse || "",
-            rubriek: r.rubriek || "senior",
-            rawStart: r.startnummer,
-            offset,
-            startnummer: eindNr,
-          };
-        });
-        if (alive) setRows(mapped);
-      } catch (e) {
-        if (alive) setError(e?.message || "Onbekende fout bij laden.");
-      } finally {
-        if (alive) setBusy(false);
+  autoTable(doc, {
+    head: [["#", "Startnr", "Ruiter", "Paard / Pauze"]],
+    body,
+    startY: 80,
+    styles: { fontSize: 10 },
+    headStyles: { fillColor: [230, 230, 230] },
+    margin: { left: 40, right: 40 },
+    didParseCell: (data) => {
+      const r = rows[data.row.index];
+      if (r?.type === "break") {
+        data.cell.styles.fontStyle = "bold";
       }
     }
-    run();
-    return () => {
-      alive = false;
-    };
-  }, [filter.wedstrijd_id, wedstrijden]);
+  });
 
-  // update querystring als filter wijzigt
-  useEffect(() => {
-    const next = new URLSearchParams();
-    if (filter.wedstrijd_id) next.set("wedstrijd_id", filter.wedstrijd_id);
-    if (filter.klasse) next.set("klasse", filter.klasse);
-    if (filter.rubriek) next.set("rubriek", filter.rubriek);
-    setParams(next, { replace: true });
-  }, [filter, setParams]);
+  return doc.output("blob");
+}
 
-  // gefilterde rijen
-  const viewRows = useMemo(() => {
-    return rows.filter((r) => {
-      if (filter.klasse && r.klasse !== filter.klasse) return false;
-      if (filter.rubriek && r.rubriek !== filter.rubriek) return false;
-      return true;
+// Excel export met fallback
+async function exportToExcel(rows, meta = {}) {
+  try {
+    const XLSX = await import("xlsx");
+    const data = rows.map((r, idx) => ({
+      Volgorde: idx + 1,
+      Type: r.type === "break" ? "PAUZE" : "RIT",
+      Startnummer: r.type === "break" ? "" : (r.startnummer || ""),
+      Ruiter: r.type === "break" ? "" : (r.ruiter || ""),
+      Paard: r.type === "break" ? "" : (r.paard || ""),
+      PauzeLabel: r.type === "break" ? (r.label || "") : "",
+      PauzeMinuten: r.type === "break" ? (r.duration || 0) : "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Startlijst");
+    const title = `Startlijst_${meta.wedstrijd || ""}_${meta.klasse || ""}_${meta.rubriek || ""}`.replace(/\s+/g,"_");
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    downloadBlob(new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${title}.xlsx`);
+  } catch (e) {
+    // Fallback CSV
+    const header = ["Volgorde","Type","Startnummer","Ruiter","Paard","PauzeLabel","PauzeMinuten"];
+    const lines = [header.join(",")];
+    rows.forEach((r, idx) => {
+      const line = [
+        idx + 1,
+        r.type === "break" ? "PAUZE" : "RIT",
+        r.type === "break" ? "" : (r.startnummer || ""),
+        r.type === "break" ? "" : (r.ruiter || ""),
+        r.type === "break" ? "" : (r.paard || ""),
+        r.type === "break" ? (r.label || "") : "",
+        r.type === "break" ? (r.duration || 0) : "",
+      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(",");
+      lines.push(line);
     });
-  }, [rows, filter]);
+    const csv = lines.join("\\n");
+    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), "startlijst.csv");
+  }
+}
+
+// ======= Component =======
+export default function Startlijst() {
+  // Filters met URL sync
+  const [wedstrijd, setWedstrijd] = useState(getQueryParam("wedstrijd_id"));
+  const [klasse, setKlasse] = useState(getQueryParam("klasse"));
+  const [rubriek, setRubriek] = useState(getQueryParam("rubriek"));
+  useEffect(() => { setQueryParam("wedstrijd_id", wedstrijd); }, [wedstrijd]);
+  useEffect(() => { setQueryParam("klasse", klasse); }, [klasse]);
+  useEffect(() => { setQueryParam("rubriek", rubriek); }, [rubriek]);
+
+  // Lijst (entries + breaks)
+  const [rows, setRows] = useState(() => {
+    try {
+      const cached = localStorage.getItem(LS_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return rows;
+    return rows.filter(r => r.type === "break"
+      ? (r.label || "").toLowerCase().includes(q)
+      : (r.ruiter || "").toLowerCase().includes(q) || (r.paard || "").toLowerCase().includes(q) || (r.startnummer || "").toLowerCase().includes(q)
+    );
+  }, [rows, search]);
+
+  // CSV upload → voegt alleen RIT-regels toe (type: entry)
+  const onCSV = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const text = await f.text();
+    const parsed = parseCSV(text);
+    setRows(parsed);
+    e.target.value = "";
+  };
+
+  // DnD
+  const dragIndex = useRef(null);
+  const onDragStart = (idx) => (ev) => { dragIndex.current = idx; ev.dataTransfer.effectAllowed = "move"; };
+  const onDragOver = (idx) => (ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; };
+  const onDrop = (idx) => (ev) => {
+    ev.preventDefault();
+    const from = dragIndex.current;
+    if (from === null || from === idx) return;
+    setRows(prev => {
+      const next = prev.slice();
+      const [moved] = next.splice(from, 1);
+      next.splice(idx, 0, moved);
+      return next;
+    });
+    dragIndex.current = null;
+  };
+
+  // Pauze toevoegen
+  const [pauseLabel, setPauseLabel] = useState("");
+  const [pauseMin, setPauseMin] = useState(10);
+  const addPauseAtEnd = () => {
+    setRows(prev => [...prev, { id: `break_${Date.now()}`, type: "break", label: pauseLabel || "Pauze", duration: Number(pauseMin) || 10 }]);
+    setPauseLabel("");
+    setPauseMin(10);
+  };
+
+  // Preview modal
+  const [showPreview, setShowPreview] = useState(false);
+  const saveList = () => {
+    localStorage.setItem(LS_KEY, JSON.stringify(rows));
+    setShowPreview(false);
+  };
+
+  const makeBatchPDF = async () => {
+    const blob = await generateSimplePDF(
+      `Startlijst ${wedstrijd || ""} ${klasse || ""} ${rubriek || ""}`.trim(),
+      filtered
+    );
+    downloadBlob(blob, "startlijst.pdf");
+  };
+
+  const meta = { wedstrijd, klasse, rubriek };
 
   return (
-    <Container>
-      <h1 className="text-xl font-bold mb-4">Startlijsten</h1>
-
-      {wError && <Alert variant="error">{wError}</Alert>}
-      {error && <Alert variant="error">{error}</Alert>}
+    <div className="p-4 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-        <div>
-          <label className="block text-sm mb-1">Wedstrijd</label>
-          <select
-            value={filter.wedstrijd_id}
-            onChange={(e) => setFilter((s) => ({ ...s, wedstrijd_id: e.target.value }))}
-            className="w-full border rounded p-2"
-          >
-            <option value="">— kies —</option>
-            {wedstrijden.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.naam} — {w.datum}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm mb-1">Klasse</label>
-          <select
-            value={filter.klasse}
-            onChange={(e) => setFilter((s) => ({ ...s, klasse: e.target.value }))}
-            className="w-full border rounded p-2"
-          >
-            {KLASSEN.map((k) => (
-              <option key={k.code} value={k.code}>
-                {k.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm mb-1">Rubriek</label>
-          <select
-            value={filter.rubriek}
-            onChange={(e) => setFilter((s) => ({ ...s, rubriek: e.target.value }))}
-            className="w-full border rounded p-2"
-          >
-            <option value="senior">Senior</option>
-            <option value="jeugd">Jeugd</option>
-          </select>
-        </div>
-
-        <div className="flex items-end">
-          <Button onClick={() => setFilter((s) => ({ ...s }))} disabled={busy || !filter.wedstrijd_id}>
-            Vernieuwen
-          </Button>
-        </div>
+        <input className="border rounded px-2 py-1" placeholder="Wedstrijd ID" value={wedstrijd} onChange={(e)=>setWedstrijd(e.target.value)} />
+        <input className="border rounded px-2 py-1" placeholder="Klasse (WE0–WE4)" value={klasse} onChange={(e)=>setKlasse(e.target.value)} />
+        <input className="border rounded px-2 py-1" placeholder="Rubriek" value={rubriek} onChange={(e)=>setRubriek(e.target.value)} />
+        <input className="border rounded px-2 py-1" placeholder="Zoeken (ruiter/paard/startnr of pauze)" value={search} onChange={(e)=>setSearch(e.target.value)} />
       </div>
 
-      {busy && <div>Laden…</div>}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <label className="cursor-pointer inline-flex items-center gap-2">
+          <span className="px-3 py-2 border rounded bg-white">CSV uploaden</span>
+          <input type="file" accept=".csv,text/csv" className="hidden" onChange={onCSV} />
+        </label>
+
+        <button className="px-3 py-2 border rounded" onClick={() => setShowPreview(true)} disabled={!rows.length}>
+          Preview & Opslaan
+        </button>
+
+        <button className="px-3 py-2 border rounded" onClick={makeBatchPDF} disabled={!filtered.length}>
+          Batch PDF
+        </button>
+
+        <button className="px-3 py-2 border rounded" onClick={() => exportToExcel(filtered, meta)} disabled={!filtered.length}>
+          Export naar Excel
+        </button>
+      </div>
+
+      <div className="flex items-end gap-2 mb-4">
+        <div className="flex flex-col">
+          <label className="text-sm text-gray-600">Pauze titel</label>
+          <input className="border rounded px-2 py-1" placeholder="Bijv. Koffiepauze" value={pauseLabel} onChange={(e)=>setPauseLabel(e.target.value)} />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-sm text-gray-600">Minuten</label>
+          <input className="border rounded px-2 py-1 w-24" type="number" min={1} value={pauseMin} onChange={(e)=>setPauseMin(e.target.value)} />
+        </div>
+        <button className="px-3 py-2 border rounded" onClick={addPauseAtEnd}>+ Pauze toevoegen</button>
+      </div>
 
       <div className="overflow-auto border rounded">
-        <table className="min-w-[700px] w-full border-collapse text-sm">
+        <table className="min-w-full">
           <thead>
-            <tr className="bg-gray-50">
-              <th className="text-left p-2 border">Startnr</th>
-              <th className="text-left p-2 border">Ruiter</th>
-              <th className="text-left p-2 border">Paard</th>
-              <th className="text-left p-2 border">Klasse</th>
-              <th className="text-left p-2 border">Rubriek</th>
-              <th className="text-left p-2 border">Ruw</th>
-              <th className="text-left p-2 border">Offset</th>
+            <tr className="bg-gray-100 text-left">
+              <th className="p-2 w-12">#</th>
+              <th className="p-2 w-24">Startnr</th>
+              <th className="p-2">Ruiter</th>
+              <th className="p-2">Paard</th>
+              <th className="p-2 w-56">Type / Pauze</th>
+              <th className="p-2 w-40">Acties</th>
             </tr>
           </thead>
           <tbody>
-            {viewRows.map((r) => (
-              <tr key={r.id}>
-                <td className="p-2 border">{fmt(r.startnummer)}</td>
-                <td className="p-2 border">{fmt(r.ruiter)}</td>
-                <td className="p-2 border">{fmt(r.paard)}</td>
-                <td className="p-2 border">{fmt(r.klasse)}</td>
-                <td className="p-2 border">{fmt(r.rubriek)}</td>
-                <td className="p-2 border">{fmt(r.rawStart)}</td>
-                <td className="p-2 border">{fmt(r.offset)}</td>
-              </tr>
-            ))}
-            {!busy && viewRows.length === 0 && (
-              <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500">
-                  Geen rijen
+            {filtered.map((row, idx) => (
+              <tr key={row.id || idx}
+                  draggable
+                  onDragStart={onDragStart(idx)}
+                  onDragOver={onDragOver(idx)}
+                  onDrop={onDrop(idx)}
+                  className={`border-t hover:bg-gray-50 ${row.type === "break" ? "bg-yellow-50" : ""}`}>
+                <td className="p-2">{idx + 1}</td>
+                <td className="p-2">
+                  {row.type === "break" ? (
+                    <span className="text-gray-400">—</span>
+                  ) : (
+                    <input className="border rounded px-2 py-1 w-24"
+                      value={row.startnummer || ""}
+                      onChange={(e)=>{
+                        const val = e.target.value;
+                        setRows(prev => {
+                          const next = prev.slice();
+                          const realIndex = rows.indexOf(filtered[idx]); // map naar echte index
+                          next[realIndex] = { ...next[realIndex], startnummer: val };
+                          return next;
+                        });
+                      }}
+                    />
+                  )}
+                </td>
+                <td className="p-2">
+                  {row.type === "break" ? (
+                    <span className="text-gray-400">—</span>
+                  ) : (
+                    <input className="border rounded px-2 py-1 w-full"
+                      value={row.ruiter || ""}
+                      onChange={(e)=>{
+                        const val = e.target.value;
+                        setRows(prev => {
+                          const next = prev.slice();
+                          const realIndex = rows.indexOf(filtered[idx]);
+                          next[realIndex] = { ...next[realIndex], ruiter: val };
+                          return next;
+                        });
+                      }}
+                    />
+                  )}
+                </td>
+                <td className="p-2">
+                  {row.type === "break" ? (
+                    <span className="text-gray-400">—</span>
+                  ) : (
+                    <input className="border rounded px-2 py-1 w-full"
+                      value={row.paard || ""}
+                      onChange={(e)=>{
+                        const val = e.target.value;
+                        setRows(prev => {
+                          const next = prev.slice();
+                          const realIndex = rows.indexOf(filtered[idx]);
+                          next[realIndex] = { ...next[realIndex], paard: val };
+                          return next;
+                        });
+                      }}
+                    />
+                  )}
+                </td>
+                <td className="p-2">
+                  {row.type === "break" ? (
+                    <div className="flex items-center gap-2">
+                      <input className="border rounded px-2 py-1 w-40"
+                        value={row.label || ""}
+                        onChange={(e)=>{
+                          const val = e.target.value;
+                          setRows(prev => {
+                            const next = prev.slice();
+                            const realIndex = rows.indexOf(filtered[idx]);
+                            next[realIndex] = { ...next[realIndex], label: val };
+                            return next;
+                          });
+                        }}
+                      />
+                      <input className="border rounded px-2 py-1 w-24" type="number" min={1}
+                        value={row.duration || 0}
+                        onChange={(e)=>{
+                          const val = Number(e.target.value) || 0;
+                          setRows(prev => {
+                            const next = prev.slice();
+                            const realIndex = rows.indexOf(filtered[idx]);
+                            next[realIndex] = { ...next[realIndex], duration: val };
+                            return next;
+                          });
+                        }}
+                      />
+                      <span className="text-sm text-gray-600">min</span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500">Rit</span>
+                  )}
+                </td>
+                <td className="p-2">
+                  <div className="flex gap-2">
+                    <button className="px-2 py-1 border rounded"
+                      onClick={() => {
+                        const realIndex = rows.indexOf(filtered[idx]);
+                        setRows(prev => prev.filter((_, i) => i !== realIndex));
+                      }}
+                    >
+                      Verwijderen
+                    </button>
+                    {row.type !== "break" && (
+                      <button className="px-2 py-1 border rounded"
+                        onClick={async ()=>{
+                          const blob = await generateSimplePDF(`Startnummer ${row.startnummer} – ${row.ruiter}`, [row]);
+                          downloadBlob(blob, `startnummer-${row.startnummer}.pdf`);
+                        }}
+                      >
+                        PDF
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
+            ))}
+            {!filtered.length && (
+              <tr><td className="p-4 text-gray-500" colSpan={6}>Geen rijen. Upload CSV of voeg handmatig toe.</td></tr>
             )}
           </tbody>
         </table>
       </div>
-    </Container>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          className="px-3 py-2 border rounded"
+          onClick={() => setRows(prev => [...prev, { id: `${Date.now()}`, type: "entry", ruiter: "", paard: "", startnummer: "".padStart(2, "0") }])}
+        >
+          + Deelnemer
+        </button>
+      </div>
+
+      {/* Preview modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-semibold">Preview startlijst</h2>
+              <button className="px-3 py-1 border rounded" onClick={()=>setShowPreview(false)}>Sluiten</button>
+            </div>
+            <div className="max-h-[60vh] overflow-auto border rounded">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-gray-100 text-left">
+                    <th className="p-2 w-12">#</th>
+                    <th className="p-2 w-24">Startnr</th>
+                    <th className="p-2">Ruiter</th>
+                    <th className="p-2">Paard</th>
+                    <th className="p-2 w-56">Type / Pauze</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={r.id || i} className={`border-t ${r.type === "break" ? "bg-yellow-50" : ""}`}>
+                      <td className="p-2">{i + 1}</td>
+                      <td className="p-2">{r.type === "break" ? "—" : r.startnummer}</td>
+                      <td className="p-2">{r.type === "break" ? "—" : r.ruiter}</td>
+                      <td className="p-2">{r.type === "break" ? "—" : r.paard}</td>
+                      <td className="p-2">
+                        {r.type === "break" ? `PAUZE: ${r.label || ""} (${r.duration || 0} min)` : "Rit"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-3 flex gap-2 justify-end">
+              <button className="px-3 py-2 border rounded" onClick={()=>exportToExcel(rows, meta)}>Export naar Excel</button>
+              <button className="px-3 py-2 border rounded" onClick={async ()=>{
+                const blob = await generateSimplePDF(`Startlijst ${wedstrijd || ""} ${klasse || ""} ${rubriek || ""}`.trim(), rows);
+                downloadBlob(blob, "startlijst.pdf");
+              }}>Download PDF</button>
+              <button className="px-3 py-2 border rounded bg-black text-white" onClick={saveList}>Opslaan</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
