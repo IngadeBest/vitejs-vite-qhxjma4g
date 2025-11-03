@@ -15,6 +15,9 @@ Voer `SQL/006_wedstrijden_organisator_email.sql` uit als je per-wedstrijd een or
 npm i
 npm run dev
 
+<!-- redeploy trigger -->
+Redeploy trigger: 2025-11-03T11:32:00Z
+
 ## Gebruik
 - Zonder query: gebruiker kiest wedstrijd in dropdown.
 - Met query: `?wedstrijdId=<uuid>` verbergt dropdown.
