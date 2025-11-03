@@ -1,5 +1,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 
 // ======= Helpers =======
 const LS_KEY = "wp_startlijst_cache_v1";
@@ -127,6 +128,7 @@ async function exportToExcel(rows, meta = {}) {
 export default function Startlijst() {
   // Filters met URL sync
   const [wedstrijd, setWedstrijd] = useState(getQueryParam("wedstrijd_id"));
+  const { items: wedstrijden, loading: loadingWed } = useWedstrijden(false);
   const [klasse, setKlasse] = useState(getQueryParam("klasse"));
   const [rubriek, setRubriek] = useState(getQueryParam("rubriek"));
   useEffect(() => { setQueryParam("wedstrijd_id", wedstrijd); }, [wedstrijd]);
@@ -211,7 +213,12 @@ export default function Startlijst() {
       <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-        <input className="border rounded px-2 py-1" placeholder="Wedstrijd ID" value={wedstrijd} onChange={(e)=>setWedstrijd(e.target.value)} />
+        <select className="border rounded px-2 py-1" value={wedstrijd} onChange={(e)=>setWedstrijd(e.target.value)}>
+          <option value="">{loadingWed ? "Laden..." : "— kies wedstrijd —"}</option>
+          {(wedstrijden || []).map(w => (
+            <option key={w.id} value={w.id}>{w.naam}{w.datum ? ` (${w.datum})` : ""}</option>
+          ))}
+        </select>
         <input className="border rounded px-2 py-1" placeholder="Klasse (WE0–WE4)" value={klasse} onChange={(e)=>setKlasse(e.target.value)} />
         <input className="border rounded px-2 py-1" placeholder="Rubriek" value={rubriek} onChange={(e)=>setRubriek(e.target.value)} />
         <input className="border rounded px-2 py-1" placeholder="Zoeken (ruiter/paard/startnr of pauze)" value={search} onChange={(e)=>setSearch(e.target.value)} />
