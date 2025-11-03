@@ -1,0 +1,25 @@
+{
+  "name": "working-point-inschrijvingen",
+  "version": "1.0.0",
+  "description": "A registration application for events using Supabase and React.",
+  "main": "src/main.jsx",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "supabase-js": "^1.0.0",
+    "nodemailer": "^6.0.0"
+  },
+  "devDependencies": {
+    "vite": "^2.0.0",
+    "eslint": "^7.0.0",
+    "eslint-plugin-react": "^7.0.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}
