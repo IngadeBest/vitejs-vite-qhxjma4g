@@ -186,6 +186,25 @@ export default function Startlijst() {
   const [loadingFromDB, setLoadingFromDB] = useState(false);
   const [dbMessage, setDbMessage] = useState("");
 
+  // Volgorde van klassen voor de preview (en "starttijden per klasse")
+  const [classOrder, setClassOrder] = useState([]);
+
+  // Zorg dat classOrder altijd alle gebruikte klassen bevat, in stabiele volgorde
+  useEffect(() => {
+    const classesInRows = Array.from(
+      new Set(
+        rows
+          .filter((r) => r.type === "entry")
+          .map((r) => r.klasse || "Zonder klasse")
+      )
+    );
+    setClassOrder((prev) => {
+      const kept = prev.filter((c) => classesInRows.includes(c));
+      const added = classesInRows.filter((c) => !kept.includes(c));
+      return [...kept, ...added];
+    });
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     if (!q) return rows;
@@ -198,6 +217,24 @@ export default function Startlijst() {
     );
   }, [rows, search]);
 
+  // Preview per klasse groeperen (alleen deelnemers; pauzes apart)
+  const previewClassMap = useMemo(() => {
+    const map = new Map();
+    filtered.forEach((r) => {
+      if (r.type === "entry") {
+        const key = r.klasse || "Zonder klasse";
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(r);
+      }
+    });
+    return map;
+  }, [filtered]);
+
+  const previewBreaks = useMemo(
+    () => filtered.filter((r) => r.type === "break"),
+    [filtered]
+  );
+
   // CSV upload → voegt alleen RIT-regels toe (type: entry)
   const onCSV = async (e) => {
     const f = e.target.files?.[0];
@@ -208,7 +245,7 @@ export default function Startlijst() {
     e.target.value = "";
   };
 
-  // DnD
+  // DnD (per deelnemer, in hoofdtabel)
   const dragIndex = useRef(null);
   const onDragStart = (idx) => (ev) => {
     dragIndex.current = idx;
@@ -315,12 +352,25 @@ export default function Startlijst() {
     }
   }, [wedstrijd, loadDeelnemersFromDB]);
 
+  // Helper om volgorde van klassen te wijzigen (voor "starttijden per klasse")
+  const moveClass = (cls, direction) => {
+    setClassOrder((prev) => {
+      const idx = prev.indexOf(cls);
+      if (idx === -1) return prev;
+      const newOrder = [...prev];
+      const swapWith = direction === "up" ? idx - 1 : idx + 1;
+      if (swapWith < 0 || swapWith >= newOrder.length) return prev;
+      [newOrder[idx], newOrder[swapWith]] = [newOrder[swapWith], newOrder[idx]];
+      return newOrder;
+    });
+  };
+
   return (
     <div className="p-4 max-w-full mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Main editing area */}
+        {/* Main editing area (links) */}
         <div className="md:col-span-2 order-2 md:order-1">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
             <select
@@ -652,9 +702,9 @@ export default function Startlijst() {
           </div>
         </div>
 
-        {/* Live Preview Sidebar (één versie) */}
+        {/* Live Preview Sidebar (rechts, per klasse gegroepeerd) */}
         <div className="md:col-span-1 order-1 md:order-2">
-          <div className="sticky top-4">
+          <div className="sticky top-4 space-y-3">
             <div className="bg-gray-50 rounded-lg p-4 border">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold text-gray-700">
@@ -665,69 +715,147 @@ export default function Startlijst() {
                 </span>
               </div>
 
+              {/* Volgorde klassen */}
+              {classOrder.length > 0 && (
+                <div className="mb-3">
+                  <div className="text-xs font-semibold text-gray-600 mb-1">
+                    Volgorde klassen (starttijden)
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {classOrder.map((cls) => {
+                      if (!previewClassMap.has(cls)) return null;
+                      return (
+                        <div
+                          key={cls}
+                          className="flex items-center gap-1 text-xs bg-white border rounded-full px-2 py-1"
+                        >
+                          <span>{cls === "Zonder klasse" ? "—" : cls}</span>
+                          <button
+                            type="button"
+                            className="text-gray-400 hover:text-gray-700"
+                            onClick={() => moveClass(cls, "up")}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            className="text-gray-400 hover:text-gray-700"
+                            onClick={() => moveClass(cls, "down")}
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="max-h-[70vh] overflow-auto border rounded bg-white">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-100 text-left">
-                      <th className="p-2 text-xs">#</th>
-                      <th className="p-2 text-xs">Nr</th>
-                      <th className="p-2 text-xs">Ruiter</th>
-                      <th className="p-2 text-xs">Paard</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.length === 0 ? (
-                      <tr>
-                        <td
-                          className="p-4 text-gray-500 text-center text-xs"
-                          colSpan={4}
-                        >
-                          Geen items om te tonen
-                        </td>
-                      </tr>
-                    ) : (
-                      filtered.map((r, i) => (
-                        <tr
-                          key={r.id || i}
-                          className={`border-t text-xs ${
-                            r.type === "break"
-                              ? "bg-yellow-50"
-                              : "hover:bg-gray-50"
-                          }`}
-                        >
-                          <td className="p-2 text-gray-600">{i + 1}</td>
-                          <td className="p-2 font-mono">
-                            {r.type === "break"
-                              ? "—"
-                              : r.startnummer || "??"}
-                          </td>
-                          <td className="p-2">
-                            {r.type === "break" ? (
-                              <span className="font-semibold text-orange-600">
-                                PAUZE: {r.label || "Pauze"}
-                              </span>
-                            ) : (
-                              <span className="font-medium">
-                                {r.ruiter || "[Leeg]"}
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-2">
-                            {r.type === "break" ? (
-                              <span className="text-xs text-orange-500">
-                                {r.duration || 0} min
-                              </span>
-                            ) : (
-                              <span className="text-gray-700">
-                                {r.paard || "[Leeg]"}
-                              </span>
-                            )}
-                          </td>
+                {classOrder
+                  .filter((cls) => previewClassMap.has(cls))
+                  .map((cls) => {
+                    const groupRows = previewClassMap.get(cls) || [];
+                    return (
+                      <div key={cls} className="border-b last:border-b-0">
+                        <div className="bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700 flex justify-between items-center">
+                          <span>
+                            Klasse{" "}
+                            {cls === "Zonder klasse" ? "— (niet ingevuld)" : cls}
+                          </span>
+                          <span className="text-[10px] text-gray-500">
+                            {groupRows.length} deelnemer
+                            {groupRows.length === 1 ? "" : "s"}
+                          </span>
+                        </div>
+                        <table className="min-w-full text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 text-left">
+                              <th className="p-2 text-[10px]">#</th>
+                              <th className="p-2 text-[10px]">Nr</th>
+                              <th className="p-2 text-[10px]">Ruiter</th>
+                              <th className="p-2 text-[10px]">Paard</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groupRows.map((r) => {
+                              const globalIndex =
+                                filtered.indexOf(r) + 1 || "?";
+                              return (
+                                <tr
+                                  key={r.id}
+                                  className="border-t hover:bg-gray-50"
+                                >
+                                  <td className="p-2 text-gray-600">
+                                    {globalIndex}
+                                  </td>
+                                  <td className="p-2 font-mono">
+                                    {r.startnummer || "??"}
+                                  </td>
+                                  <td className="p-2">
+                                    <span className="font-medium">
+                                      {r.ruiter || "[Leeg]"}
+                                    </span>
+                                  </td>
+                                  <td className="p-2">
+                                    <span className="text-gray-700">
+                                      {r.paard || "[Leeg]"}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+
+                {/* Pauzes apart tonen */}
+                {previewBreaks.length > 0 && (
+                  <div className="border-t">
+                    <div className="bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-800">
+                      Pauzes (algemeen)
+                    </div>
+                    <table className="min-w-full text-xs">
+                      <thead>
+                        <tr className="bg-yellow-50 text-left">
+                          <th className="p-2 text-[10px]">#</th>
+                          <th className="p-2 text-[10px]">Beschrijving</th>
+                          <th className="p-2 text-[10px]">Duur</th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {previewBreaks.map((r) => {
+                          const globalIndex = filtered.indexOf(r) + 1 || "?";
+                          return (
+                            <tr
+                              key={r.id}
+                              className="border-t bg-yellow-50/50"
+                            >
+                              <td className="p-2 text-gray-600">
+                                {globalIndex}
+                              </td>
+                              <td className="p-2 font-semibold text-orange-700">
+                                {r.label || "Pauze"}
+                              </td>
+                              <td className="p-2 text-orange-600">
+                                {r.duration || 0} min
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {classOrder.filter((cls) => previewClassMap.has(cls)).length ===
+                  0 && previewBreaks.length === 0 && (
+                  <div className="p-4 text-gray-500 text-center text-xs">
+                    Geen items om te tonen
+                  </div>
+                )}
               </div>
 
               {/* Quick stats */}
@@ -746,7 +874,7 @@ export default function Startlijst() {
                       wedstrijd}
                   </div>
                 )}
-                {klasse && <div>Klasse: {klasse}</div>}
+                {klasse && <div>Actieve filter klasse: {klasse}</div>}
                 {rubriek && <div>Rubriek: {rubriek}</div>}
               </div>
             </div>
@@ -754,7 +882,7 @@ export default function Startlijst() {
         </div>
       </div>
 
-      {/* Preview modal */}
+      {/* Preview modal (nog steeds platte lijst, zodat je alles kunt checken) */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full p-4">
@@ -799,7 +927,7 @@ export default function Startlijst() {
                       <td className="p-2">
                         {r.type === "break"
                           ? `PAUZE: ${r.label || ""} (${r.duration || 0} min)`
-                          : "Rit"}
+                          : `Rit${r.klasse ? ` (${r.klasse})` : ""}`}
                       </td>
                     </tr>
                   ))}
