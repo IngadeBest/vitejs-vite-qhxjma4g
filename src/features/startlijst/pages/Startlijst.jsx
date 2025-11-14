@@ -1,6 +1,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
+import { supabase } from "@/lib/supabaseClient";
 
 // ======= Helpers =======
 const LS_KEY = "wp_startlijst_cache_v1";
@@ -135,6 +136,13 @@ export default function Startlijst() {
   useEffect(() => { setQueryParam("klasse", klasse); }, [klasse]);
   useEffect(() => { setQueryParam("rubriek", rubriek); }, [rubriek]);
 
+  // Auto-load participants from database when wedstrijd is selected
+  useEffect(() => {
+    if (wedstrijd) {
+      loadDeelnemersFromDB();
+    }
+  }, [wedstrijd]);
+
   // Lijst (entries + breaks)
   const [rows, setRows] = useState(() => {
     try {
@@ -145,6 +153,8 @@ export default function Startlijst() {
     }
   });
   const [search, setSearch] = useState("");
+  const [loadingFromDB, setLoadingFromDB] = useState(false);
+  const [dbMessage, setDbMessage] = useState("");
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -208,6 +218,48 @@ export default function Startlijst() {
 
   const meta = { wedstrijd, klasse, rubriek };
 
+  // Load deelnemers from database
+  async function loadDeelnemersFromDB() {
+    if (!wedstrijd) {
+      setDbMessage("Selecteer eerst een wedstrijd");
+      return;
+    }
+    setLoadingFromDB(true);
+    setDbMessage("Laden van deelnemers...");
+    try {
+      let query = supabase
+        .from("inschrijvingen")
+        .select("ruiter,paard,startnummer,klasse,rubriek")
+        .eq("wedstrijd_id", wedstrijd)
+        .order("startnummer", { ascending: true });
+      
+      // Filter by klasse if specified
+      if (klasse) {
+        query = query.eq("klasse", klasse);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      const loadedRows = (data || []).map((r, i) => ({
+        id: `db_${Date.now()}_${i}`,
+        type: "entry",
+        ruiter: r.ruiter || "",
+        paard: r.paard || "",
+        startnummer: (r.startnummer || "").toString().padStart(2, "0")
+      }));
+      
+      setRows(loadedRows);
+      setDbMessage(`${loadedRows.length} deelnemers geladen uit database`);
+    } catch (e) {
+      const errorMsg = e?.message || String(e);
+      setDbMessage(`Fout bij laden: ${errorMsg}`);
+      console.error("Error loading participants:", e);
+    } finally {
+      setLoadingFromDB(false);
+    }
+  }
+
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
@@ -241,7 +293,23 @@ export default function Startlijst() {
         <button className="px-3 py-2 border rounded" onClick={() => exportToExcel(filtered, meta)} disabled={!filtered.length}>
           Export naar Excel
         </button>
+        
+        <button 
+          className="px-3 py-2 border rounded bg-blue-50" 
+          onClick={loadDeelnemersFromDB} 
+          disabled={!wedstrijd || loadingFromDB}
+        >
+          {loadingFromDB ? "Laden..." : "Laad deelnemers uit DB"}
+        </button>
       </div>
+      
+      {dbMessage && (
+        <div className={`mb-4 p-2 rounded ${
+          dbMessage.includes("Fout") ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+        }`}>
+          {dbMessage}
+        </div>
+      )}
 
       <div className="flex items-end gap-2 mb-4">
         <div className="flex flex-col">
