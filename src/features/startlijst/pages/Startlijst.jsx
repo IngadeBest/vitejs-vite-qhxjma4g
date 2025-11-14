@@ -425,11 +425,11 @@ export default function Startlijst() {
     <div className="p-4 max-w-full mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
 
-      {/* Flex i.p.v. grid, zodat preview rechts staat vanaf md-breedte */}
-      <div className="flex flex-col md:flex-row gap-4 md:items-start">
+      {/* Flex layout zodat preview altijd rechts staat */}
+      <div className="flex gap-4 items-start">
         {/* Main editing area (links) */}
-        <div className="w-full md:w-2/3">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+        <div className="w-2/3">
+          <div className="grid grid-cols-4 gap-3 mb-4">
             <select
               className="border rounded px-2 py-1"
               value={wedstrijd}
@@ -785,7 +785,7 @@ export default function Startlijst() {
         </div>
 
         {/* Live Preview Sidebar (rechts) */}
-        <div className="w-full md:w-1/3">
+        <div className="w-1/3">
           <div className="sticky top-4 space-y-3">
             <div className="bg-gray-50 rounded-lg p-4 border">
               <div className="flex items-center justify-between mb-3">
