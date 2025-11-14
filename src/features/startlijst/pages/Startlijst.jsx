@@ -265,9 +265,9 @@ export default function Startlijst() {
     <div className="p-4 max-w-full mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
       
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Main editing area */}
-        <div className="lg:col-span-3">
+        <div className="md:col-span-2 order-2 md:order-1">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
         <select className="border rounded px-2 py-1" value={wedstrijd} onChange={(e)=>setWedstrijd(e.target.value)}>
           <option value="">{loadingWed ? "Laden..." : "— kies wedstrijd —"}</option>
@@ -333,6 +333,7 @@ export default function Startlijst() {
                 <tr className="bg-gray-100 text-left">
                   <th className="p-2 w-12">#</th>
                   <th className="p-2 w-20">Startnr</th>
+                  <th className="p-2 w-16">Klasse</th>
                   <th className="p-2">Ruiter</th>
                   <th className="p-2">Paard</th>
                   <th className="p-2 w-48">Type / Pauze</th>
@@ -360,6 +361,25 @@ export default function Startlijst() {
                           const next = prev.slice();
                           const realIndex = rows.indexOf(filtered[idx]); // map naar echte index
                           next[realIndex] = { ...next[realIndex], startnummer: val };
+                          return next;
+                        });
+                      }}
+                    />
+                  )}
+                </td>
+                <td className="p-2">
+                  {row.type === "break" ? (
+                    <span className="text-gray-400">—</span>
+                  ) : (
+                    <input className="border rounded px-2 py-1 w-16"
+                      value={row.klasse || ""}
+                      placeholder="WE0"
+                      onChange={(e)=>{
+                        const val = e.target.value;
+                        setRows(prev => {
+                          const next = prev.slice();
+                          const realIndex = rows.indexOf(filtered[idx]);
+                          next[realIndex] = { ...next[realIndex], klasse: val };
                           return next;
                         });
                       }}
@@ -450,7 +470,7 @@ export default function Startlijst() {
               </tr>
             ))}
             {!filtered.length && (
-              <tr><td className="p-4 text-gray-500" colSpan={6}>Geen rijen. Upload CSV of voeg handmatig toe.</td></tr>
+              <tr><td className="p-4 text-gray-500" colSpan={7}>Geen rijen. Upload CSV of voeg handmatig toe.</td></tr>
             )}
           </tbody>
         </table>
@@ -459,7 +479,7 @@ export default function Startlijst() {
           <div className="mt-4 flex gap-2">
             <button
               className="px-3 py-2 border rounded"
-              onClick={() => setRows(prev => [...prev, { id: `${Date.now()}`, type: "entry", ruiter: "", paard: "", startnummer: "" }])}
+              onClick={() => setRows(prev => [...prev, { id: `${Date.now()}`, type: "entry", ruiter: "", paard: "", startnummer: "", klasse: klasse || "" }])}
             >
               + Deelnemer
             </button>
@@ -467,7 +487,7 @@ export default function Startlijst() {
         </div>
         
         {/* Live Preview Sidebar */}
-        <div className="xl:col-span-1">
+        <div className="md:col-span-1 order-1 md:order-2">
           <div className="sticky top-4">
             <div className="bg-gray-50 rounded-lg p-4 border">
               <div className="flex items-center justify-between mb-3">
