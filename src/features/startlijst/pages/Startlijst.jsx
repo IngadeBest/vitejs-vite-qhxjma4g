@@ -261,10 +261,13 @@ export default function Startlijst() {
   }
 
   return (
-    <div className="p-4 max-w-6xl mx-auto">
+    <div className="p-4 max-w-full mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+      
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Main editing area */}
+        <div className="xl:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
         <select className="border rounded px-2 py-1" value={wedstrijd} onChange={(e)=>setWedstrijd(e.target.value)}>
           <option value="">{loadingWed ? "Laden..." : "— kies wedstrijd —"}</option>
           {(wedstrijden || []).map(w => (
@@ -323,18 +326,18 @@ export default function Startlijst() {
         <button className="px-3 py-2 border rounded" onClick={addPauseAtEnd}>+ Pauze toevoegen</button>
       </div>
 
-      <div className="overflow-auto border rounded">
-        <table className="min-w-full">
-          <thead>
-            <tr className="bg-gray-100 text-left">
-              <th className="p-2 w-12">#</th>
-              <th className="p-2 w-24">Startnr</th>
-              <th className="p-2">Ruiter</th>
-              <th className="p-2">Paard</th>
-              <th className="p-2 w-56">Type / Pauze</th>
-              <th className="p-2 w-40">Acties</th>
-            </tr>
-          </thead>
+          <div className="overflow-auto border rounded">
+            <table className="min-w-full">
+              <thead>
+                <tr className="bg-gray-100 text-left">
+                  <th className="p-2 w-12">#</th>
+                  <th className="p-2 w-20">Startnr</th>
+                  <th className="p-2">Ruiter</th>
+                  <th className="p-2">Paard</th>
+                  <th className="p-2 w-48">Type / Pauze</th>
+                  <th className="p-2 w-36">Acties</th>
+                </tr>
+              </thead>
           <tbody>
             {filtered.map((row, idx) => (
               <tr key={row.id || idx}
@@ -462,13 +465,167 @@ export default function Startlijst() {
         </table>
       </div>
 
-      <div className="mt-4 flex gap-2">
-        <button
-          className="px-3 py-2 border rounded"
-          onClick={() => setRows(prev => [...prev, { id: `${Date.now()}`, type: "entry", ruiter: "", paard: "", startnummer: "".padStart(2, "0") }])}
-        >
-          + Deelnemer
-        </button>
+          <div className="mt-4 flex gap-2">
+            <button
+              className="px-3 py-2 border rounded"
+              onClick={() => setRows(prev => [...prev, { id: `${Date.now()}`, type: "entry", ruiter: "", paard: "", startnummer: "".padStart(2, "0") }])}
+            >
+              + Deelnemer
+            </button>
+          </div>
+        </div>
+        
+        {/* Live Preview Sidebar */}
+        <div className="xl:col-span-1">
+          <div className="sticky top-4">
+            <div className="bg-gray-50 rounded-lg p-4 border">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-gray-700">Live Preview</h3>
+                <span className="text-sm text-gray-500">{filtered.length} items</span>
+              </div>
+              
+              <div className="max-h-[70vh] overflow-auto border rounded bg-white">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-100 text-left">
+                      <th className="p-2 text-xs">#</th>
+                      <th className="p-2 text-xs">Nr</th>
+                      <th className="p-2 text-xs">Ruiter</th>
+                      <th className="p-2 text-xs">Paard</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 ? (
+                      <tr>
+                        <td className="p-4 text-gray-500 text-center text-xs" colSpan={4}>
+                          Geen items om te tonen
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map((r, i) => (
+                        <tr key={r.id || i} className={`border-t text-xs ${
+                          r.type === "break" ? "bg-yellow-50" : "hover:bg-gray-50"
+                        }`}>
+                          <td className="p-2 text-gray-600">{i + 1}</td>
+                          <td className="p-2 font-mono">
+                            {r.type === "break" ? "—" : (r.startnummer || "??")}
+                          </td>
+                          <td className="p-2">
+                            {r.type === "break" ? (
+                              <span className="font-semibold text-orange-600">
+                                PAUZE: {r.label || "Pauze"}
+                              </span>
+                            ) : (
+                              <span className="font-medium">{r.ruiter || "[Leeg]"}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            {r.type === "break" ? (
+                              <span className="text-xs text-orange-500">
+                                {r.duration || 0} min
+                              </span>
+                            ) : (
+                              <span className="text-gray-700">{r.paard || "[Leeg]"}</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Quick stats */}
+              <div className="mt-3 text-xs text-gray-600 space-y-1">
+                <div>Deelnemers: {filtered.filter(r => r.type === "entry").length}</div>
+                <div>Pauzes: {filtered.filter(r => r.type === "break").length}</div>
+                {wedstrijd && (
+                  <div className="text-blue-600 font-medium">
+                    Wedstrijd: {wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd}
+                  </div>
+                )}
+                {klasse && <div>Klasse: {klasse}</div>}
+                {rubriek && <div>Rubriek: {rubriek}</div>}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Live Preview Sidebar */}
+        <div className="xl:col-span-1">
+          <div className="sticky top-4">
+            <div className="bg-gray-50 rounded-lg p-4 border">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-gray-700">Live Preview</h3>
+                <span className="text-sm text-gray-500">{filtered.length} items</span>
+              </div>
+              
+              <div className="max-h-[70vh] overflow-auto border rounded bg-white">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-100 text-left">
+                      <th className="p-2 text-xs">#</th>
+                      <th className="p-2 text-xs">Nr</th>
+                      <th className="p-2 text-xs">Ruiter</th>
+                      <th className="p-2 text-xs">Paard</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 ? (
+                      <tr>
+                        <td className="p-4 text-gray-500 text-center text-xs" colSpan={4}>
+                          Geen items om te tonen
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map((r, i) => (
+                        <tr key={r.id || i} className={`border-t text-xs ${
+                          r.type === "break" ? "bg-yellow-50" : "hover:bg-gray-50"
+                        }`}>
+                          <td className="p-2 text-gray-600">{i + 1}</td>
+                          <td className="p-2 font-mono">
+                            {r.type === "break" ? "—" : (r.startnummer || "??")}
+                          </td>
+                          <td className="p-2">
+                            {r.type === "break" ? (
+                              <span className="font-semibold text-orange-600">
+                                PAUZE: {r.label || "Pauze"}
+                              </span>
+                            ) : (
+                              <span className="font-medium">{r.ruiter || "[Leeg]"}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            {r.type === "break" ? (
+                              <span className="text-xs text-orange-500">
+                                {r.duration || 0} min
+                              </span>
+                            ) : (
+                              <span className="text-gray-700">{r.paard || "[Leeg]"}</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Quick stats */}
+              <div className="mt-3 text-xs text-gray-600 space-y-1">
+                <div>Deelnemers: {filtered.filter(r => r.type === "entry").length}</div>
+                <div>Pauzes: {filtered.filter(r => r.type === "break").length}</div>
+                {wedstrijd && (
+                  <div className="text-blue-600 font-medium">
+                    Wedstrijd: {wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd}
+                  </div>
+                )}
+                {klasse && <div>Klasse: {klasse}</div>}
+                {rubriek && <div>Rubriek: {rubriek}</div>}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Preview modal */}
