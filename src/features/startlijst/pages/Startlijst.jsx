@@ -1,5 +1,10 @@
-
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -9,20 +14,21 @@ const LS_KEY = "wp_startlijst_cache_v1";
 function parseCSV(text) {
   const lines = text.split(/\r?\n/).filter(Boolean);
   if (!lines.length) return [];
-  const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+  const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
   const idx = {
     ruiter: header.indexOf("ruiter"),
     paard: header.indexOf("paard"),
     startnummer: header.indexOf("startnummer"),
   };
   return lines.slice(1).map((ln, i) => {
-    const cols = ln.split(",").map(s => s.trim());
+    const cols = ln.split(",").map((s) => s.trim());
     return {
       id: `row_${Date.now()}_${i}`,
       type: "entry",
       ruiter: idx.ruiter >= 0 ? cols[idx.ruiter] : cols[0] || "",
       paard: idx.paard >= 0 ? cols[idx.paard] : cols[1] || "",
-      startnummer: (idx.startnummer >= 0 ? cols[idx.startnummer] : cols[2] || ""),
+      startnummer:
+        idx.startnummer >= 0 ? cols[idx.startnummer] : cols[2] || "",
     };
   });
 }
@@ -62,9 +68,14 @@ async function generateSimplePDF(title, rows) {
 
   const body = rows.map((r, i) => {
     if (r.type === "break") {
-      return [ "", "", `— PAUZE: ${r.label || ""} (${r.duration || 0} min) —`, "" ];
+      return [
+        "",
+        "",
+        `— PAUZE: ${r.label || ""} (${r.duration || 0} min) —`,
+        "",
+      ];
     }
-    return [ String(i + 1), r.startnummer, r.ruiter, r.paard ];
+    return [String(i + 1), r.startnummer, r.ruiter, r.paard];
   });
 
   autoTable(doc, {
@@ -79,7 +90,7 @@ async function generateSimplePDF(title, rows) {
       if (r?.type === "break") {
         data.cell.styles.fontStyle = "bold";
       }
-    }
+    },
   });
 
   return doc.output("blob");
@@ -92,36 +103,56 @@ async function exportToExcel(rows, meta = {}) {
     const data = rows.map((r, idx) => ({
       Volgorde: idx + 1,
       Type: r.type === "break" ? "PAUZE" : "RIT",
-      Startnummer: r.type === "break" ? "" : (r.startnummer || ""),
-      Ruiter: r.type === "break" ? "" : (r.ruiter || ""),
-      Paard: r.type === "break" ? "" : (r.paard || ""),
-      PauzeLabel: r.type === "break" ? (r.label || "") : "",
-      PauzeMinuten: r.type === "break" ? (r.duration || 0) : "",
+      Startnummer: r.type === "break" ? "" : r.startnummer || "",
+      Ruiter: r.type === "break" ? "" : r.ruiter || "",
+      Paard: r.type === "break" ? "" : r.paard || "",
+      PauzeLabel: r.type === "break" ? r.label || "" : "",
+      PauzeMinuten: r.type === "break" ? r.duration || 0 : "",
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Startlijst");
-    const title = `Startlijst_${meta.wedstrijd || ""}_${meta.klasse || ""}_${meta.rubriek || ""}`.replace(/\s+/g,"_");
+    const title = `Startlijst_${meta.wedstrijd || ""}_${
+      meta.klasse || ""
+    }_${meta.rubriek || ""}`.replace(/\s+/g, "_");
     const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    downloadBlob(new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${title}.xlsx`);
+    downloadBlob(
+      new Blob([wbout], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      `${title}.xlsx`
+    );
   } catch (e) {
     // Fallback CSV
-    const header = ["Volgorde","Type","Startnummer","Ruiter","Paard","PauzeLabel","PauzeMinuten"];
+    const header = [
+      "Volgorde",
+      "Type",
+      "Startnummer",
+      "Ruiter",
+      "Paard",
+      "PauzeLabel",
+      "PauzeMinuten",
+    ];
     const lines = [header.join(",")];
     rows.forEach((r, idx) => {
       const line = [
         idx + 1,
         r.type === "break" ? "PAUZE" : "RIT",
-        r.type === "break" ? "" : (r.startnummer || ""),
-        r.type === "break" ? "" : (r.ruiter || ""),
-        r.type === "break" ? "" : (r.paard || ""),
-        r.type === "break" ? (r.label || "") : "",
-        r.type === "break" ? (r.duration || 0) : "",
-      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(",");
+        r.type === "break" ? "" : r.startnummer || "",
+        r.type === "break" ? "" : r.ruiter || "",
+        r.type === "break" ? "" : r.paard || "",
+        r.type === "break" ? r.label || "" : "",
+        r.type === "break" ? r.duration || 0 : "",
+      ]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(",");
       lines.push(line);
     });
-    const csv = lines.join("\\n");
-    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), "startlijst.csv");
+    const csv = lines.join("\n");
+    downloadBlob(
+      new Blob([csv], { type: "text/csv;charset=utf-8" }),
+      "startlijst.csv"
+    );
   }
 }
 
@@ -132,16 +163,15 @@ export default function Startlijst() {
   const { items: wedstrijden, loading: loadingWed } = useWedstrijden(false);
   const [klasse, setKlasse] = useState(getQueryParam("klasse"));
   const [rubriek, setRubriek] = useState(getQueryParam("rubriek"));
-  useEffect(() => { setQueryParam("wedstrijd_id", wedstrijd); }, [wedstrijd]);
-  useEffect(() => { setQueryParam("klasse", klasse); }, [klasse]);
-  useEffect(() => { setQueryParam("rubriek", rubriek); }, [rubriek]);
-
-  // Auto-load participants from database when wedstrijd is selected
   useEffect(() => {
-    if (wedstrijd) {
-      loadDeelnemersFromDB();
-    }
+    setQueryParam("wedstrijd_id", wedstrijd);
   }, [wedstrijd]);
+  useEffect(() => {
+    setQueryParam("klasse", klasse);
+  }, [klasse]);
+  useEffect(() => {
+    setQueryParam("rubriek", rubriek);
+  }, [rubriek]);
 
   // Lijst (entries + breaks)
   const [rows, setRows] = useState(() => {
@@ -159,9 +189,12 @@ export default function Startlijst() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     if (!q) return rows;
-    return rows.filter(r => r.type === "break"
-      ? (r.label || "").toLowerCase().includes(q)
-      : (r.ruiter || "").toLowerCase().includes(q) || (r.paard || "").toLowerCase().includes(q) || (r.startnummer || "").toLowerCase().includes(q)
+    return rows.filter((r) =>
+      r.type === "break"
+        ? (r.label || "").toLowerCase().includes(q)
+        : (r.ruiter || "").toLowerCase().includes(q) ||
+          (r.paard || "").toLowerCase().includes(q) ||
+          (r.startnummer || "").toLowerCase().includes(q)
     );
   }, [rows, search]);
 
@@ -177,13 +210,19 @@ export default function Startlijst() {
 
   // DnD
   const dragIndex = useRef(null);
-  const onDragStart = (idx) => (ev) => { dragIndex.current = idx; ev.dataTransfer.effectAllowed = "move"; };
-  const onDragOver = (idx) => (ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; };
+  const onDragStart = (idx) => (ev) => {
+    dragIndex.current = idx;
+    ev.dataTransfer.effectAllowed = "move";
+  };
+  const onDragOver = (idx) => (ev) => {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = "move";
+  };
   const onDrop = (idx) => (ev) => {
     ev.preventDefault();
     const from = dragIndex.current;
     if (from === null || from === idx) return;
-    setRows(prev => {
+    setRows((prev) => {
       const next = prev.slice();
       const [moved] = next.splice(from, 1);
       next.splice(idx, 0, moved);
@@ -196,7 +235,15 @@ export default function Startlijst() {
   const [pauseLabel, setPauseLabel] = useState("");
   const [pauseMin, setPauseMin] = useState(10);
   const addPauseAtEnd = () => {
-    setRows(prev => [...prev, { id: `break_${Date.now()}`, type: "break", label: pauseLabel || "Pauze", duration: Number(pauseMin) || 10 }]);
+    setRows((prev) => [
+      ...prev,
+      {
+        id: `break_${Date.now()}`,
+        type: "break",
+        label: pauseLabel || "Pauze",
+        duration: Number(pauseMin) || 10,
+      },
+    ]);
     setPauseLabel("");
     setPauseMin(10);
   };
@@ -219,7 +266,7 @@ export default function Startlijst() {
   const meta = { wedstrijd, klasse, rubriek };
 
   // Load deelnemers from database
-  async function loadDeelnemersFromDB() {
+  const loadDeelnemersFromDB = useCallback(async () => {
     if (!wedstrijd) {
       setDbMessage("Selecteer eerst een wedstrijd");
       return;
@@ -232,24 +279,24 @@ export default function Startlijst() {
         .select("ruiter,paard,startnummer,klasse,rubriek")
         .eq("wedstrijd_id", wedstrijd)
         .order("startnummer", { ascending: true });
-      
+
       // Filter by klasse if specified
       if (klasse) {
         query = query.eq("klasse", klasse);
       }
-      
+
       const { data, error } = await query;
       if (error) throw error;
-      
+
       const loadedRows = (data || []).map((r, i) => ({
         id: `db_${Date.now()}_${i}`,
         type: "entry",
         ruiter: r.ruiter || "",
         paard: r.paard || "",
         startnummer: (r.startnummer || "").toString(),
-        klasse: r.klasse || ""
+        klasse: r.klasse || "",
       }));
-      
+
       setRows(loadedRows);
       setDbMessage(`${loadedRows.length} deelnemers geladen uit database`);
     } catch (e) {
@@ -259,73 +306,143 @@ export default function Startlijst() {
     } finally {
       setLoadingFromDB(false);
     }
-  }
+  }, [wedstrijd, klasse]);
+
+  // Auto-load participants from database when wedstrijd is selected
+  useEffect(() => {
+    if (wedstrijd) {
+      loadDeelnemersFromDB();
+    }
+  }, [wedstrijd, loadDeelnemersFromDB]);
 
   return (
     <div className="p-4 max-w-full mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Main editing area */}
         <div className="md:col-span-2 order-2 md:order-1">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-        <select className="border rounded px-2 py-1" value={wedstrijd} onChange={(e)=>setWedstrijd(e.target.value)}>
-          <option value="">{loadingWed ? "Laden..." : "— kies wedstrijd —"}</option>
-          {(wedstrijden || []).map(w => (
-            <option key={w.id} value={w.id}>{w.naam}{w.datum ? ` (${w.datum})` : ""}</option>
-          ))}
-        </select>
-        <input className="border rounded px-2 py-1" placeholder="Klasse (WE0–WE4)" value={klasse} onChange={(e)=>setKlasse(e.target.value)} />
-        <input className="border rounded px-2 py-1" placeholder="Rubriek" value={rubriek} onChange={(e)=>setRubriek(e.target.value)} />
-        <input className="border rounded px-2 py-1" placeholder="Zoeken (ruiter/paard/startnr of pauze)" value={search} onChange={(e)=>setSearch(e.target.value)} />
-      </div>
+            <select
+              className="border rounded px-2 py-1"
+              value={wedstrijd}
+              onChange={(e) => setWedstrijd(e.target.value)}
+            >
+              <option value="">
+                {loadingWed ? "Laden..." : "— kies wedstrijd —"}
+              </option>
+              {(wedstrijden || []).map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.naam}
+                  {w.datum ? ` (${w.datum})` : ""}
+                </option>
+              ))}
+            </select>
+            <input
+              className="border rounded px-2 py-1"
+              placeholder="Klasse (WE0–WE4)"
+              value={klasse}
+              onChange={(e) => setKlasse(e.target.value)}
+            />
+            <input
+              className="border rounded px-2 py-1"
+              placeholder="Rubriek"
+              value={rubriek}
+              onChange={(e) => setRubriek(e.target.value)}
+            />
+            <input
+              className="border rounded px-2 py-1"
+              placeholder="Zoeken (ruiter/paard/startnr of pauze)"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <label className="cursor-pointer inline-flex items-center gap-2">
-          <span className="px-3 py-2 border rounded bg-white">CSV uploaden</span>
-          <input type="file" accept=".csv,text/csv" className="hidden" onChange={onCSV} />
-        </label>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <label className="cursor-pointer inline-flex items-center gap-2">
+              <span className="px-3 py-2 border rounded bg-white">
+                CSV uploaden
+              </span>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={onCSV}
+              />
+            </label>
 
-        <button className="px-3 py-2 border rounded" onClick={() => setShowPreview(true)} disabled={!rows.length}>
-          Preview & Opslaan
-        </button>
+            <button
+              className="px-3 py-2 border rounded"
+              onClick={() => setShowPreview(true)}
+              disabled={!rows.length}
+            >
+              Preview & Opslaan
+            </button>
 
-        <button className="px-3 py-2 border rounded" onClick={makeBatchPDF} disabled={!filtered.length}>
-          Batch PDF
-        </button>
+            <button
+              className="px-3 py-2 border rounded"
+              onClick={makeBatchPDF}
+              disabled={!filtered.length}
+            >
+              Batch PDF
+            </button>
 
-        <button className="px-3 py-2 border rounded" onClick={() => exportToExcel(filtered, meta)} disabled={!filtered.length}>
-          Export naar Excel
-        </button>
-        
-        <button 
-          className="px-3 py-2 border rounded bg-blue-50" 
-          onClick={loadDeelnemersFromDB} 
-          disabled={!wedstrijd || loadingFromDB}
-        >
-          {loadingFromDB ? "Laden..." : "Laad deelnemers uit DB"}
-        </button>
-      </div>
-      
-      {dbMessage && (
-        <div className={`mb-4 p-2 rounded ${
-          dbMessage.includes("Fout") ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-        }`}>
-          {dbMessage}
-        </div>
-      )}
+            <button
+              className="px-3 py-2 border rounded"
+              onClick={() => exportToExcel(filtered, meta)}
+              disabled={!filtered.length}
+            >
+              Export naar Excel
+            </button>
 
-      <div className="flex items-end gap-2 mb-4">
-        <div className="flex flex-col">
-          <label className="text-sm text-gray-600">Pauze titel</label>
-          <input className="border rounded px-2 py-1" placeholder="Bijv. Koffiepauze" value={pauseLabel} onChange={(e)=>setPauseLabel(e.target.value)} />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm text-gray-600">Minuten</label>
-          <input className="border rounded px-2 py-1 w-24" type="number" min={1} value={pauseMin} onChange={(e)=>setPauseMin(e.target.value)} />
-        </div>
-        <button className="px-3 py-2 border rounded" onClick={addPauseAtEnd}>+ Pauze toevoegen</button>
-      </div>
+            <button
+              className="px-3 py-2 border rounded bg-blue-50"
+              onClick={loadDeelnemersFromDB}
+              disabled={!wedstrijd || loadingFromDB}
+            >
+              {loadingFromDB ? "Laden..." : "Laad deelnemers uit DB"}
+            </button>
+          </div>
+
+          {dbMessage && (
+            <div
+              className={`mb-4 p-2 rounded ${
+                dbMessage.includes("Fout")
+                  ? "bg-red-100 text-red-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              {dbMessage}
+            </div>
+          )}
+
+          <div className="flex items-end gap-2 mb-4">
+            <div className="flex flex-col">
+              <label className="text-sm text-gray-600">Pauze titel</label>
+              <input
+                className="border rounded px-2 py-1"
+                placeholder="Bijv. Koffiepauze"
+                value={pauseLabel}
+                onChange={(e) => setPauseLabel(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm text-gray-600">Minuten</label>
+              <input
+                className="border rounded px-2 py-1 w-24"
+                type="number"
+                min={1}
+                value={pauseMin}
+                onChange={(e) => setPauseMin(e.target.value)}
+              />
+            </div>
+            <button
+              className="px-3 py-2 border rounded"
+              onClick={addPauseAtEnd}
+            >
+              + Pauze toevoegen
+            </button>
+          </div>
 
           <div className="overflow-auto border rounded">
             <table className="min-w-full">
@@ -340,161 +457,214 @@ export default function Startlijst() {
                   <th className="p-2 w-36">Acties</th>
                 </tr>
               </thead>
-          <tbody>
-            {filtered.map((row, idx) => (
-              <tr key={row.id || idx}
-                  draggable
-                  onDragStart={onDragStart(idx)}
-                  onDragOver={onDragOver(idx)}
-                  onDrop={onDrop(idx)}
-                  className={`border-t hover:bg-gray-50 ${row.type === "break" ? "bg-yellow-50" : ""}`}>
-                <td className="p-2">{idx + 1}</td>
-                <td className="p-2">
-                  {row.type === "break" ? (
-                    <span className="text-gray-400">—</span>
-                  ) : (
-                    <input className="border rounded px-2 py-1 w-24"
-                      value={row.startnummer || ""}
-                      onChange={(e)=>{
-                        const val = e.target.value;
-                        setRows(prev => {
-                          const next = prev.slice();
-                          const realIndex = rows.indexOf(filtered[idx]); // map naar echte index
-                          next[realIndex] = { ...next[realIndex], startnummer: val };
-                          return next;
-                        });
-                      }}
-                    />
-                  )}
-                </td>
-                <td className="p-2">
-                  {row.type === "break" ? (
-                    <span className="text-gray-400">—</span>
-                  ) : (
-                    <input className="border rounded px-2 py-1 w-16"
-                      value={row.klasse || ""}
-                      placeholder="WE0"
-                      onChange={(e)=>{
-                        const val = e.target.value;
-                        setRows(prev => {
-                          const next = prev.slice();
-                          const realIndex = rows.indexOf(filtered[idx]);
-                          next[realIndex] = { ...next[realIndex], klasse: val };
-                          return next;
-                        });
-                      }}
-                    />
-                  )}
-                </td>
-                <td className="p-2">
-                  {row.type === "break" ? (
-                    <span className="text-gray-400">—</span>
-                  ) : (
-                    <input className="border rounded px-2 py-1 w-full"
-                      value={row.ruiter || ""}
-                      onChange={(e)=>{
-                        const val = e.target.value;
-                        setRows(prev => {
-                          const next = prev.slice();
-                          const realIndex = rows.indexOf(filtered[idx]);
-                          next[realIndex] = { ...next[realIndex], ruiter: val };
-                          return next;
-                        });
-                      }}
-                    />
-                  )}
-                </td>
-                <td className="p-2">
-                  {row.type === "break" ? (
-                    <span className="text-gray-400">—</span>
-                  ) : (
-                    <input className="border rounded px-2 py-1 w-full"
-                      value={row.paard || ""}
-                      onChange={(e)=>{
-                        const val = e.target.value;
-                        setRows(prev => {
-                          const next = prev.slice();
-                          const realIndex = rows.indexOf(filtered[idx]);
-                          next[realIndex] = { ...next[realIndex], paard: val };
-                          return next;
-                        });
-                      }}
-                    />
-                  )}
-                </td>
-                <td className="p-2">
-                  {row.type === "break" ? (
-                    <div className="flex items-center gap-2">
-                      <input className="border rounded px-2 py-1 w-40"
-                        value={row.label || ""}
-                        onChange={(e)=>{
-                          const val = e.target.value;
-                          setRows(prev => {
-                            const next = prev.slice();
+              <tbody>
+                {filtered.map((row, idx) => (
+                  <tr
+                    key={row.id || idx}
+                    draggable
+                    onDragStart={onDragStart(idx)}
+                    onDragOver={onDragOver(idx)}
+                    onDrop={onDrop(idx)}
+                    className={`border-t hover:bg-gray-50 ${
+                      row.type === "break" ? "bg-yellow-50" : ""
+                    }`}
+                  >
+                    <td className="p-2">{idx + 1}</td>
+                    <td className="p-2">
+                      {row.type === "break" ? (
+                        <span className="text-gray-400">—</span>
+                      ) : (
+                        <input
+                          className="border rounded px-2 py-1 w-24"
+                          value={row.startnummer || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRows((prev) => {
+                              const next = prev.slice();
+                              const realIndex = rows.indexOf(filtered[idx]); // map naar echte index
+                              next[realIndex] = {
+                                ...next[realIndex],
+                                startnummer: val,
+                              };
+                              return next;
+                            });
+                          }}
+                        />
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {row.type === "break" ? (
+                        <span className="text-gray-400">—</span>
+                      ) : (
+                        <input
+                          className="border rounded px-2 py-1 w-16"
+                          value={row.klasse || ""}
+                          placeholder="WE0"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRows((prev) => {
+                              const next = prev.slice();
+                              const realIndex = rows.indexOf(filtered[idx]);
+                              next[realIndex] = {
+                                ...next[realIndex],
+                                klasse: val,
+                              };
+                              return next;
+                            });
+                          }}
+                        />
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {row.type === "break" ? (
+                        <span className="text-gray-400">—</span>
+                      ) : (
+                        <input
+                          className="border rounded px-2 py-1 w-full"
+                          value={row.ruiter || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRows((prev) => {
+                              const next = prev.slice();
+                              const realIndex = rows.indexOf(filtered[idx]);
+                              next[realIndex] = {
+                                ...next[realIndex],
+                                ruiter: val,
+                              };
+                              return next;
+                            });
+                          }}
+                        />
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {row.type === "break" ? (
+                        <span className="text-gray-400">—</span>
+                      ) : (
+                        <input
+                          className="border rounded px-2 py-1 w-full"
+                          value={row.paard || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRows((prev) => {
+                              const next = prev.slice();
+                              const realIndex = rows.indexOf(filtered[idx]);
+                              next[realIndex] = {
+                                ...next[realIndex],
+                                paard: val,
+                              };
+                              return next;
+                            });
+                          }}
+                        />
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {row.type === "break" ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            className="border rounded px-2 py-1 w-40"
+                            value={row.label || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setRows((prev) => {
+                                const next = prev.slice();
+                                const realIndex = rows.indexOf(filtered[idx]);
+                                next[realIndex] = {
+                                  ...next[realIndex],
+                                  label: val,
+                                };
+                                return next;
+                              });
+                            }}
+                          />
+                          <input
+                            className="border rounded px-2 py-1 w-24"
+                            type="number"
+                            min={1}
+                            value={row.duration || 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0;
+                              setRows((prev) => {
+                                const next = prev.slice();
+                                const realIndex = rows.indexOf(filtered[idx]);
+                                next[realIndex] = {
+                                  ...next[realIndex],
+                                  duration: val,
+                                };
+                                return next;
+                              });
+                            }}
+                          />
+                          <span className="text-sm text-gray-600">min</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">Rit</span>
+                      )}
+                    </td>
+                    <td className="p-2">
+                      <div className="flex gap-2">
+                        <button
+                          className="px-2 py-1 border rounded text-sm"
+                          onClick={() => {
                             const realIndex = rows.indexOf(filtered[idx]);
-                            next[realIndex] = { ...next[realIndex], label: val };
-                            return next;
-                          });
-                        }}
-                      />
-                      <input className="border rounded px-2 py-1 w-24" type="number" min={1}
-                        value={row.duration || 0}
-                        onChange={(e)=>{
-                          const val = Number(e.target.value) || 0;
-                          setRows(prev => {
-                            const next = prev.slice();
-                            const realIndex = rows.indexOf(filtered[idx]);
-                            next[realIndex] = { ...next[realIndex], duration: val };
-                            return next;
-                          });
-                        }}
-                      />
-                      <span className="text-sm text-gray-600">min</span>
-                    </div>
-                  ) : (
-                    <span className="text-gray-500">Rit</span>
-                  )}
-                </td>
-                <td className="p-2">
-                  <div className="flex gap-2">
-                    <button className="px-2 py-1 border rounded text-sm"
-                      onClick={() => {
-                        const realIndex = rows.indexOf(filtered[idx]);
-                        setRows(prev => prev.filter((_, i) => i !== realIndex));
-                      }}
-                    >
-                      Verwijderen
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!filtered.length && (
-              <tr><td className="p-4 text-gray-500" colSpan={7}>Geen rijen. Upload CSV of voeg handmatig toe.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                            setRows((prev) =>
+                              prev.filter((_, i) => i !== realIndex)
+                            );
+                          }}
+                        >
+                          Verwijderen
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {!filtered.length && (
+                  <tr>
+                    <td className="p-4 text-gray-500" colSpan={7}>
+                      Geen rijen. Upload CSV of voeg handmatig toe.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
           <div className="mt-4 flex gap-2">
             <button
               className="px-3 py-2 border rounded"
-              onClick={() => setRows(prev => [...prev, { id: `${Date.now()}`, type: "entry", ruiter: "", paard: "", startnummer: "", klasse: klasse || "" }])}
+              onClick={() =>
+                setRows((prev) => [
+                  ...prev,
+                  {
+                    id: `${Date.now()}`,
+                    type: "entry",
+                    ruiter: "",
+                    paard: "",
+                    startnummer: "",
+                    klasse: klasse || "",
+                  },
+                ])
+              }
             >
               + Deelnemer
             </button>
           </div>
         </div>
-        
-        {/* Live Preview Sidebar */}
+
+        {/* Live Preview Sidebar (één versie) */}
         <div className="md:col-span-1 order-1 md:order-2">
           <div className="sticky top-4">
             <div className="bg-gray-50 rounded-lg p-4 border">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-700">Live Preview</h3>
-                <span className="text-sm text-gray-500">{filtered.length} items</span>
+                <h3 className="text-lg font-semibold text-gray-700">
+                  Live Preview
+                </h3>
+                <span className="text-sm text-gray-500">
+                  {filtered.length} items
+                </span>
               </div>
-              
+
               <div className="max-h-[70vh] overflow-auto border rounded bg-white">
                 <table className="min-w-full text-sm">
                   <thead>
@@ -508,18 +678,28 @@ export default function Startlijst() {
                   <tbody>
                     {filtered.length === 0 ? (
                       <tr>
-                        <td className="p-4 text-gray-500 text-center text-xs" colSpan={4}>
+                        <td
+                          className="p-4 text-gray-500 text-center text-xs"
+                          colSpan={4}
+                        >
                           Geen items om te tonen
                         </td>
                       </tr>
                     ) : (
                       filtered.map((r, i) => (
-                        <tr key={r.id || i} className={`border-t text-xs ${
-                          r.type === "break" ? "bg-yellow-50" : "hover:bg-gray-50"
-                        }`}>
+                        <tr
+                          key={r.id || i}
+                          className={`border-t text-xs ${
+                            r.type === "break"
+                              ? "bg-yellow-50"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
                           <td className="p-2 text-gray-600">{i + 1}</td>
                           <td className="p-2 font-mono">
-                            {r.type === "break" ? "—" : (r.startnummer || "??")}
+                            {r.type === "break"
+                              ? "—"
+                              : r.startnummer || "??"}
                           </td>
                           <td className="p-2">
                             {r.type === "break" ? (
@@ -527,7 +707,9 @@ export default function Startlijst() {
                                 PAUZE: {r.label || "Pauze"}
                               </span>
                             ) : (
-                              <span className="font-medium">{r.ruiter || "[Leeg]"}</span>
+                              <span className="font-medium">
+                                {r.ruiter || "[Leeg]"}
+                              </span>
                             )}
                           </td>
                           <td className="p-2">
@@ -536,7 +718,9 @@ export default function Startlijst() {
                                 {r.duration || 0} min
                               </span>
                             ) : (
-                              <span className="text-gray-700">{r.paard || "[Leeg]"}</span>
+                              <span className="text-gray-700">
+                                {r.paard || "[Leeg]"}
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -545,90 +729,21 @@ export default function Startlijst() {
                   </tbody>
                 </table>
               </div>
-              
+
               {/* Quick stats */}
               <div className="mt-3 text-xs text-gray-600 space-y-1">
-                <div>Deelnemers: {filtered.filter(r => r.type === "entry").length}</div>
-                <div>Pauzes: {filtered.filter(r => r.type === "break").length}</div>
+                <div>
+                  Deelnemers:{" "}
+                  {filtered.filter((r) => r.type === "entry").length}
+                </div>
+                <div>
+                  Pauzes: {filtered.filter((r) => r.type === "break").length}
+                </div>
                 {wedstrijd && (
                   <div className="text-blue-600 font-medium">
-                    Wedstrijd: {wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd}
-                  </div>
-                )}
-                {klasse && <div>Klasse: {klasse}</div>}
-                {rubriek && <div>Rubriek: {rubriek}</div>}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Live Preview Sidebar */}
-        <div className="xl:col-span-1">
-          <div className="sticky top-4">
-            <div className="bg-gray-50 rounded-lg p-4 border">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-700">Live Preview</h3>
-                <span className="text-sm text-gray-500">{filtered.length} items</span>
-              </div>
-              
-              <div className="max-h-[70vh] overflow-auto border rounded bg-white">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-100 text-left">
-                      <th className="p-2 text-xs">#</th>
-                      <th className="p-2 text-xs">Nr</th>
-                      <th className="p-2 text-xs">Ruiter</th>
-                      <th className="p-2 text-xs">Paard</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.length === 0 ? (
-                      <tr>
-                        <td className="p-4 text-gray-500 text-center text-xs" colSpan={4}>
-                          Geen items om te tonen
-                        </td>
-                      </tr>
-                    ) : (
-                      filtered.map((r, i) => (
-                        <tr key={r.id || i} className={`border-t text-xs ${
-                          r.type === "break" ? "bg-yellow-50" : "hover:bg-gray-50"
-                        }`}>
-                          <td className="p-2 text-gray-600">{i + 1}</td>
-                          <td className="p-2 font-mono">
-                            {r.type === "break" ? "—" : (r.startnummer || "??")}
-                          </td>
-                          <td className="p-2">
-                            {r.type === "break" ? (
-                              <span className="font-semibold text-orange-600">
-                                PAUZE: {r.label || "Pauze"}
-                              </span>
-                            ) : (
-                              <span className="font-medium">{r.ruiter || "[Leeg]"}</span>
-                            )}
-                          </td>
-                          <td className="p-2">
-                            {r.type === "break" ? (
-                              <span className="text-xs text-orange-500">
-                                {r.duration || 0} min
-                              </span>
-                            ) : (
-                              <span className="text-gray-700">{r.paard || "[Leeg]"}</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* Quick stats */}
-              <div className="mt-3 text-xs text-gray-600 space-y-1">
-                <div>Deelnemers: {filtered.filter(r => r.type === "entry").length}</div>
-                <div>Pauzes: {filtered.filter(r => r.type === "break").length}</div>
-                {wedstrijd && (
-                  <div className="text-blue-600 font-medium">
-                    Wedstrijd: {wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd}
+                    Wedstrijd:{" "}
+                    {wedstrijden?.find((w) => w.id === wedstrijd)?.naam ||
+                      wedstrijd}
                   </div>
                 )}
                 {klasse && <div>Klasse: {klasse}</div>}
@@ -645,7 +760,12 @@ export default function Startlijst() {
           <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xl font-semibold">Preview startlijst</h2>
-              <button className="px-3 py-1 border rounded" onClick={()=>setShowPreview(false)}>Sluiten</button>
+              <button
+                className="px-3 py-1 border rounded"
+                onClick={() => setShowPreview(false)}
+              >
+                Sluiten
+              </button>
             </div>
             <div className="max-h-[60vh] overflow-auto border rounded">
               <table className="min-w-full">
@@ -660,13 +780,26 @@ export default function Startlijst() {
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
-                    <tr key={r.id || i} className={`border-t ${r.type === "break" ? "bg-yellow-50" : ""}`}>
+                    <tr
+                      key={r.id || i}
+                      className={`border-t ${
+                        r.type === "break" ? "bg-yellow-50" : ""
+                      }`}
+                    >
                       <td className="p-2">{i + 1}</td>
-                      <td className="p-2">{r.type === "break" ? "—" : r.startnummer}</td>
-                      <td className="p-2">{r.type === "break" ? "—" : r.ruiter}</td>
-                      <td className="p-2">{r.type === "break" ? "—" : r.paard}</td>
                       <td className="p-2">
-                        {r.type === "break" ? `PAUZE: ${r.label || ""} (${r.duration || 0} min)` : "Rit"}
+                        {r.type === "break" ? "—" : r.startnummer}
+                      </td>
+                      <td className="p-2">
+                        {r.type === "break" ? "—" : r.ruiter}
+                      </td>
+                      <td className="p-2">
+                        {r.type === "break" ? "—" : r.paard}
+                      </td>
+                      <td className="p-2">
+                        {r.type === "break"
+                          ? `PAUZE: ${r.label || ""} (${r.duration || 0} min)`
+                          : "Rit"}
                       </td>
                     </tr>
                   ))}
@@ -674,12 +807,32 @@ export default function Startlijst() {
               </table>
             </div>
             <div className="mt-3 flex gap-2 justify-end">
-              <button className="px-3 py-2 border rounded" onClick={()=>exportToExcel(rows, meta)}>Export naar Excel</button>
-              <button className="px-3 py-2 border rounded" onClick={async ()=>{
-                const blob = await generateSimplePDF(`Startlijst ${wedstrijd || ""} ${klasse || ""} ${rubriek || ""}`.trim(), rows);
-                downloadBlob(blob, "startlijst.pdf");
-              }}>Download PDF</button>
-              <button className="px-3 py-2 border rounded bg-black text-white" onClick={saveList}>Opslaan</button>
+              <button
+                className="px-3 py-2 border rounded"
+                onClick={() => exportToExcel(rows, meta)}
+              >
+                Export naar Excel
+              </button>
+              <button
+                className="px-3 py-2 border rounded"
+                onClick={async () => {
+                  const blob = await generateSimplePDF(
+                    `Startlijst ${wedstrijd || ""} ${klasse || ""} ${
+                      rubriek || ""
+                    }`.trim(),
+                    rows
+                  );
+                  downloadBlob(blob, "startlijst.pdf");
+                }}
+              >
+                Download PDF
+              </button>
+              <button
+                className="px-3 py-2 border rounded bg-black text-white"
+                onClick={saveList}
+              >
+                Opslaan
+              </button>
             </div>
           </div>
         </div>
