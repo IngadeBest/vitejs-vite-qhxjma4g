@@ -22,7 +22,7 @@ function parseCSV(text) {
       type: "entry",
       ruiter: idx.ruiter >= 0 ? cols[idx.ruiter] : cols[0] || "",
       paard: idx.paard >= 0 ? cols[idx.paard] : cols[1] || "",
-      startnummer: (idx.startnummer >= 0 ? cols[idx.startnummer] : cols[2] || "").padStart(2, "0"),
+      startnummer: (idx.startnummer >= 0 ? cols[idx.startnummer] : cols[2] || ""),
     };
   });
 }
@@ -246,7 +246,8 @@ export default function Startlijst() {
         type: "entry",
         ruiter: r.ruiter || "",
         paard: r.paard || "",
-        startnummer: (r.startnummer || "").toString().padStart(2, "0")
+        startnummer: (r.startnummer || "").toString(),
+        klasse: r.klasse || ""
       }));
       
       setRows(loadedRows);
@@ -264,9 +265,9 @@ export default function Startlijst() {
     <div className="p-4 max-w-full mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
       
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Main editing area */}
-        <div className="xl:col-span-2">
+        <div className="lg:col-span-3">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
         <select className="border rounded px-2 py-1" value={wedstrijd} onChange={(e)=>setWedstrijd(e.target.value)}>
           <option value="">{loadingWed ? "Laden..." : "— kies wedstrijd —"}</option>
@@ -436,7 +437,7 @@ export default function Startlijst() {
                 </td>
                 <td className="p-2">
                   <div className="flex gap-2">
-                    <button className="px-2 py-1 border rounded"
+                    <button className="px-2 py-1 border rounded text-sm"
                       onClick={() => {
                         const realIndex = rows.indexOf(filtered[idx]);
                         setRows(prev => prev.filter((_, i) => i !== realIndex));
@@ -444,16 +445,6 @@ export default function Startlijst() {
                     >
                       Verwijderen
                     </button>
-                    {row.type !== "break" && (
-                      <button className="px-2 py-1 border rounded"
-                        onClick={async ()=>{
-                          const blob = await generateSimplePDF(`Startnummer ${row.startnummer} – ${row.ruiter}`, [row]);
-                          downloadBlob(blob, `startnummer-${row.startnummer}.pdf`);
-                        }}
-                      >
-                        PDF
-                      </button>
-                    )}
                   </div>
                 </td>
               </tr>
@@ -468,7 +459,7 @@ export default function Startlijst() {
           <div className="mt-4 flex gap-2">
             <button
               className="px-3 py-2 border rounded"
-              onClick={() => setRows(prev => [...prev, { id: `${Date.now()}`, type: "entry", ruiter: "", paard: "", startnummer: "".padStart(2, "0") }])}
+              onClick={() => setRows(prev => [...prev, { id: `${Date.now()}`, type: "entry", ruiter: "", paard: "", startnummer: "" }])}
             >
               + Deelnemer
             </button>
