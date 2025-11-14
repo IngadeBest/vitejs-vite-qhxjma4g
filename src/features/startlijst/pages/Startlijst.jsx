@@ -19,6 +19,7 @@ function parseCSV(text) {
     ruiter: header.indexOf("ruiter"),
     paard: header.indexOf("paard"),
     startnummer: header.indexOf("startnummer"),
+    tijd: header.indexOf("tijd"),
   };
   return lines.slice(1).map((ln, i) => {
     const cols = ln.split(",").map((s) => s.trim());
@@ -29,6 +30,8 @@ function parseCSV(text) {
       paard: idx.paard >= 0 ? cols[idx.paard] : cols[1] || "",
       startnummer:
         idx.startnummer >= 0 ? cols[idx.startnummer] : cols[2] || "",
+      starttijd: idx.tijd >= 0 ? cols[idx.tijd] : "",
+      klasse: "",
     };
   });
 }
@@ -71,15 +74,22 @@ async function generateSimplePDF(title, rows) {
       return [
         "",
         "",
+        "",
         `— PAUZE: ${r.label || ""} (${r.duration || 0} min) —`,
         "",
       ];
     }
-    return [String(i + 1), r.startnummer, r.ruiter, r.paard];
+    return [
+      String(i + 1),
+      r.starttijd || "",
+      r.startnummer || "",
+      r.ruiter || "",
+      r.paard || "",
+    ];
   });
 
   autoTable(doc, {
-    head: [["#", "Startnr", "Ruiter", "Paard / Pauze"]],
+    head: [["#", "Tijd", "Startnr", "Ruiter", "Paard / Pauze"]],
     body,
     startY: 80,
     styles: { fontSize: 10 },
@@ -103,9 +113,11 @@ async function exportToExcel(rows, meta = {}) {
     const data = rows.map((r, idx) => ({
       Volgorde: idx + 1,
       Type: r.type === "break" ? "PAUZE" : "RIT",
+      Tijd: r.type === "break" ? "" : r.starttijd || "",
       Startnummer: r.type === "break" ? "" : r.startnummer || "",
       Ruiter: r.type === "break" ? "" : r.ruiter || "",
       Paard: r.type === "break" ? "" : r.paard || "",
+      Klasse: r.type === "break" ? "" : r.klasse || "",
       PauzeLabel: r.type === "break" ? r.label || "" : "",
       PauzeMinuten: r.type === "break" ? r.duration || 0 : "",
     }));
@@ -127,9 +139,11 @@ async function exportToExcel(rows, meta = {}) {
     const header = [
       "Volgorde",
       "Type",
+      "Tijd",
       "Startnummer",
       "Ruiter",
       "Paard",
+      "Klasse",
       "PauzeLabel",
       "PauzeMinuten",
     ];
@@ -138,9 +152,11 @@ async function exportToExcel(rows, meta = {}) {
       const line = [
         idx + 1,
         r.type === "break" ? "PAUZE" : "RIT",
+        r.type === "break" ? "" : r.starttijd || "",
         r.type === "break" ? "" : r.startnummer || "",
         r.type === "break" ? "" : r.ruiter || "",
         r.type === "break" ? "" : r.paard || "",
+        r.type === "break" ? "" : r.klasse || "",
         r.type === "break" ? r.label || "" : "",
         r.type === "break" ? r.duration || 0 : "",
       ]
@@ -186,7 +202,7 @@ export default function Startlijst() {
   const [loadingFromDB, setLoadingFromDB] = useState(false);
   const [dbMessage, setDbMessage] = useState("");
 
-  // Volgorde van klassen voor de preview (en "starttijden per klasse")
+  // Volgorde van klassen voor de preview (en “starttijden per klasse”)
   const [classOrder, setClassOrder] = useState([]);
 
   // Zorg dat classOrder altijd alle gebruikte klassen bevat, in stabiele volgorde
@@ -213,7 +229,8 @@ export default function Startlijst() {
         ? (r.label || "").toLowerCase().includes(q)
         : (r.ruiter || "").toLowerCase().includes(q) ||
           (r.paard || "").toLowerCase().includes(q) ||
-          (r.startnummer || "").toLowerCase().includes(q)
+          (r.startnummer || "").toLowerCase().includes(q) ||
+          (r.starttijd || "").toLowerCase().includes(q)
     );
   }, [rows, search]);
 
@@ -268,6 +285,29 @@ export default function Startlijst() {
     dragIndex.current = null;
   };
 
+  // DnD voor klassen (chips)
+  const classDragIndex = useRef(null);
+  const onClassDragStart = (index) => (e) => {
+    classDragIndex.current = index;
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const onClassDragOver = (index) => (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+  const onClassDrop = (index) => (e) => {
+    e.preventDefault();
+    const from = classDragIndex.current;
+    if (from === null || from === index) return;
+    setClassOrder((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(index, 0, moved);
+      return next;
+    });
+    classDragIndex.current = null;
+  };
+
   // Pauze toevoegen
   const [pauseLabel, setPauseLabel] = useState("");
   const [pauseMin, setPauseMin] = useState(10);
@@ -313,11 +353,10 @@ export default function Startlijst() {
     try {
       let query = supabase
         .from("inschrijvingen")
-        .select("ruiter,paard,startnummer,klasse,rubriek")
+        .select("ruiter,paard,startnummer,klasse,rubriek") // starttijd evt. later toevoegen
         .eq("wedstrijd_id", wedstrijd)
         .order("startnummer", { ascending: true });
 
-      // Filter by klasse if specified
       if (klasse) {
         query = query.eq("klasse", klasse);
       }
@@ -332,6 +371,7 @@ export default function Startlijst() {
         paard: r.paard || "",
         startnummer: (r.startnummer || "").toString(),
         klasse: r.klasse || "",
+        starttijd: "", // kan handmatig worden ingevuld
       }));
 
       setRows(loadedRows);
@@ -345,33 +385,20 @@ export default function Startlijst() {
     }
   }, [wedstrijd, klasse]);
 
-  // Auto-load participants from database when wedstrijd is selected
   useEffect(() => {
     if (wedstrijd) {
       loadDeelnemersFromDB();
     }
   }, [wedstrijd, loadDeelnemersFromDB]);
 
-  // Helper om volgorde van klassen te wijzigen (voor "starttijden per klasse")
-  const moveClass = (cls, direction) => {
-    setClassOrder((prev) => {
-      const idx = prev.indexOf(cls);
-      if (idx === -1) return prev;
-      const newOrder = [...prev];
-      const swapWith = direction === "up" ? idx - 1 : idx + 1;
-      if (swapWith < 0 || swapWith >= newOrder.length) return prev;
-      [newOrder[idx], newOrder[swapWith]] = [newOrder[swapWith], newOrder[idx]];
-      return newOrder;
-    });
-  };
-
   return (
     <div className="p-4 max-w-full mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Flex ipv grid, zodat preview rechts komt te staan */}
+      <div className="flex flex-col lg:flex-row gap-4">
         {/* Main editing area (links) */}
-        <div className="md:col-span-2 order-2 md:order-1">
+        <div className="lg:w-2/3">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
             <select
               className="border rounded px-2 py-1"
@@ -402,7 +429,7 @@ export default function Startlijst() {
             />
             <input
               className="border rounded px-2 py-1"
-              placeholder="Zoeken (ruiter/paard/startnr of pauze)"
+              placeholder="Zoeken (ruiter/paard/startnr/tijd/pauze)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -498,7 +525,8 @@ export default function Startlijst() {
             <table className="min-w-full">
               <thead>
                 <tr className="bg-gray-100 text-left">
-                  <th className="p-2 w-12">#</th>
+                  <th className="p-2 w-10">#</th>
+                  <th className="p-2 w-24">Tijd</th>
                   <th className="p-2 w-20">Startnr</th>
                   <th className="p-2 w-16">Klasse</th>
                   <th className="p-2">Ruiter</th>
@@ -525,13 +553,36 @@ export default function Startlijst() {
                         <span className="text-gray-400">—</span>
                       ) : (
                         <input
+                          type="time"
+                          className="border rounded px-2 py-1 w-28"
+                          value={row.starttijd || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRows((prev) => {
+                              const next = prev.slice();
+                              const realIndex = rows.indexOf(filtered[idx]);
+                              next[realIndex] = {
+                                ...next[realIndex],
+                                starttijd: val,
+                              };
+                              return next;
+                            });
+                          }}
+                        />
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {row.type === "break" ? (
+                        <span className="text-gray-400">—</span>
+                      ) : (
+                        <input
                           className="border rounded px-2 py-1 w-24"
                           value={row.startnummer || ""}
                           onChange={(e) => {
                             const val = e.target.value;
                             setRows((prev) => {
                               const next = prev.slice();
-                              const realIndex = rows.indexOf(filtered[idx]); // map naar echte index
+                              const realIndex = rows.indexOf(filtered[idx]);
                               next[realIndex] = {
                                 ...next[realIndex],
                                 startnummer: val,
@@ -671,7 +722,7 @@ export default function Startlijst() {
                 ))}
                 {!filtered.length && (
                   <tr>
-                    <td className="p-4 text-gray-500" colSpan={7}>
+                    <td className="p-4 text-gray-500" colSpan={8}>
                       Geen rijen. Upload CSV of voeg handmatig toe.
                     </td>
                   </tr>
@@ -692,6 +743,7 @@ export default function Startlijst() {
                     ruiter: "",
                     paard: "",
                     startnummer: "",
+                    starttijd: "",
                     klasse: klasse || "",
                   },
                 ])
@@ -702,8 +754,8 @@ export default function Startlijst() {
           </div>
         </div>
 
-        {/* Live Preview Sidebar (rechts, per klasse gegroepeerd) */}
-        <div className="md:col-span-1 order-1 md:order-2">
+        {/* Live Preview Sidebar (rechts, per klasse gegroepeerd + DnD klassen) */}
+        <div className="lg:w-1/3">
           <div className="sticky top-4 space-y-3">
             <div className="bg-gray-50 rounded-lg p-4 border">
               <div className="flex items-center justify-between mb-3">
@@ -715,35 +767,25 @@ export default function Startlijst() {
                 </span>
               </div>
 
-              {/* Volgorde klassen */}
+              {/* Volgorde klassen (drag & drop) */}
               {classOrder.length > 0 && (
                 <div className="mb-3">
                   <div className="text-xs font-semibold text-gray-600 mb-1">
                     Volgorde klassen (starttijden)
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {classOrder.map((cls) => {
+                    {classOrder.map((cls, index) => {
                       if (!previewClassMap.has(cls)) return null;
                       return (
                         <div
                           key={cls}
-                          className="flex items-center gap-1 text-xs bg-white border rounded-full px-2 py-1"
+                          className="flex items-center gap-1 text-xs bg-white border rounded-full px-2 py-1 cursor-move"
+                          draggable
+                          onDragStart={onClassDragStart(index)}
+                          onDragOver={onClassDragOver(index)}
+                          onDrop={onClassDrop(index)}
                         >
                           <span>{cls === "Zonder klasse" ? "—" : cls}</span>
-                          <button
-                            type="button"
-                            className="text-gray-400 hover:text-gray-700"
-                            onClick={() => moveClass(cls, "up")}
-                          >
-                            ↑
-                          </button>
-                          <button
-                            type="button"
-                            className="text-gray-400 hover:text-gray-700"
-                            onClick={() => moveClass(cls, "down")}
-                          >
-                            ↓
-                          </button>
                         </div>
                       );
                     })}
@@ -772,6 +814,7 @@ export default function Startlijst() {
                           <thead>
                             <tr className="bg-gray-50 text-left">
                               <th className="p-2 text-[10px]">#</th>
+                              <th className="p-2 text-[10px]">Tijd</th>
                               <th className="p-2 text-[10px]">Nr</th>
                               <th className="p-2 text-[10px]">Ruiter</th>
                               <th className="p-2 text-[10px]">Paard</th>
@@ -788,6 +831,9 @@ export default function Startlijst() {
                                 >
                                   <td className="p-2 text-gray-600">
                                     {globalIndex}
+                                  </td>
+                                  <td className="p-2 font-mono">
+                                    {r.starttijd || "--:--"}
                                   </td>
                                   <td className="p-2 font-mono">
                                     {r.startnummer || "??"}
@@ -882,7 +928,7 @@ export default function Startlijst() {
         </div>
       </div>
 
-      {/* Preview modal (nog steeds platte lijst, zodat je alles kunt checken) */}
+      {/* Preview modal (platte lijst) */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full p-4">
@@ -899,7 +945,8 @@ export default function Startlijst() {
               <table className="min-w-full">
                 <thead>
                   <tr className="bg-gray-100 text-left">
-                    <th className="p-2 w-12">#</th>
+                    <th className="p-2 w-10">#</th>
+                    <th className="p-2 w-24">Tijd</th>
                     <th className="p-2 w-24">Startnr</th>
                     <th className="p-2">Ruiter</th>
                     <th className="p-2">Paard</th>
@@ -915,6 +962,9 @@ export default function Startlijst() {
                       }`}
                     >
                       <td className="p-2">{i + 1}</td>
+                      <td className="p-2">
+                        {r.type === "break" ? "—" : r.starttijd || "--:--"}
+                      </td>
                       <td className="p-2">
                         {r.type === "break" ? "—" : r.startnummer}
                       </td>
