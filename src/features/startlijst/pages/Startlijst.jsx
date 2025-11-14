@@ -61,7 +61,7 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-async function generateSimplePDF(title, rows) {
+async function generateSimplePDF(title, rows, classStartTimes = {}) {
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
 
@@ -79,9 +79,12 @@ async function generateSimplePDF(title, rows) {
         "",
       ];
     }
+    const classTime =
+      r.klasse && classStartTimes[r.klasse] ? classStartTimes[r.klasse] : "";
+    const effectiveTime = r.starttijd || classTime || "";
     return [
       String(i + 1),
-      r.starttijd || "",
+      effectiveTime,
       r.startnummer || "",
       r.ruiter || "",
       r.paard || "",
@@ -107,20 +110,25 @@ async function generateSimplePDF(title, rows) {
 }
 
 // Excel export met fallback
-async function exportToExcel(rows, meta = {}) {
+async function exportToExcel(rows, meta = {}, classStartTimes = {}) {
   try {
     const XLSX = await import("xlsx");
-    const data = rows.map((r, idx) => ({
-      Volgorde: idx + 1,
-      Type: r.type === "break" ? "PAUZE" : "RIT",
-      Tijd: r.type === "break" ? "" : r.starttijd || "",
-      Startnummer: r.type === "break" ? "" : r.startnummer || "",
-      Ruiter: r.type === "break" ? "" : r.ruiter || "",
-      Paard: r.type === "break" ? "" : r.paard || "",
-      Klasse: r.type === "break" ? "" : r.klasse || "",
-      PauzeLabel: r.type === "break" ? r.label || "" : "",
-      PauzeMinuten: r.type === "break" ? r.duration || 0 : "",
-    }));
+    const data = rows.map((r, idx) => {
+      const classTime =
+        r.klasse && classStartTimes[r.klasse] ? classStartTimes[r.klasse] : "";
+      const effectiveTime = r.type === "break" ? "" : r.starttijd || classTime || "";
+      return {
+        Volgorde: idx + 1,
+        Type: r.type === "break" ? "PAUZE" : "RIT",
+        Tijd: effectiveTime,
+        Startnummer: r.type === "break" ? "" : r.startnummer || "",
+        Ruiter: r.type === "break" ? "" : r.ruiter || "",
+        Paard: r.type === "break" ? "" : r.paard || "",
+        Klasse: r.type === "break" ? "" : r.klasse || "",
+        PauzeLabel: r.type === "break" ? r.label || "" : "",
+        PauzeMinuten: r.type === "break" ? r.duration || 0 : "",
+      };
+    });
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Startlijst");
@@ -149,10 +157,13 @@ async function exportToExcel(rows, meta = {}) {
     ];
     const lines = [header.join(",")];
     rows.forEach((r, idx) => {
+      const classTime =
+        r.klasse && classStartTimes[r.klasse] ? classStartTimes[r.klasse] : "";
+      const effectiveTime = r.type === "break" ? "" : r.starttijd || classTime || "";
       const line = [
         idx + 1,
         r.type === "break" ? "PAUZE" : "RIT",
-        r.type === "break" ? "" : r.starttijd || "",
+        effectiveTime,
         r.type === "break" ? "" : r.startnummer || "",
         r.type === "break" ? "" : r.ruiter || "",
         r.type === "break" ? "" : r.paard || "",
@@ -202,8 +213,9 @@ export default function Startlijst() {
   const [loadingFromDB, setLoadingFromDB] = useState(false);
   const [dbMessage, setDbMessage] = useState("");
 
-  // Volgorde van klassen voor de preview (en “starttijden per klasse”)
+  // Volgorde van klassen + starttijden per klasse
   const [classOrder, setClassOrder] = useState([]);
+  const [classStartTimes, setClassStartTimes] = useState({});
 
   // Zorg dat classOrder altijd alle gebruikte klassen bevat, in stabiele volgorde
   useEffect(() => {
@@ -262,7 +274,7 @@ export default function Startlijst() {
     e.target.value = "";
   };
 
-  // DnD (per deelnemer, in hoofdtabel)
+  // DnD (per deelnemer, in hoofdtabel) - binnen dezelfde klasse
   const dragIndex = useRef(null);
   const onDragStart = (idx) => (ev) => {
     dragIndex.current = idx;
@@ -276,10 +288,27 @@ export default function Startlijst() {
     ev.preventDefault();
     const from = dragIndex.current;
     if (from === null || from === idx) return;
+
+    const sourceRow = filtered[from];
+    const targetRow = filtered[idx];
+
+    // Pauzes mogen overal heen, deelnemers alleen binnen hun klasse
+    if (
+      sourceRow?.type === "entry" &&
+      targetRow?.type === "entry" &&
+      (sourceRow.klasse || "") !== (targetRow.klasse || "")
+    ) {
+      dragIndex.current = null;
+      return;
+    }
+
     setRows((prev) => {
       const next = prev.slice();
-      const [moved] = next.splice(from, 1);
-      next.splice(idx, 0, moved);
+      const fromReal = prev.indexOf(sourceRow);
+      const toReal = prev.indexOf(targetRow);
+      if (fromReal === -1 || toReal === -1) return prev;
+      const [moved] = next.splice(fromReal, 1);
+      next.splice(toReal, 0, moved);
       return next;
     });
     dragIndex.current = null;
@@ -332,15 +361,16 @@ export default function Startlijst() {
     setShowPreview(false);
   };
 
+  const meta = { wedstrijd, klasse, rubriek };
+
   const makeBatchPDF = async () => {
     const blob = await generateSimplePDF(
       `Startlijst ${wedstrijd || ""} ${klasse || ""} ${rubriek || ""}`.trim(),
-      filtered
+      filtered,
+      classStartTimes
     );
     downloadBlob(blob, "startlijst.pdf");
   };
-
-  const meta = { wedstrijd, klasse, rubriek };
 
   // Load deelnemers from database
   const loadDeelnemersFromDB = useCallback(async () => {
@@ -353,7 +383,7 @@ export default function Startlijst() {
     try {
       let query = supabase
         .from("inschrijvingen")
-        .select("ruiter,paard,startnummer,klasse,rubriek") // starttijd evt. later toevoegen
+        .select("ruiter,paard,startnummer,klasse,rubriek")
         .eq("wedstrijd_id", wedstrijd)
         .order("startnummer", { ascending: true });
 
@@ -371,7 +401,7 @@ export default function Startlijst() {
         paard: r.paard || "",
         startnummer: (r.startnummer || "").toString(),
         klasse: r.klasse || "",
-        starttijd: "", // kan handmatig worden ingevuld
+        starttijd: "",
       }));
 
       setRows(loadedRows);
@@ -395,10 +425,10 @@ export default function Startlijst() {
     <div className="p-4 max-w-full mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
 
-      {/* Flex ipv grid, zodat preview rechts komt te staan */}
-      <div className="flex flex-col lg:flex-row gap-4">
+      {/* Flex i.p.v. grid, zodat preview rechts staat vanaf md-breedte */}
+      <div className="flex flex-col md:flex-row gap-4 md:items-start">
         {/* Main editing area (links) */}
-        <div className="lg:w-2/3">
+        <div className="w-full md:w-2/3">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
             <select
               className="border rounded px-2 py-1"
@@ -466,7 +496,7 @@ export default function Startlijst() {
 
             <button
               className="px-3 py-2 border rounded"
-              onClick={() => exportToExcel(filtered, meta)}
+              onClick={() => exportToExcel(filtered, meta, classStartTimes)}
               disabled={!filtered.length}
             >
               Export naar Excel
@@ -754,8 +784,8 @@ export default function Startlijst() {
           </div>
         </div>
 
-        {/* Live Preview Sidebar (rechts, per klasse gegroepeerd + DnD klassen) */}
-        <div className="lg:w-1/3">
+        {/* Live Preview Sidebar (rechts) */}
+        <div className="w-full md:w-1/3">
           <div className="sticky top-4 space-y-3">
             <div className="bg-gray-50 rounded-lg p-4 border">
               <div className="flex items-center justify-between mb-3">
@@ -767,7 +797,7 @@ export default function Startlijst() {
                 </span>
               </div>
 
-              {/* Volgorde klassen (drag & drop) */}
+              {/* Volgorde + starttijd per klasse (drag & drop) */}
               {classOrder.length > 0 && (
                 <div className="mb-3">
                   <div className="text-xs font-semibold text-gray-600 mb-1">
@@ -779,13 +809,25 @@ export default function Startlijst() {
                       return (
                         <div
                           key={cls}
-                          className="flex items-center gap-1 text-xs bg-white border rounded-full px-2 py-1 cursor-move"
+                          className="flex items-center gap-2 text-xs bg-white border rounded-full px-2 py-1 cursor-move"
                           draggable
                           onDragStart={onClassDragStart(index)}
                           onDragOver={onClassDragOver(index)}
                           onDrop={onClassDrop(index)}
                         >
                           <span>{cls === "Zonder klasse" ? "—" : cls}</span>
+                          <input
+                            type="time"
+                            className="border rounded px-1 py-[1px] text-[10px]"
+                            value={classStartTimes[cls] || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setClassStartTimes((prev) => ({
+                                ...prev,
+                                [cls]: val,
+                              }));
+                            }}
+                          />
                         </div>
                       );
                     })}
@@ -798,6 +840,7 @@ export default function Startlijst() {
                   .filter((cls) => previewClassMap.has(cls))
                   .map((cls) => {
                     const groupRows = previewClassMap.get(cls) || [];
+                    const classTime = classStartTimes[cls] || "";
                     return (
                       <div key={cls} className="border-b last:border-b-0">
                         <div className="bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700 flex justify-between items-center">
@@ -824,6 +867,8 @@ export default function Startlijst() {
                             {groupRows.map((r) => {
                               const globalIndex =
                                 filtered.indexOf(r) + 1 || "?";
+                              const effectiveTime =
+                                r.starttijd || classTime || "--:--";
                               return (
                                 <tr
                                   key={r.id}
@@ -833,7 +878,7 @@ export default function Startlijst() {
                                     {globalIndex}
                                   </td>
                                   <td className="p-2 font-mono">
-                                    {r.starttijd || "--:--"}
+                                    {effectiveTime}
                                   </td>
                                   <td className="p-2 font-mono">
                                     {r.startnummer || "??"}
@@ -954,40 +999,52 @@ export default function Startlijst() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r, i) => (
-                    <tr
-                      key={r.id || i}
-                      className={`border-t ${
-                        r.type === "break" ? "bg-yellow-50" : ""
-                      }`}
-                    >
-                      <td className="p-2">{i + 1}</td>
-                      <td className="p-2">
-                        {r.type === "break" ? "—" : r.starttijd || "--:--"}
-                      </td>
-                      <td className="p-2">
-                        {r.type === "break" ? "—" : r.startnummer}
-                      </td>
-                      <td className="p-2">
-                        {r.type === "break" ? "—" : r.ruiter}
-                      </td>
-                      <td className="p-2">
-                        {r.type === "break" ? "—" : r.paard}
-                      </td>
-                      <td className="p-2">
-                        {r.type === "break"
-                          ? `PAUZE: ${r.label || ""} (${r.duration || 0} min)`
-                          : `Rit${r.klasse ? ` (${r.klasse})` : ""}`}
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map((r, i) => {
+                    const classTime =
+                      r.klasse && classStartTimes[r.klasse]
+                        ? classStartTimes[r.klasse]
+                        : "";
+                    const effectiveTime =
+                      r.type === "break"
+                        ? ""
+                        : r.starttijd || classTime || "--:--";
+                    return (
+                      <tr
+                        key={r.id || i}
+                        className={`border-t ${
+                          r.type === "break" ? "bg-yellow-50" : ""
+                        }`}
+                      >
+                        <td className="p-2">{i + 1}</td>
+                        <td className="p-2">
+                          {r.type === "break" ? "—" : effectiveTime}
+                        </td>
+                        <td className="p-2">
+                          {r.type === "break" ? "—" : r.startnummer}
+                        </td>
+                        <td className="p-2">
+                          {r.type === "break" ? "—" : r.ruiter}
+                        </td>
+                        <td className="p-2">
+                          {r.type === "break" ? "—" : r.paard}
+                        </td>
+                        <td className="p-2">
+                          {r.type === "break"
+                            ? `PAUZE: ${r.label || ""} (${
+                                r.duration || 0
+                              } min)`
+                            : `Rit${r.klasse ? ` (${r.klasse})` : ""}`}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
             <div className="mt-3 flex gap-2 justify-end">
               <button
                 className="px-3 py-2 border rounded"
-                onClick={() => exportToExcel(rows, meta)}
+                onClick={() => exportToExcel(rows, meta, classStartTimes)}
               >
                 Export naar Excel
               </button>
@@ -998,7 +1055,8 @@ export default function Startlijst() {
                     `Startlijst ${wedstrijd || ""} ${klasse || ""} ${
                       rubriek || ""
                     }`.trim(),
-                    rows
+                    rows,
+                    classStartTimes
                   );
                   downloadBlob(blob, "startlijst.pdf");
                 }}
