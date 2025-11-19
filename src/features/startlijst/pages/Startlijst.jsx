@@ -389,6 +389,45 @@ export default function Startlijst() {
     setRows(prev => [...prev, newRow]);
   };
 
+  // Function to migrate entries from another wedstrijd to current one
+  const migrateFromOtherWedstrijd = async () => {
+    if (!wedstrijd) {
+      alert("Selecteer eerst een wedstrijd");
+      return;
+    }
+
+    const sourceWedstrijdId = "6837ee22-6992-4cee-a23f-f8bbae8b4f42"; // The only ID with data
+    const confirmed = confirm(
+      `Wil je alle deelnemers van de andere wedstrijd (${sourceWedstrijdId.substring(0,8)}...) overzetten naar de huidige wedstrijd?`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      setDbMessage("Migreren van deelnemers...");
+      
+      // Update all entries from source wedstrijd to target wedstrijd
+      const { error } = await supabase
+        .from('inschrijvingen')
+        .update({ wedstrijd_id: wedstrijd })
+        .eq('wedstrijd_id', sourceWedstrijdId);
+      
+      if (error) throw error;
+      
+      setDbMessage("✅ Deelnemers succesvol gemigreerd");
+      
+      // Reload data for current wedstrijd
+      setTimeout(() => {
+        loadDeelnemersFromDB();
+      }, 500);
+      
+    } catch (error) {
+      console.error('Migration error:', error);
+      const errorMsg = error?.message || String(error);
+      setDbMessage(`❌ Fout bij migreren: ${errorMsg}`);
+    }
+  };
+
   const saveList = async () => {
     if (!wedstrijd) {
       alert("Selecteer eerst een wedstrijd om wijzigingen op te slaan.");
@@ -649,10 +688,35 @@ export default function Startlijst() {
               className={`mb-4 p-2 rounded ${
                 dbMessage.includes("Fout")
                   ? "bg-red-100 text-red-700"
+                  : dbMessage.includes("✅")
+                  ? "bg-green-100 text-green-700"
                   : "bg-blue-100 text-blue-700"
               }`}
             >
               {dbMessage}
+            </div>
+          )}
+
+          {/* Migration helper when no data found */}
+          {wedstrijd && rows.length === 0 && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+              <p className="text-sm text-yellow-800 mb-2">
+                Geen deelnemers gevonden voor deze wedstrijd.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                  onClick={migrateFromOtherWedstrijd}
+                >
+                  Migreer van andere wedstrijd
+                </button>
+                <button
+                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                  onClick={addEmptyRow}
+                >
+                  Voeg handmatig toe
+                </button>
+              </div>
             </div>
           )}
 
