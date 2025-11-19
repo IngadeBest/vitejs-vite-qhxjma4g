@@ -358,6 +358,23 @@ export default function Startlijst() {
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   
+  // Klasse normalisatie functie
+  const normalizeKlasse = (klasse) => {
+    if (!klasse) return null;
+    const normalized = klasse.toLowerCase().trim();
+    
+    // Mapping van varianten naar standaard namen
+    const klasseMap = {
+      'yr': 'Junior',
+      'junior': 'Junior', 
+      'jr': 'Junior',
+      'young rider': 'Junior',
+      'youngrider': 'Junior',
+    };
+    
+    return klasseMap[normalized] || klasse.trim();
+  };
+
   const saveList = async () => {
     if (!wedstrijd) {
       alert("Selecteer eerst een wedstrijd om wijzigingen op te slaan.");
@@ -368,88 +385,38 @@ export default function Startlijst() {
     setDbMessage("Opslaan naar database...");
 
     try {
-      // Filter alleen echte deelnemers (geen pauzes)
-      const entries = rows.filter(row => row.type === 'entry');
+      // Eenvoudige aanpak: verwijder alle bestaande entries voor deze wedstrijd en voeg alle huidige toe
       
-      // Haal alle huidige inschrijvingen voor deze wedstrijd op
-      const { data: currentEntries } = await supabase
+      // Stap 1: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
+      await supabase
         .from('inschrijvingen')
-        .select('id,ruiter,paard')
+        .delete()
         .eq('wedstrijd_id', wedstrijd);
 
-      // Voor elke deelnemer: update of insert in database
-      const updatePromises = entries.map(async (row) => {
-        const updateData = {
+      // Stap 2: Voeg alle huidige entries toe (filter alleen echte deelnemers, geen pauzes)
+      const entries = rows
+        .filter(row => row.type === 'entry')
+        .filter(row => row.ruiter && row.ruiter.trim()) // Alleen entries met ruiter naam
+        .map(row => ({
           wedstrijd_id: wedstrijd,
-          ruiter: row.ruiter || null,
-          paard: row.paard || null,
-          startnummer: row.startnummer ? parseInt(row.startnummer) : null,
-          klasse: row.klasse || null,
-        };
+          ruiter: row.ruiter.trim(),
+          paard: row.paard ? row.paard.trim() : null,
+          startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
+          klasse: normalizeKlasse(row.klasse), // Normaliseer klasse namen
+        }));
 
-        if (row.dbId) {
-          // Update bestaande inschrijving met bekende database ID
-          return supabase
-            .from('inschrijvingen')
-            .update(updateData)
-            .eq('id', row.dbId);
-        } else {
-          // Zoek bestaande inschrijving op ruiter+paard+wedstrijd
-          const existing = currentEntries?.find(entry => 
-            entry.ruiter === (row.ruiter || '') && 
-            entry.paard === (row.paard || '')
-          );
-
-          if (existing) {
-            // Update bestaande inschrijving
-            return supabase
-              .from('inschrijvingen')
-              .update(updateData)
-              .eq('id', existing.id);
-          } else {
-            // Insert nieuwe inschrijving
-            return supabase
-              .from('inschrijvingen')
-              .insert(updateData);
-          }
-        }
-      });
-
-      // Verwijder inschrijvingen die niet meer in de lijst staan
-      if (currentEntries) {
-        const currentDbIds = entries
-          .filter(row => row.dbId)
-          .map(row => row.dbId);
+      if (entries.length > 0) {
+        const { error: insertError } = await supabase
+          .from('inschrijvingen')
+          .insert(entries);
         
-        const currentCombos = entries
-          .filter(row => !row.dbId)
-          .map(row => ({ ruiter: row.ruiter || '', paard: row.paard || '' }));
-
-        const toDelete = currentEntries.filter(entry => {
-          // Verwijder als het database ID niet meer voorkomt
-          if (currentDbIds.includes(entry.id)) return false;
-          
-          // Verwijder als de ruiter+paard combinatie niet meer voorkomt
-          return !currentCombos.some(combo => 
-            combo.ruiter === (entry.ruiter || '') && 
-            combo.paard === (entry.paard || '')
-          );
-        });
-
-        if (toDelete.length > 0) {
-          await supabase
-            .from('inschrijvingen')
-            .delete()
-            .in('id', toDelete.map(entry => entry.id));
-        }
+        if (insertError) throw insertError;
       }
 
-      await Promise.all(updatePromises);
-      
       // Save to localStorage als backup
       localStorage.setItem(LS_KEY, JSON.stringify(rows));
       
-      setDbMessage(`✅ ${entries.length} wijzigingen opgeslagen in database`);
+      setDbMessage(`✅ ${entries.length} deelnemers opgeslagen in database`);
       setShowPreview(false);
       
       // Herlaad data om sync te behouden
@@ -506,7 +473,7 @@ export default function Startlijst() {
         ruiter: r.ruiter || "",
         paard: r.paard || "",
         startnummer: (r.startnummer || "").toString(),
-        klasse: r.klasse || "",
+        klasse: normalizeKlasse(r.klasse) || "", // Normaliseer klasse bij laden
         starttijd: "",
         dbId: r.id, // Store database ID for later updates/deletes
         fromDB: true, // Mark as loaded from database
@@ -738,7 +705,7 @@ export default function Startlijst() {
                         <input
                           className="border rounded px-2 py-1 w-16"
                           value={row.klasse || ""}
-                          placeholder="WE0"
+                          placeholder="Junior"
                           onChange={(e) => {
                             const val = e.target.value;
                             setRows((prev) => {
@@ -750,6 +717,21 @@ export default function Startlijst() {
                               };
                               return next;
                             });
+                          }}
+                          onBlur={(e) => {
+                            // Normaliseer klasse bij onBlur
+                            const val = normalizeKlasse(e.target.value);
+                            if (val !== e.target.value) {
+                              setRows((prev) => {
+                                const next = prev.slice();
+                                const realIndex = rows.indexOf(filtered[idx]);
+                                next[realIndex] = {
+                                  ...next[realIndex],
+                                  klasse: val,
+                                };
+                                return next;
+                              });
+                            }
                           }}
                         />
                       )}
