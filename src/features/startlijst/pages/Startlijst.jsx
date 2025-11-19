@@ -448,33 +448,93 @@ export default function Startlijst() {
   };
 
   const showManualRecoveryForm = () => {
-    const csvData = prompt(`Vul CSV data in (ruiter,paard,startnummer,klasse), bijvoorbeeld:
+    const csvData = prompt(`Bulk invoer - meerdere formats ondersteund:
+
+FORMAT 1 (CSV): ruiter,paard,startnummer,klasse
 Jan Jansen,Zwarte Piet,1,Junior
 Marie de Boer,Witte Roos,2,Junior
-(Kopieer vanuit Excel of ander bestand)`);
+
+FORMAT 2 (Tab-separated, kopieer uit Excel):
+Jan Jansen    Zwarte Piet    1    Junior
+Marie de Boer    Witte Roos    2    Junior
+
+FORMAT 3 (Ruiter-lijst, auto startnummers):
+Jan Jansen
+Marie de Boer
+Piet de Vries
+
+Plak je data hieronder:`);
     
     if (csvData) {
       try {
         const lines = csvData.split('\n').filter(line => line.trim());
-        const entries = lines.map((line, index) => {
-          const [ruiter, paard, startnummer, klasse] = line.split(',').map(s => s.trim());
-          return {
-            id: `manual_recovery_${Date.now()}_${index}`,
-            type: "entry",
-            ruiter: ruiter || "",
-            paard: paard || "",
-            startnummer: startnummer || "",
-            klasse: klasse || "",
-            starttijd: "",
-            fromDB: false,
-          };
-        });
+        const entries = [];
         
-        setRows(entries);
-        setDbMessage(`✅ ${entries.length} entries handmatig toegevoegd`);
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          let ruiter, paard, startnummer, klasse;
+          
+          // Detect format and parse accordingly
+          if (line.includes(',')) {
+            // CSV format
+            [ruiter, paard, startnummer, klasse] = line.split(',').map(s => s.trim());
+          } else if (line.includes('\t')) {
+            // Tab-separated (Excel copy/paste)
+            [ruiter, paard, startnummer, klasse] = line.split('\t').map(s => s.trim());
+          } else {
+            // Simple ruiter list - generate startnummer
+            ruiter = line;
+            paard = '';
+            startnummer = (i + 1).toString();
+            klasse = '';
+          }
+          
+          if (ruiter) {
+            entries.push({
+              id: `manual_recovery_${Date.now()}_${i}`,
+              type: "entry",
+              ruiter: ruiter || "",
+              paard: paard || "",
+              startnummer: startnummer || (i + 1).toString(),
+              klasse: klasse || "",
+              starttijd: "",
+              fromDB: false,
+            });
+          }
+        }
+        
+        if (entries.length > 0) {
+          setRows(entries);
+          setDbMessage(`✅ ${entries.length} entries geïmporteerd - controleer en klik Preview > Opslaan`);
+        } else {
+          setDbMessage("❌ Geen geldige data gevonden in invoer");
+        }
       } catch (e) {
-        setDbMessage(`❌ Fout bij verwerken CSV: ${e.message}`);
+        setDbMessage(`❌ Fout bij verwerken data: ${e.message}`);
       }
+    }
+  };
+
+  // Quick template generator
+  const generateTemplate = () => {
+    const count = prompt("Hoeveel lege rijen wil je genereren? (bijv. 24)");
+    const num = parseInt(count);
+    
+    if (num && num > 0 && num <= 100) {
+      const emptyRows = Array.from({length: num}, (_, i) => ({
+        id: `template_${Date.now()}_${i}`,
+        type: "entry",
+        ruiter: "",
+        paard: "",
+        startnummer: (i + 1).toString(),
+        klasse: "",
+        starttijd: "",
+        fromDB: false,
+      }));
+      setRows(emptyRows);
+      setDbMessage(`✅ ${num} lege rijen gegenereerd met genummerde startnummers`);
+    } else {
+      alert("Voer een geldig getal in tussen 1 en 100");
     }
   };
 
@@ -610,14 +670,13 @@ Marie de Boer,Witte Roos,2,Junior
       return;
     }
 
-    console.log("SaveList called with:", { wedstrijd, rubriek, rowsLength: rows.length });
+    console.log("SaveList called with:", { wedstrijd, rowsLength: rows.length });
     
     // Create timestamped backup BEFORE any database operations
     const timestamp = new Date().toISOString();
     const backupKey = `backup_${timestamp.slice(0, 16).replace(/[:-]/g, '')}`;
     localStorage.setItem(backupKey, JSON.stringify(rows));
     localStorage.setItem("last_backup", JSON.stringify({ key: backupKey, timestamp, wedstrijd }));
-    console.log("Created backup:", backupKey);
     
     setSaving(true);
     setDbMessage("Opslaan naar database...");
@@ -634,8 +693,7 @@ Marie de Boer,Witte Roos,2,Junior
         throw new Error("Geen geldige deelnemers om op te slaan. Operatie geannuleerd voor veiligheid.");
       }
       
-      // Stap 2: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
-      console.log("Deleting existing entries for wedstrijd:", wedstrijd);
+      // Stap 1: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
       const { error: deleteError } = await supabase
         .from('inschrijvingen')
         .delete()
@@ -646,7 +704,7 @@ Marie de Boer,Witte Roos,2,Junior
         throw deleteError;
       }
 
-      // Stap 3: Voeg alle huidige entries toe
+      // Stap 2: Voeg alle huidige entries toe
       const entriesToInsert = entries.map(row => ({
         wedstrijd_id: wedstrijd,
         ruiter: row.ruiter.trim(),
@@ -655,8 +713,6 @@ Marie de Boer,Witte Roos,2,Junior
         klasse: normalizeKlasse(row.klasse),
         rubriek: rubriek || 'Algemeen',
       }));
-
-      console.log("Inserting entries:", entriesToInsert);
 
       const { error: insertError } = await supabase
         .from('inschrijvingen')
@@ -711,21 +767,6 @@ Marie de Boer,Witte Roos,2,Junior
     console.log("Loading deelnemers for wedstrijd:", wedstrijd, "klasse:", klasse);
     
     try {
-      // Debug: check all available wedstrijd_id's in database
-      const { data: allWedstrijdIds } = await supabase
-        .from("inschrijvingen")
-        .select("wedstrijd_id")
-        .not("wedstrijd_id", "is", null);
-      
-      const uniqueIds = [...new Set(allWedstrijdIds?.map(w => w.wedstrijd_id) || [])];
-      console.log("All wedstrijd_id's in database:", uniqueIds);
-      
-      // Debug: show total count in database
-      const { count } = await supabase
-        .from("inschrijvingen")
-        .select("*", { count: "exact", head: true });
-      console.log("Total entries in database:", count);
-      
       let query = supabase
         .from("inschrijvingen")
         .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id")
@@ -737,17 +778,7 @@ Marie de Boer,Witte Roos,2,Junior
       }
 
       const { data, error } = await query;
-      console.log("Database query result:", { data, error, wedstrijd_id: wedstrijd });
-      
-      // Debug: if no data, check if there are entries with similar ID
-      if ((!data || data.length === 0) && wedstrijd) {
-        console.log("No data found, checking for similar IDs...");
-        const { data: similarData } = await supabase
-          .from("inschrijvingen") 
-          .select("wedstrijd_id,ruiter,paard")
-          .ilike("wedstrijd_id", `%${wedstrijd.substring(0, 8)}%`);
-        console.log("Similar wedstrijd_id entries:", similarData);
-      }
+      console.log("Database query result:", { dataLength: data?.length, error, wedstrijd_id: wedstrijd });
       
       if (error) throw error;
 
@@ -891,54 +922,34 @@ Marie de Boer,Witte Roos,2,Junior
             </div>
           )}
 
-          {/* Emergency data recovery */}
-          <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded">
-            <p className="text-sm text-red-900 mb-2 font-semibold">
-              🚨 NOODPROCEDURE: Data Recovery
-            </p>
-            <p className="text-xs text-red-800 mb-3">
-              De inschrijvingen data is verloren gegaan. Probeer een van deze recovery opties:
-            </p>
-            <div className="space-y-2">
+          {/* Data management tools */}
+          {wedstrijd && rows.length === 0 && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+              <p className="text-sm text-blue-800 mb-2">
+                Geen deelnemers gevonden voor deze wedstrijd.
+              </p>
               <div className="flex gap-2 flex-wrap">
                 <button
-                  className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                  onClick={recoverFromLocalStorage}
+                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  onClick={copyFromOtherWedstrijd}
                 >
-                  🔍 Zoek alle backups
+                  Kopieer van andere wedstrijd
                 </button>
                 <button
-                  className="px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
+                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                  onClick={addEmptyRow}
+                >
+                  + Nieuwe deelnemer
+                </button>
+                <button
+                  className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
                   onClick={showManualRecoveryForm}
                 >
-                  📝 Handmatige invoer (CSV)
-                </button>
-                <button
-                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                  onClick={() => {
-                    // Quick add 5 empty rows for manual entry
-                    const emptyRows = Array.from({length: 5}, (_, i) => ({
-                      id: `quick_${Date.now()}_${i}`,
-                      type: "entry",
-                      ruiter: "",
-                      paard: "",
-                      startnummer: (i+1).toString(),
-                      klasse: "",
-                      starttijd: "",
-                      fromDB: false,
-                    }));
-                    setRows(emptyRows);
-                    setDbMessage("✅ 5 lege rijen toegevoegd voor handmatige invoer");
-                  }}
-                >
-                  ➕ 5 lege rijen
+                  Bulk import
                 </button>
               </div>
-              <p className="text-xs text-red-700">
-                💡 Voor de toekomst: Gebruik regelmatig "Export naar Excel" als backup!
-              </p>
             </div>
-          </div>
+          )}
 
           {/* Migration helper when no data found */}
           {wedstrijd && rows.length === 0 && (
@@ -960,21 +971,6 @@ Marie de Boer,Witte Roos,2,Junior
                   Voeg handmatig toe
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* Emergency rollback option when data exists in wrong wedstrijd */}
-          {wedstrijd === "a070c9c5-c0d7-4e43-bf6c-d145ad4838d6" && rows.length > 0 && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
-              <p className="text-sm text-red-800 mb-2">
-                ⚠️ Emergency: Als deze data per ongeluk hierheen is verplaatst:
-              </p>
-              <button
-                className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                onClick={rollbackMigration}
-              >
-                🔄 Rollback naar originele wedstrijd
-              </button>
             </div>
           )}
 
