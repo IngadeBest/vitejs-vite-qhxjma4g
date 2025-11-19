@@ -394,25 +394,87 @@ export default function Startlijst() {
     const LS_KEY = "startlijst-rows";
     const backup = localStorage.getItem(LS_KEY);
     
-    if (backup) {
+    console.log("Checking localStorage keys:", Object.keys(localStorage));
+    console.log("Checking for backup in key:", LS_KEY);
+    
+    // Check alternative localStorage keys that might have data
+    const possibleKeys = [
+      "startlijst-rows",
+      "rows", 
+      "inschrijvingen",
+      "deelnemers",
+      "wedstrijd-data"
+    ];
+    
+    let foundBackup = null;
+    let foundKey = null;
+    
+    for (const key of possibleKeys) {
+      const data = localStorage.getItem(key);
+      if (data && data !== 'null' && data !== '[]') {
+        console.log(`Found data in localStorage key '${key}':`, data.substring(0, 100) + "...");
+        foundBackup = data;
+        foundKey = key;
+        break;
+      }
+    }
+    
+    if (foundBackup) {
       try {
-        const parsedData = JSON.parse(backup);
-        console.log("LocalStorage backup found:", parsedData);
+        const parsedData = JSON.parse(foundBackup);
+        console.log("Found backup data:", parsedData);
         
         const confirmed = confirm(
-          `LocalStorage backup gevonden met ${parsedData.length} entries. Wil je deze herstellen naar de database?`
+          `Backup gevonden in '${foundKey}' met ${Array.isArray(parsedData) ? parsedData.length : 'onbekend aantal'} entries. Wil je deze herstellen?`
         );
         
         if (confirmed) {
-          restoreToDatabase(parsedData);
+          restoreToDatabase(Array.isArray(parsedData) ? parsedData : [parsedData]);
         }
       } catch (e) {
-        console.error("Error parsing localStorage backup:", e);
-        setDbMessage("❌ Fout bij lezen localStorage backup");
+        console.error("Error parsing backup:", e);
+        setDbMessage(`❌ Fout bij lezen backup: ${e.message}`);
       }
     } else {
-      setDbMessage("❌ Geen localStorage backup gevonden");
-      console.log("No localStorage backup found");
+      setDbMessage("❌ Geen backup gevonden in localStorage");
+      console.log("No backup found in any localStorage keys");
+      
+      // Show manual recovery option
+      const manual = confirm("Geen backup gevonden. Wil je handmatig data invoeren?");
+      if (manual) {
+        showManualRecoveryForm();
+      }
+    }
+  };
+
+  const showManualRecoveryForm = () => {
+    const csvData = prompt(`Vul CSV data in (ruiter,paard,startnummer,klasse), bijvoorbeeld:
+Jan Jansen,Zwarte Piet,1,Junior
+Marie de Boer,Witte Roos,2,Junior
+(Kopieer vanuit Excel of ander bestand)`);
+    
+    if (csvData) {
+      try {
+        const lines = csvData.split('\n').filter(line => line.trim());
+        const entries = lines.map((line, index) => {
+          const [ruiter, paard, startnummer, klasse] = line.split(',').map(s => s.trim());
+          return {
+            id: `manual_recovery_${Date.now()}_${index}`,
+            type: "entry",
+            ruiter: ruiter || "",
+            paard: paard || "",
+            startnummer: startnummer || "",
+            klasse: klasse || "",
+            starttijd: "",
+            fromDB: false,
+          };
+        });
+        
+        setRows(entries);
+        setDbMessage(`✅ ${entries.length} entries handmatig toegevoegd`);
+      } catch (e) {
+        setDbMessage(`❌ Fout bij verwerken CSV: ${e.message}`);
+      }
     }
   };
 
@@ -549,13 +611,30 @@ export default function Startlijst() {
     }
 
     console.log("SaveList called with:", { wedstrijd, rubriek, rowsLength: rows.length });
+    
+    // Create timestamped backup BEFORE any database operations
+    const timestamp = new Date().toISOString();
+    const backupKey = `backup_${timestamp.slice(0, 16).replace(/[:-]/g, '')}`;
+    localStorage.setItem(backupKey, JSON.stringify(rows));
+    localStorage.setItem("last_backup", JSON.stringify({ key: backupKey, timestamp, wedstrijd }));
+    console.log("Created backup:", backupKey);
+    
     setSaving(true);
     setDbMessage("Opslaan naar database...");
 
     try {
       // Eenvoudige aanpak: verwijder alle bestaande entries voor deze wedstrijd en voeg alle huidige toe
       
-      // Stap 1: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
+      // Stap 1: BACKUP check - ensure we have data in current rows
+      const entries = rows
+        .filter(row => row.type === 'entry')
+        .filter(row => row.ruiter && row.ruiter.trim());
+      
+      if (entries.length === 0) {
+        throw new Error("Geen geldige deelnemers om op te slaan. Operatie geannuleerd voor veiligheid.");
+      }
+      
+      // Stap 2: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
       console.log("Deleting existing entries for wedstrijd:", wedstrijd);
       const { error: deleteError } = await supabase
         .from('inschrijvingen')
@@ -567,36 +646,31 @@ export default function Startlijst() {
         throw deleteError;
       }
 
-      // Stap 2: Voeg alle huidige entries toe (filter alleen echte deelnemers, geen pauzes)
-      const entries = rows
-        .filter(row => row.type === 'entry')
-        .filter(row => row.ruiter && row.ruiter.trim()) // Alleen entries met ruiter naam
-        .map(row => ({
-          wedstrijd_id: wedstrijd,
-          ruiter: row.ruiter.trim(),
-          paard: row.paard ? row.paard.trim() : null,
-          startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
-          klasse: normalizeKlasse(row.klasse), // Normaliseer klasse namen
-          rubriek: rubriek || 'Algemeen', // Default rubriek to avoid constraint error
-        }));
+      // Stap 3: Voeg alle huidige entries toe
+      const entriesToInsert = entries.map(row => ({
+        wedstrijd_id: wedstrijd,
+        ruiter: row.ruiter.trim(),
+        paard: row.paard ? row.paard.trim() : null,
+        startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
+        klasse: normalizeKlasse(row.klasse),
+        rubriek: rubriek || 'Algemeen',
+      }));
 
-      console.log("Inserting entries:", entries);
+      console.log("Inserting entries:", entriesToInsert);
 
-      if (entries.length > 0) {
-        const { error: insertError } = await supabase
-          .from('inschrijvingen')
-          .insert(entries);
-        
-        if (insertError) {
-          console.error("Insert error:", insertError);
-          throw insertError;
-        }
+      const { error: insertError } = await supabase
+        .from('inschrijvingen')
+        .insert(entriesToInsert);
+      
+      if (insertError) {
+        console.error("Insert error:", insertError);
+        throw insertError;
       }
 
       // Save to localStorage als backup
       localStorage.setItem(LS_KEY, JSON.stringify(rows));
       
-      setDbMessage(`✅ ${entries.length} deelnemers opgeslagen in database`);
+      setDbMessage(`✅ ${entries.length} deelnemers opgeslagen in database (backup: ${backupKey})`);
       setShowPreview(false);
       
       // Herlaad data om sync te behouden
@@ -607,8 +681,8 @@ export default function Startlijst() {
     } catch (error) {
       console.error('Error saving to database:', error);
       const errorMsg = error?.message || String(error);
-      setDbMessage(`❌ Fout bij opslaan: ${errorMsg}`);
-      alert(`Fout bij opslaan naar database: ${errorMsg}`);
+      setDbMessage(`❌ Fout bij opslaan: ${errorMsg} (Backup beschikbaar: ${backupKey})`);
+      alert(`Fout bij opslaan naar database: ${errorMsg}\n\nBackup gemaakt: ${backupKey}`);
     } finally {
       setSaving(false);
     }
@@ -823,25 +897,46 @@ export default function Startlijst() {
               🚨 NOODPROCEDURE: Data Recovery
             </p>
             <p className="text-xs text-red-800 mb-3">
-              Als deelnemers data is verloren gegaan, probeer herstel van localStorage backup:
+              De inschrijvingen data is verloren gegaan. Probeer een van deze recovery opties:
             </p>
-            <div className="flex gap-2">
-              <button
-                className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                onClick={recoverFromLocalStorage}
-              >
-                🔍 Zoek localStorage backup
-              </button>
-              <button
-                className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
-                onClick={() => {
-                  const backup = localStorage.getItem("startlijst-rows");
-                  console.log("Current localStorage:", backup);
-                  alert(`LocalStorage inhoud: ${backup ? `${JSON.parse(backup).length} items` : 'Leeg'}`);
-                }}
-              >
-                📊 Controleer localStorage
-              </button>
+            <div className="space-y-2">
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                  onClick={recoverFromLocalStorage}
+                >
+                  🔍 Zoek alle backups
+                </button>
+                <button
+                  className="px-3 py-1 text-xs bg-orange-600 text-white rounded hover:bg-orange-700"
+                  onClick={showManualRecoveryForm}
+                >
+                  📝 Handmatige invoer (CSV)
+                </button>
+                <button
+                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  onClick={() => {
+                    // Quick add 5 empty rows for manual entry
+                    const emptyRows = Array.from({length: 5}, (_, i) => ({
+                      id: `quick_${Date.now()}_${i}`,
+                      type: "entry",
+                      ruiter: "",
+                      paard: "",
+                      startnummer: (i+1).toString(),
+                      klasse: "",
+                      starttijd: "",
+                      fromDB: false,
+                    }));
+                    setRows(emptyRows);
+                    setDbMessage("✅ 5 lege rijen toegevoegd voor handmatige invoer");
+                  }}
+                >
+                  ➕ 5 lege rijen
+                </button>
+              </div>
+              <p className="text-xs text-red-700">
+                💡 Voor de toekomst: Gebruik regelmatig "Export naar Excel" als backup!
+              </p>
             </div>
           </div>
 
