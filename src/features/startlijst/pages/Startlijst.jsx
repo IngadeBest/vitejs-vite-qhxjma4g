@@ -389,32 +389,82 @@ export default function Startlijst() {
     setRows(prev => [...prev, newRow]);
   };
 
-  // Function to migrate entries from another wedstrijd to current one
-  const migrateFromOtherWedstrijd = async () => {
-    if (!wedstrijd) {
-      alert("Selecteer eerst een wedstrijd");
-      return;
-    }
-
-    const sourceWedstrijdId = "6837ee22-6992-4cee-a23f-f8bbae8b4f42"; // The only ID with data
+  // Function to rollback migration - move entries back to original wedstrijd
+  const rollbackMigration = async () => {
+    const targetWedstrijdId = "6837ee22-6992-4cee-a23f-f8bbae8b4f42"; // Original wedstrijd ID
     const confirmed = confirm(
-      `Wil je alle deelnemers van de andere wedstrijd (${sourceWedstrijdId.substring(0,8)}...) overzetten naar de huidige wedstrijd?`
+      `ROLLBACK: Alle inschrijvingen terugzetten naar originele wedstrijd?`
     );
     
     if (!confirmed) return;
 
     try {
-      setDbMessage("Migreren van deelnemers...");
+      setDbMessage("Rollback: inschrijvingen terugzetten...");
       
-      // Update all entries from source wedstrijd to target wedstrijd
+      // Move all entries from current wedstrijd back to original
       const { error } = await supabase
         .from('inschrijvingen')
-        .update({ wedstrijd_id: wedstrijd })
-        .eq('wedstrijd_id', sourceWedstrijdId);
+        .update({ wedstrijd_id: targetWedstrijdId })
+        .eq('wedstrijd_id', wedstrijd);
       
       if (error) throw error;
       
-      setDbMessage("✅ Deelnemers succesvol gemigreerd");
+      setDbMessage("✅ Rollback succesvol - data teruggezet");
+      
+      // Reload data 
+      setTimeout(() => {
+        loadDeelnemersFromDB();
+      }, 500);
+      
+    } catch (error) {
+      console.error('Rollback error:', error);
+      const errorMsg = error?.message || String(error);
+      setDbMessage(`❌ Fout bij rollback: ${errorMsg}`);
+    }
+  };
+
+  // Function to COPY (not move) entries from another wedstrijd to current one
+  const copyFromOtherWedstrijd = async () => {
+    if (!wedstrijd) {
+      alert("Selecteer eerst een wedstrijd");
+      return;
+    }
+
+    const sourceWedstrijdId = "6837ee22-6992-4cee-a23f-f8bbae8b4f42"; // The source ID
+    const confirmed = confirm(
+      `Wil je alle deelnemers van de andere wedstrijd KOPIËREN naar deze wedstrijd? (Originele data blijft behouden)`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      setDbMessage("Kopiëren van deelnemers...");
+      
+      // First get all entries from source wedstrijd
+      const { data: sourceEntries, error: fetchError } = await supabase
+        .from('inschrijvingen')
+        .select('ruiter,paard,startnummer,klasse,rubriek')
+        .eq('wedstrijd_id', sourceWedstrijdId);
+      
+      if (fetchError) throw fetchError;
+      
+      if (sourceEntries && sourceEntries.length > 0) {
+        // Insert copies with new wedstrijd_id
+        const copiesToInsert = sourceEntries.map(entry => ({
+          ...entry,
+          wedstrijd_id: wedstrijd
+        }));
+        
+        const { error: insertError } = await supabase
+          .from('inschrijvingen')
+          .insert(copiesToInsert);
+        
+        if (insertError) throw insertError;
+        
+        setDbMessage(`✅ ${sourceEntries.length} deelnemers gekopieerd`);
+      } else {
+        setDbMessage("❌ Geen brondata gevonden om te kopiëren");
+      }
       
       // Reload data for current wedstrijd
       setTimeout(() => {
@@ -422,9 +472,9 @@ export default function Startlijst() {
       }, 500);
       
     } catch (error) {
-      console.error('Migration error:', error);
+      console.error('Copy error:', error);
       const errorMsg = error?.message || String(error);
-      setDbMessage(`❌ Fout bij migreren: ${errorMsg}`);
+      setDbMessage(`❌ Fout bij kopiëren: ${errorMsg}`);
     }
   };
 
@@ -705,10 +755,10 @@ export default function Startlijst() {
               </p>
               <div className="flex gap-2">
                 <button
-                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                  onClick={migrateFromOtherWedstrijd}
+                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  onClick={copyFromOtherWedstrijd}
                 >
-                  Migreer van andere wedstrijd
+                  Kopieer van andere wedstrijd
                 </button>
                 <button
                   className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
@@ -717,6 +767,21 @@ export default function Startlijst() {
                   Voeg handmatig toe
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Emergency rollback option when data exists in wrong wedstrijd */}
+          {wedstrijd === "a070c9c5-c0d7-4e43-bf6c-d145ad4838d6" && rows.length > 0 && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
+              <p className="text-sm text-red-800 mb-2">
+                ⚠️ Emergency: Als deze data per ongeluk hierheen is verplaatst:
+              </p>
+              <button
+                className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                onClick={rollbackMigration}
+              >
+                🔄 Rollback naar originele wedstrijd
+              </button>
             </div>
           )}
 
