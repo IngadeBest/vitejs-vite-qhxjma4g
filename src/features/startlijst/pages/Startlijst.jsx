@@ -381,6 +381,7 @@ export default function Startlijst() {
       return;
     }
 
+    console.log("SaveList called with:", { wedstrijd, rubriek, rowsLength: rows.length });
     setSaving(true);
     setDbMessage("Opslaan naar database...");
 
@@ -388,10 +389,16 @@ export default function Startlijst() {
       // Eenvoudige aanpak: verwijder alle bestaande entries voor deze wedstrijd en voeg alle huidige toe
       
       // Stap 1: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
-      await supabase
+      console.log("Deleting existing entries for wedstrijd:", wedstrijd);
+      const { error: deleteError } = await supabase
         .from('inschrijvingen')
         .delete()
         .eq('wedstrijd_id', wedstrijd);
+      
+      if (deleteError) {
+        console.error("Delete error:", deleteError);
+        throw deleteError;
+      }
 
       // Stap 2: Voeg alle huidige entries toe (filter alleen echte deelnemers, geen pauzes)
       const entries = rows
@@ -406,12 +413,17 @@ export default function Startlijst() {
           rubriek: rubriek || 'Algemeen', // Default rubriek to avoid constraint error
         }));
 
+      console.log("Inserting entries:", entries);
+
       if (entries.length > 0) {
         const { error: insertError } = await supabase
           .from('inschrijvingen')
           .insert(entries);
         
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error("Insert error:", insertError);
+          throw insertError;
+        }
       }
 
       // Save to localStorage als backup
@@ -454,6 +466,9 @@ export default function Startlijst() {
     }
     setLoadingFromDB(true);
     setDbMessage("Laden van deelnemers...");
+    
+    console.log("Loading deelnemers for wedstrijd:", wedstrijd, "klasse:", klasse);
+    
     try {
       let query = supabase
         .from("inschrijvingen")
@@ -466,6 +481,8 @@ export default function Startlijst() {
       }
 
       const { data, error } = await query;
+      console.log("Database query result:", { data, error, wedstrijd_id: wedstrijd });
+      
       if (error) throw error;
 
       const loadedRows = (data || []).map((r, i) => ({
@@ -482,6 +499,7 @@ export default function Startlijst() {
 
       setRows(loadedRows);
       setDbMessage(`${loadedRows.length} deelnemers geladen uit database`);
+      console.log("Loaded rows:", loadedRows);
     } catch (e) {
       const errorMsg = e?.message || String(e);
       setDbMessage(`Fout bij laden: ${errorMsg}`);
