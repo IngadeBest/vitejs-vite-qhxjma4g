@@ -26,7 +26,7 @@ export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = 
     telefoon: "",
     omroeper: "",
     opmerkingen: "",
-    rubriek: "senior", // Default value for rubriek
+    rubriek: "Algemeen", // Default value for rubriek - matches database constraint
   });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -53,7 +53,7 @@ export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = 
       wedstrijd_id: form.wedstrijd_id,
       wedstrijd: wedstrijdObj ? wedstrijdObj.naam : null, // denormalized voor leesbaarheid
       klasse: form.klasse,
-  rubriek: form.rubriek || null,
+      rubriek: form.rubriek || "Algemeen", // Always provide a rubriek value, default to "Algemeen"
       ruiter: form.ruiter,
       paard: form.paard,
       email: form.email || null,
@@ -130,8 +130,9 @@ export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = 
             <>
               <label htmlFor="rubriek_select">Rubriek</label>
               <select id="rubriek_select" value={form.rubriek} onChange={(e)=>setForm(s=>({...s, rubriek:e.target.value}))}>
-                <option value="senior">Senior</option>
-                <option value="jeugd">Jeugd</option>
+                <option value="Algemeen">Algemeen</option>
+                <option value="Senior">Senior</option>
+                <option value="Jeugd">Jeugd</option>
               </select>
             </>
           );
