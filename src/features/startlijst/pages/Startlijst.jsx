@@ -389,7 +389,71 @@ export default function Startlijst() {
     setRows(prev => [...prev, newRow]);
   };
 
-  // Function to rollback migration - move entries back to original wedstrijd
+  // Emergency data recovery function
+  const recoverFromLocalStorage = () => {
+    const LS_KEY = "startlijst-rows";
+    const backup = localStorage.getItem(LS_KEY);
+    
+    if (backup) {
+      try {
+        const parsedData = JSON.parse(backup);
+        console.log("LocalStorage backup found:", parsedData);
+        
+        const confirmed = confirm(
+          `LocalStorage backup gevonden met ${parsedData.length} entries. Wil je deze herstellen naar de database?`
+        );
+        
+        if (confirmed) {
+          restoreToDatabase(parsedData);
+        }
+      } catch (e) {
+        console.error("Error parsing localStorage backup:", e);
+        setDbMessage("❌ Fout bij lezen localStorage backup");
+      }
+    } else {
+      setDbMessage("❌ Geen localStorage backup gevonden");
+      console.log("No localStorage backup found");
+    }
+  };
+
+  const restoreToDatabase = async (backupData) => {
+    try {
+      setDbMessage("Herstellen van backup data...");
+      
+      // Filter only real entries (not breaks)
+      const entries = backupData
+        .filter(row => row.type === 'entry' && row.ruiter && row.ruiter.trim())
+        .map(row => ({
+          wedstrijd_id: "6837ee22-6992-4cee-a23f-f8bbae8b4f42", // Restore to original wedstrijd
+          ruiter: row.ruiter.trim(),
+          paard: row.paard ? row.paard.trim() : null,
+          startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
+          klasse: normalizeKlasse(row.klasse),
+          rubriek: 'WE0', // Assume WE0 for recovered data
+        }));
+
+      if (entries.length > 0) {
+        const { error: insertError } = await supabase
+          .from('inschrijvingen')
+          .insert(entries);
+        
+        if (insertError) throw insertError;
+        
+        setDbMessage(`✅ ${entries.length} entries hersteld van backup!`);
+        
+        // Reload data
+        setTimeout(() => {
+          loadDeelnemersFromDB();
+        }, 1000);
+      } else {
+        setDbMessage("❌ Geen geldige entries gevonden in backup");
+      }
+    } catch (error) {
+      console.error('Restore error:', error);
+      const errorMsg = error?.message || String(error);
+      setDbMessage(`❌ Fout bij herstellen: ${errorMsg}`);
+    }
+  };
   const rollbackMigration = async () => {
     const targetWedstrijdId = "6837ee22-6992-4cee-a23f-f8bbae8b4f42"; // Original wedstrijd ID
     const confirmed = confirm(
@@ -582,6 +646,12 @@ export default function Startlijst() {
       const uniqueIds = [...new Set(allWedstrijdIds?.map(w => w.wedstrijd_id) || [])];
       console.log("All wedstrijd_id's in database:", uniqueIds);
       
+      // Debug: show total count in database
+      const { count } = await supabase
+        .from("inschrijvingen")
+        .select("*", { count: "exact", head: true });
+      console.log("Total entries in database:", count);
+      
       let query = supabase
         .from("inschrijvingen")
         .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id")
@@ -746,6 +816,34 @@ export default function Startlijst() {
               {dbMessage}
             </div>
           )}
+
+          {/* Emergency data recovery */}
+          <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded">
+            <p className="text-sm text-red-900 mb-2 font-semibold">
+              🚨 NOODPROCEDURE: Data Recovery
+            </p>
+            <p className="text-xs text-red-800 mb-3">
+              Als deelnemers data is verloren gegaan, probeer herstel van localStorage backup:
+            </p>
+            <div className="flex gap-2">
+              <button
+                className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                onClick={recoverFromLocalStorage}
+              >
+                🔍 Zoek localStorage backup
+              </button>
+              <button
+                className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                onClick={() => {
+                  const backup = localStorage.getItem("startlijst-rows");
+                  console.log("Current localStorage:", backup);
+                  alert(`LocalStorage inhoud: ${backup ? `${JSON.parse(backup).length} items` : 'Leeg'}`);
+                }}
+              >
+                📊 Controleer localStorage
+              </button>
+            </div>
+          </div>
 
           {/* Migration helper when no data found */}
           {wedstrijd && rows.length === 0 && (
