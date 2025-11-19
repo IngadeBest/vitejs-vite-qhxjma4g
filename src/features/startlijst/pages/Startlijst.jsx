@@ -403,6 +403,7 @@ export default function Startlijst() {
           paard: row.paard ? row.paard.trim() : null,
           startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
           klasse: normalizeKlasse(row.klasse), // Normaliseer klasse namen
+          rubriek: rubriek || 'Algemeen', // Default rubriek to avoid constraint error
         }));
 
       if (entries.length > 0) {
@@ -558,7 +559,7 @@ export default function Startlijst() {
               onClick={() => setShowPreview(true)}
               disabled={!rows.length}
             >
-              Preview & Opslaan
+              Preview
             </button>
 
             <button
