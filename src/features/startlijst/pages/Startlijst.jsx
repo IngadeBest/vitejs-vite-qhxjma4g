@@ -1221,25 +1221,36 @@ Plak je data hieronder:`);
           </div>
 
           <div className="mt-4 flex gap-2 justify-between items-center">
-            <button
-              className="px-3 py-2 border rounded bg-green-50 hover:bg-green-100"
-              onClick={() =>
-                setRows((prev) => [
-                  ...prev,
-                  {
-                    id: `${Date.now()}`,
-                    type: "entry",
-                    ruiter: "",
-                    paard: "",
-                    startnummer: "",
-                    starttijd: "",
-                    klasse: klasse || "",
-                  },
-                ])
-              }
-            >
-              + Nieuwe deelnemer
-            </button>
+            <div className="flex gap-2">
+              <button
+                className="px-3 py-2 border rounded bg-green-50 hover:bg-green-100"
+                onClick={() =>
+                  setRows((prev) => [
+                    ...prev,
+                    {
+                      id: `${Date.now()}`,
+                      type: "entry",
+                      ruiter: "",
+                      paard: "",
+                      startnummer: "",
+                      starttijd: "",
+                      klasse: klasse || "",
+                    },
+                  ])
+                }
+              >
+                + Nieuwe deelnemer
+              </button>
+              
+              <button
+                className={`px-4 py-2 rounded text-white font-medium ${saving ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+                onClick={saveList}
+                disabled={saving || !wedstrijd}
+                title={!wedstrijd ? "Selecteer eerst een wedstrijd" : "Sla wijzigingen op naar database"}
+              >
+                {saving ? 'Bezig...' : 'Opslaan'}
+              </button>
+            </div>
             
             <div className="text-sm text-gray-600">
               {filtered.length} {filtered.length === 1 ? 'deelnemer' : 'deelnemers'}
