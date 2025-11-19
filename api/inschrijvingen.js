@@ -109,6 +109,7 @@ export default async function handler(req, res) {
       opmerkingen: b.opmerkingen || null,
       omroeper: b.omroeper || null,
       voorkeur_tijd: b.voorkeur_tijd || null,
+      rubriek: b.rubriek || "Algemeen", // Default rubriek voor database constraint
     };
 
     // insert using server key if available
