@@ -137,6 +137,7 @@ export default function PublicInschrijven() {
       opmerkingen: form.opmerkingen?.trim() || null,
       omroeper: form.omroeper?.trim() || null,
       voorkeur_tijd: null,
+      rubriek: "Algemeen", // Default rubriek voor publieke inschrijvingen
     };
 
     try {

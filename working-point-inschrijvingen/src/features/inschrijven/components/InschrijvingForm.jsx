@@ -26,7 +26,7 @@ const InschrijvingForm = () => {
 
         const { data, error: insertError } = await supabase
             .from('inschrijvingen')
-            .insert([{ name, email }]);
+            .insert([{ name, email, rubriek: 'Algemeen' }]);
 
         if (insertError) {
             setError(insertError.message);
