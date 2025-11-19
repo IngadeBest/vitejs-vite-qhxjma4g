@@ -356,9 +356,115 @@ export default function Startlijst() {
 
   // Preview modal
   const [showPreview, setShowPreview] = useState(false);
-  const saveList = () => {
-    localStorage.setItem(LS_KEY, JSON.stringify(rows));
-    setShowPreview(false);
+  const [saving, setSaving] = useState(false);
+  
+  const saveList = async () => {
+    if (!wedstrijd) {
+      alert("Selecteer eerst een wedstrijd om wijzigingen op te slaan.");
+      return;
+    }
+
+    setSaving(true);
+    setDbMessage("Opslaan naar database...");
+
+    try {
+      // Filter alleen echte deelnemers (geen pauzes)
+      const entries = rows.filter(row => row.type === 'entry');
+      
+      // Haal alle huidige inschrijvingen voor deze wedstrijd op
+      const { data: currentEntries } = await supabase
+        .from('inschrijvingen')
+        .select('id,ruiter,paard')
+        .eq('wedstrijd_id', wedstrijd);
+
+      // Voor elke deelnemer: update of insert in database
+      const updatePromises = entries.map(async (row) => {
+        const updateData = {
+          wedstrijd_id: wedstrijd,
+          ruiter: row.ruiter || null,
+          paard: row.paard || null,
+          startnummer: row.startnummer ? parseInt(row.startnummer) : null,
+          klasse: row.klasse || null,
+        };
+
+        if (row.dbId) {
+          // Update bestaande inschrijving met bekende database ID
+          return supabase
+            .from('inschrijvingen')
+            .update(updateData)
+            .eq('id', row.dbId);
+        } else {
+          // Zoek bestaande inschrijving op ruiter+paard+wedstrijd
+          const existing = currentEntries?.find(entry => 
+            entry.ruiter === (row.ruiter || '') && 
+            entry.paard === (row.paard || '')
+          );
+
+          if (existing) {
+            // Update bestaande inschrijving
+            return supabase
+              .from('inschrijvingen')
+              .update(updateData)
+              .eq('id', existing.id);
+          } else {
+            // Insert nieuwe inschrijving
+            return supabase
+              .from('inschrijvingen')
+              .insert(updateData);
+          }
+        }
+      });
+
+      // Verwijder inschrijvingen die niet meer in de lijst staan
+      if (currentEntries) {
+        const currentDbIds = entries
+          .filter(row => row.dbId)
+          .map(row => row.dbId);
+        
+        const currentCombos = entries
+          .filter(row => !row.dbId)
+          .map(row => ({ ruiter: row.ruiter || '', paard: row.paard || '' }));
+
+        const toDelete = currentEntries.filter(entry => {
+          // Verwijder als het database ID niet meer voorkomt
+          if (currentDbIds.includes(entry.id)) return false;
+          
+          // Verwijder als de ruiter+paard combinatie niet meer voorkomt
+          return !currentCombos.some(combo => 
+            combo.ruiter === (entry.ruiter || '') && 
+            combo.paard === (entry.paard || '')
+          );
+        });
+
+        if (toDelete.length > 0) {
+          await supabase
+            .from('inschrijvingen')
+            .delete()
+            .in('id', toDelete.map(entry => entry.id));
+        }
+      }
+
+      await Promise.all(updatePromises);
+      
+      // Save to localStorage als backup
+      localStorage.setItem(LS_KEY, JSON.stringify(rows));
+      
+      setDbMessage(`✅ ${entries.length} wijzigingen opgeslagen in database`);
+      setShowPreview(false);
+      
+      // Herlaad data om sync te behouden
+      setTimeout(() => {
+        loadDeelnemersFromDB();
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error saving to database:', error);
+      const errorMsg = error?.message || String(error);
+      setDbMessage(`❌ Fout bij opslaan: ${errorMsg}`);
+      alert(`Fout bij opslaan naar database: ${errorMsg}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const meta = { wedstrijd, klasse, rubriek };
@@ -383,7 +489,7 @@ export default function Startlijst() {
     try {
       let query = supabase
         .from("inschrijvingen")
-        .select("ruiter,paard,startnummer,klasse,rubriek")
+        .select("id,ruiter,paard,startnummer,klasse,rubriek")
         .eq("wedstrijd_id", wedstrijd)
         .order("startnummer", { ascending: true });
 
@@ -402,6 +508,8 @@ export default function Startlijst() {
         startnummer: (r.startnummer || "").toString(),
         klasse: r.klasse || "",
         starttijd: "",
+        dbId: r.id, // Store database ID for later updates/deletes
+        fromDB: true, // Mark as loaded from database
       }));
 
       setRows(loadedRows);
@@ -1064,10 +1172,11 @@ export default function Startlijst() {
                 Download PDF
               </button>
               <button
-                className="px-3 py-2 border rounded bg-black text-white"
+                className={`px-3 py-2 border rounded text-white ${saving ? 'bg-gray-400' : 'bg-black'}`}
                 onClick={saveList}
+                disabled={saving}
               >
-                Opslaan
+                {saving ? 'Bezig...' : 'Opslaan'}
               </button>
             </div>
           </div>
