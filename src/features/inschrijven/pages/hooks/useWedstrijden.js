@@ -17,8 +17,17 @@ export function useWedstrijden(onlyOpen = false) {
         if (onlyOpen) q = q.eq("status", "open");
         const { data, error } = await q;
         if (error) throw error;
+        
+        console.log("Fetched wedstrijden:", data?.map(w => ({
+          id: w.id, 
+          naam: w.naam, 
+          datum: w.datum, 
+          status: w.status
+        })));
+        
         if (alive) setItems(data || []);
       } catch (e) {
+        console.error("Error fetching wedstrijden:", e);
         if (alive) setError(e);
       } finally {
         if (alive) setLoading(false);

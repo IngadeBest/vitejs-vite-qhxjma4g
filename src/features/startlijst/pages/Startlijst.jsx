@@ -375,6 +375,20 @@ export default function Startlijst() {
     return klasseMap[normalized] || klasse.trim();
   };
 
+  const addEmptyRow = () => {
+    const newRow = {
+      id: `manual_${Date.now()}`,
+      type: "entry",
+      ruiter: "",
+      paard: "",
+      startnummer: "",
+      klasse: "",
+      starttijd: "",
+      fromDB: false,
+    };
+    setRows(prev => [...prev, newRow]);
+  };
+
   const saveList = async () => {
     if (!wedstrijd) {
       alert("Selecteer eerst een wedstrijd om wijzigingen op te slaan.");
@@ -470,9 +484,18 @@ export default function Startlijst() {
     console.log("Loading deelnemers for wedstrijd:", wedstrijd, "klasse:", klasse);
     
     try {
+      // Debug: check all available wedstrijd_id's in database
+      const { data: allWedstrijdIds } = await supabase
+        .from("inschrijvingen")
+        .select("wedstrijd_id")
+        .not("wedstrijd_id", "is", null);
+      
+      const uniqueIds = [...new Set(allWedstrijdIds?.map(w => w.wedstrijd_id) || [])];
+      console.log("All wedstrijd_id's in database:", uniqueIds);
+      
       let query = supabase
         .from("inschrijvingen")
-        .select("id,ruiter,paard,startnummer,klasse,rubriek")
+        .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id")
         .eq("wedstrijd_id", wedstrijd)
         .order("startnummer", { ascending: true });
 
@@ -482,6 +505,16 @@ export default function Startlijst() {
 
       const { data, error } = await query;
       console.log("Database query result:", { data, error, wedstrijd_id: wedstrijd });
+      
+      // Debug: if no data, check if there are entries with similar ID
+      if ((!data || data.length === 0) && wedstrijd) {
+        console.log("No data found, checking for similar IDs...");
+        const { data: similarData } = await supabase
+          .from("inschrijvingen") 
+          .select("wedstrijd_id,ruiter,paard")
+          .ilike("wedstrijd_id", `%${wedstrijd.substring(0, 8)}%`);
+        console.log("Similar wedstrijd_id entries:", similarData);
+      }
       
       if (error) throw error;
 
@@ -575,9 +608,15 @@ export default function Startlijst() {
             <button
               className="px-3 py-2 border rounded"
               onClick={() => setShowPreview(true)}
-              disabled={!rows.length}
             >
               Preview
+            </button>
+
+            <button
+              className="px-3 py-2 border rounded bg-green-50 hover:bg-green-100"
+              onClick={addEmptyRow}
+            >
+              + Deelnemer
             </button>
 
             <button
