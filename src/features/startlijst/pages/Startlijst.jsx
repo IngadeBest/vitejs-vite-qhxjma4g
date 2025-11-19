@@ -877,13 +877,6 @@ Plak je data hieronder:`);
             </button>
 
             <button
-              className="px-3 py-2 border rounded bg-green-50 hover:bg-green-100"
-              onClick={addEmptyRow}
-            >
-              + Deelnemer
-            </button>
-
-            <button
               className="px-3 py-2 border rounded"
               onClick={makeBatchPDF}
               disabled={!filtered.length}
@@ -1227,9 +1220,9 @@ Plak je data hieronder:`);
             </table>
           </div>
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex gap-2 justify-between items-center">
             <button
-              className="px-3 py-2 border rounded"
+              className="px-3 py-2 border rounded bg-green-50 hover:bg-green-100"
               onClick={() =>
                 setRows((prev) => [
                   ...prev,
@@ -1245,8 +1238,12 @@ Plak je data hieronder:`);
                 ])
               }
             >
-              + Deelnemer
+              + Nieuwe deelnemer
             </button>
+            
+            <div className="text-sm text-gray-600">
+              {filtered.length} {filtered.length === 1 ? 'deelnemer' : 'deelnemers'}
+            </div>
           </div>
         </div>
 
