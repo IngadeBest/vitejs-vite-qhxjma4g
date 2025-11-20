@@ -7,8 +7,8 @@ import Container from "@/ui/Container";
 // Inschrijfgeld tarieven (in euros)
 const TARIEVEN = {
   base: {
-    weh_lid: 35.0,
-    niet_weh_lid: 45.0
+    standaard: 45.0,
+    weh_korting: 2.50  // WEH leden krijgen €2.50 korting
   },
   stal: {
     per_dag: 15.0,
@@ -20,8 +20,11 @@ const TARIEVEN = {
 const berekenInschrijfgeld = (deelnemer, stalToewijzingen) => {
   const { weh_lid } = deelnemer;
   
-  // Basis tarief
-  let totaal = weh_lid ? TARIEVEN.base.weh_lid : TARIEVEN.base.niet_weh_lid;
+  // Basis tarief: €45, WEH leden krijgen €2.50 korting
+  let totaal = TARIEVEN.base.standaard;
+  if (weh_lid) {
+    totaal -= TARIEVEN.base.weh_korting; // €45 - €2.50 = €42.50
+  }
   
   // Stal kosten - check stal toewijzing
   if (stalToewijzingen && stalToewijzingen[deelnemer.id]) {
@@ -72,7 +75,17 @@ export default function Deelnemers() {
       const { data, error } = await supabase
         .from('inschrijvingen')
         .select(`
-          *,
+          id,
+          created_at,
+          wedstrijd_id,
+          klasse,
+          weh_lid,
+          ruiter,
+          paard,
+          email,
+          telefoon,
+          omroeper,
+          opmerkingen,
           wedstrijden(naam, datum)
         `)
         .eq('wedstrijd_id', wedstrijd.id)
@@ -80,6 +93,7 @@ export default function Deelnemers() {
       
       if (error) throw error;
       
+      console.log('Loaded deelnemers data:', data?.slice(0, 2)); // Debug eerste 2 records
       setDeelnemers(data || []);
     } catch (err) {
       console.error('Fout bij laden deelnemers:', err);
@@ -344,7 +358,7 @@ export default function Deelnemers() {
                                 €{berekenInschrijfgeld(deelnemer, stalToewijzingen).toFixed(2)}
                               </div>
                               <div className="text-xs text-gray-500">
-                                Basis: €{deelnemer.weh_lid ? TARIEVEN.base.weh_lid : TARIEVEN.base.niet_weh_lid}
+                                Basis: €{TARIEVEN.base.standaard}{deelnemer.weh_lid ? ` - €${TARIEVEN.base.weh_korting} (WEH)` : ''}
                                 {stalToewijzingen[deelnemer.id] && ' + stal'}
                               </div>
                             </td>
@@ -383,8 +397,8 @@ export default function Deelnemers() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <div className="font-medium text-blue-800">Inschrijfgeld:</div>
-                  <div className="text-blue-700">WEH Leden: €{TARIEVEN.base.weh_lid}</div>
-                  <div className="text-blue-700">Niet-leden: €{TARIEVEN.base.niet_weh_lid}</div>
+                  <div className="text-blue-700">Standaard: €{TARIEVEN.base.standaard}</div>
+                  <div className="text-blue-700">WEH leden: €{TARIEVEN.base.standaard - TARIEVEN.base.weh_korting} (korting: €{TARIEVEN.base.weh_korting})</div>
                 </div>
                 <div>
                   <div className="font-medium text-blue-800">Stal kosten:</div>
