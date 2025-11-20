@@ -11,6 +11,46 @@ import { supabase } from "@/lib/supabaseClient";
 // ======= Helpers =======
 const LS_KEY = "wp_startlijst_cache_v1";
 
+// Normalize klasse names to consistent format
+const normalizeKlasse = (input) => {
+  if (!input || typeof input !== 'string') return '';
+  
+  const clean = input.trim().toLowerCase();
+  
+  // Map common variations to standard names
+  const klasseMap = {
+    'we0': 'WE0',
+    'we 0': 'WE0', 
+    'we-0': 'WE0',
+    'introductieklasse': 'WE0',
+    'we1': 'WE1',
+    'we 1': 'WE1',
+    'we-1': 'WE1', 
+    'we2': 'WE2',
+    'we 2': 'WE2',
+    'we-2': 'WE2',
+    'we2+': 'WE2+',
+    'we 2+': 'WE2+',
+    'we-2+': 'WE2+',
+    'we2plus': 'WE2+',
+    'we3': 'WE3',
+    'we 3': 'WE3',
+    'we-3': 'WE3',
+    'we4': 'WE4',
+    'we 4': 'WE4', 
+    'we-4': 'WE4',
+    'junior': 'Junioren',
+    'junioren': 'Junioren',
+    'juniors': 'Junioren',
+    'young rider': 'Young Riders',
+    'young riders': 'Young Riders',
+    'yr': 'Young Riders',
+    'y.r.': 'Young Riders'
+  };
+  
+  return klasseMap[clean] || input.trim();
+};
+
 // Startnummer mapping per klasse
 const getStartnummerBase = (klasse) => {
   const normalizedKlasse = normalizeKlasse(klasse);
@@ -417,23 +457,6 @@ export default function Startlijst() {
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   
-  // Klasse normalisatie functie
-  const normalizeKlasse = (klasse) => {
-    if (!klasse) return null;
-    const normalized = klasse.toLowerCase().trim();
-    
-    // Mapping van varianten naar standaard namen
-    const klasseMap = {
-      'yr': 'Junior',
-      'junior': 'Junior', 
-      'jr': 'Junior',
-      'young rider': 'Junior',
-      'youngrider': 'Junior',
-    };
-    
-    return klasseMap[normalized] || klasse.trim();
-  };
-
   const addEmptyRow = () => {
     const newRow = {
       id: `manual_${Date.now()}`,
