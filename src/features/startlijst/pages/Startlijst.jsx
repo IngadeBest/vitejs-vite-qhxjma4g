@@ -1414,25 +1414,6 @@ Plak je data hieronder:`);
                               <span className="px-2 py-1 bg-blue-200 text-blue-700 rounded text-xs">
                                 Startnrs: {getStartnummerBase(klasseNaam).toString().padStart(3, '0')}+
                               </span>
-                              <button
-                                className="px-2 py-1 bg-blue-200 hover:bg-blue-300 text-blue-700 rounded text-xs"
-                                onClick={() => {
-                                  // Auto-assign startnumbers for just this class
-                                  const updatedRows = rows.map(row => {
-                                    if (row.type === 'entry' && normalizeKlasse(row.klasse) === klasseNaam) {
-                                      const classEntries = rows.filter(r => r.type === 'entry' && normalizeKlasse(r.klasse) === klasseNaam);
-                                      const index = classEntries.indexOf(row);
-                                      const base = getStartnummerBase(klasseNaam);
-                                      return { ...row, startnummer: (base + index).toString().padStart(3, '0') };
-                                    }
-                                    return row;
-                                  });
-                                  setRows(updatedRows);
-                                }}
-                                title={`Automatische startnummers voor ${klasseNaam}`}
-                              >
-                                🔢 Auto nrs
-                              </button>
                             </div>
                           </h3>
                         </div>

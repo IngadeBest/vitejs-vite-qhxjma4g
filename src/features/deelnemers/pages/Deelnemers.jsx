@@ -17,24 +17,15 @@ const TARIEVEN = {
 };
 
 // Helper functie voor inschrijfgeld berekening
-const berekenInschrijfgeld = (deelnemer) => {
-  const { weh_lid, opmerkingen } = deelnemer;
+const berekenInschrijfgeld = (deelnemer, stalToewijzingen) => {
+  const { weh_lid } = deelnemer;
   
   // Basis tarief
   let totaal = weh_lid ? TARIEVEN.base.weh_lid : TARIEVEN.base.niet_weh_lid;
   
-  // Stal kosten - check opmerkingen voor stal gerelateerde tekst
-  if (opmerkingen) {
-    const opm = opmerkingen.toLowerCase();
-    // Check voor stal requests
-    if (opm.includes('stal') || opm.includes('box') || opm.includes('stalling')) {
-      // Simpele heuristiek - check voor "nacht" keywords
-      if (opm.includes('nacht') || opm.includes('overnacht')) {
-        totaal += TARIEVEN.stal.per_nacht;
-      } else {
-        totaal += TARIEVEN.stal.per_dag;
-      }
-    }
+  // Stal kosten - check stal toewijzing
+  if (stalToewijzingen && stalToewijzingen[deelnemer.id]) {
+    totaal += TARIEVEN.stal.per_dag; // Default per dag, kan later uitgebreid worden
   }
   
   return totaal;
@@ -61,6 +52,7 @@ export default function Deelnemers() {
   const [filterKlasse, setFilterKlasse] = useState("");
   const [filterWehLid, setFilterWehLid] = useState("");
   const [filterStal, setFilterStal] = useState("");
+  const [stalToewijzingen, setStalToewijzingen] = useState({});
 
   // Load deelnemers when wedstrijd changes
   useEffect(() => {
@@ -79,7 +71,10 @@ export default function Deelnemers() {
     try {
       const { data, error } = await supabase
         .from('inschrijvingen')
-        .select('*')
+        .select(`
+          *,
+          wedstrijden(naam, datum)
+        `)
         .eq('wedstrijd_id', wedstrijd.id)
         .order('created_at', { ascending: true });
       
@@ -99,8 +94,8 @@ export default function Deelnemers() {
     if (filterKlasse && d.klasse !== filterKlasse) return false;
     if (filterWehLid === 'ja' && !d.weh_lid) return false;
     if (filterWehLid === 'nee' && d.weh_lid) return false;
-    if (filterStal === 'ja' && !(d.opmerkingen && d.opmerkingen.toLowerCase().includes('stal'))) return false;
-    if (filterStal === 'nee' && (d.opmerkingen && d.opmerkingen.toLowerCase().includes('stal'))) return false;
+    if (filterStal === 'ja' && !stalToewijzingen[d.id]) return false;
+    if (filterStal === 'nee' && stalToewijzingen[d.id]) return false;
     return true;
   });
 
@@ -108,8 +103,8 @@ export default function Deelnemers() {
   const stats = {
     totaal: gefilterde.length,
     wehLeden: gefilterde.filter(d => d.weh_lid).length,
-    stalVerzoeken: gefilterde.filter(d => d.opmerkingen && d.opmerkingen.toLowerCase().includes('stal')).length,
-    totaalInschrijfgeld: gefilterde.reduce((sum, d) => sum + berekenInschrijfgeld(d), 0),
+    stalVerzoeken: gefilterde.filter(d => stalToewijzingen[d.id]).length,
+    totaalInschrijfgeld: gefilterde.reduce((sum, d) => sum + berekenInschrijfgeld(d, stalToewijzingen), 0),
   };
 
   // Unieke klassen voor filter
@@ -184,7 +179,7 @@ export default function Deelnemers() {
               </div>
               <div className="bg-yellow-50 rounded-lg p-4 border">
                 <div className="text-2xl font-bold text-yellow-600">{stats.stalVerzoeken}</div>
-                <div className="text-yellow-800 text-sm">Stal Verzoeken</div>
+                <div className="text-yellow-800 text-sm">Stal Toewijzingen</div>
               </div>
               <div className="bg-purple-50 rounded-lg p-4 border">
                 <div className="text-2xl font-bold text-purple-600">€{stats.totaalInschrijfgeld.toFixed(2)}</div>
@@ -222,15 +217,15 @@ export default function Deelnemers() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Stal Verzoek</label>
+                  <label className="block text-sm font-medium mb-1">Stal Toewijzing</label>
                   <select
                     className="w-full border rounded px-3 py-2 text-sm"
                     value={filterStal}
                     onChange={(e) => setFilterStal(e.target.value)}
                   >
                     <option value="">Alle deelnemers</option>
-                    <option value="ja">Met stal verzoek</option>
-                    <option value="nee">Zonder stal verzoek</option>
+                    <option value="ja">Met stal toewijzing</option>
+                    <option value="nee">Zonder stal toewijzing</option>
                   </select>
                 </div>
               </div>
@@ -274,9 +269,10 @@ export default function Deelnemers() {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paard</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Klasse</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">WEH</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stal</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Inschrijfgeld</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Omroeper</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Opmerkingen/Stal</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Opmerkingen</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
                         </tr>
                       </thead>
@@ -307,12 +303,49 @@ export default function Deelnemers() {
                               )}
                             </td>
                             <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={!!stalToewijzingen[deelnemer.id]}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setStalToewijzingen(prev => ({
+                                        ...prev,
+                                        [deelnemer.id]: { stalnummer: "" }
+                                      }));
+                                    } else {
+                                      setStalToewijzingen(prev => {
+                                        const next = { ...prev };
+                                        delete next[deelnemer.id];
+                                        return next;
+                                      });
+                                    }
+                                  }}
+                                  className="rounded"
+                                />
+                                {stalToewijzingen[deelnemer.id] && (
+                                  <input
+                                    type="text"
+                                    placeholder="Nr"
+                                    value={stalToewijzingen[deelnemer.id]?.stalnummer || ""}
+                                    onChange={(e) => {
+                                      setStalToewijzingen(prev => ({
+                                        ...prev,
+                                        [deelnemer.id]: { stalnummer: e.target.value }
+                                      }));
+                                    }}
+                                    className="border rounded px-2 py-1 w-16 text-xs"
+                                  />
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
                               <div className="font-medium text-gray-900">
-                                €{berekenInschrijfgeld(deelnemer).toFixed(2)}
+                                €{berekenInschrijfgeld(deelnemer, stalToewijzingen).toFixed(2)}
                               </div>
                               <div className="text-xs text-gray-500">
                                 Basis: €{deelnemer.weh_lid ? TARIEVEN.base.weh_lid : TARIEVEN.base.niet_weh_lid}
-                                {deelnemer.opmerkingen && deelnemer.opmerkingen.toLowerCase().includes('stal') && ' + stal'}
+                                {stalToewijzingen[deelnemer.id] && ' + stal'}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -324,11 +357,6 @@ export default function Deelnemers() {
                               {deelnemer.opmerkingen ? (
                                 <div className="text-sm text-gray-900 max-w-xs">
                                   {deelnemer.opmerkingen}
-                                  {deelnemer.opmerkingen.toLowerCase().includes('stal') && (
-                                    <span className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
-                                      🏠 Stal
-                                    </span>
-                                  )}
                                 </div>
                               ) : (
                                 <span className="text-gray-400 text-sm">Geen opmerkingen</span>
