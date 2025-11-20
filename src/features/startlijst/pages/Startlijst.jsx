@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Link } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -1000,7 +1001,19 @@ Plak je data hieronder:`);
 
   return (
     <div className="p-4 max-w-full mx-auto">
-      <h1 className="text-2xl font-semibold mb-4">Startlijsten</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-semibold">Startlijsten</h1>
+        
+        {/* Navigation links */}
+        <div className="flex gap-2">
+          <Link
+            to="/deelnemers"
+            className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm font-medium"
+          >
+            👥 Naar Deelnemers
+          </Link>
+        </div>
+      </div>
 
       {/* Flex layout zodat preview altijd rechts staat */}
       <div className="flex gap-4 items-start">

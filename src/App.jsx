@@ -6,6 +6,7 @@ import DomainRedirect from "@/DomainRedirect";
 import PublicInschrijven from "@/features/inschrijven/pages/PublicInschrijven";
 import InschrijfFormulier from "@/features/inschrijven/pages/InschrijfFormulier";
 import Startlijst from "@/features/startlijst/pages/Startlijst";
+import Deelnemers from "@/features/deelnemers/pages/Deelnemers";
 import ProtocolGenerator from "@/features/protocollen/pages/ProtocolGenerator";
 import Einduitslag from "@/features/einduitslag/pages/Einduitslag";
 import Contact from "@/features/public/pages/Contact";
@@ -59,6 +60,7 @@ function InnerApp() {
               {/* Beheer op app.*: toon Wedstrijden als start en volgorde aanpassen */}
               <NavLink to="/wedstrijden" style={navStyle}>Wedstrijden</NavLink>
               <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
+              <NavLink to="/deelnemers" style={navStyle}>Deelnemers</NavLink>
               <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
               <NavLink to="/uitslagen" style={navStyle}>Uitslagen</NavLink>
             </>
@@ -79,6 +81,7 @@ function InnerApp() {
 
   {/* Beheer */}
   <Route path="/startlijst" element={<Startlijst />} />
+  <Route path="/deelnemers" element={<Deelnemers />} />
   <Route path="/protocollen" element={<ProtocolGenerator />} />
   <Route path="/uitslagen" element={<Einduitslag />} />
   <Route path="/wedstrijden" element={<WedstrijdenBeheer />} />
