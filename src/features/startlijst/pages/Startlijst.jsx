@@ -86,8 +86,8 @@ const autoAssignStartnumbers = (rows) => {
   });
 };
 
-// Normalize klasse names to consistent format
-const normalizeKlasse = (input) => {
+// TEMP RENAMED TO AVOID CONFLICT
+const normalizeKlasse_OLD = (input) => {
   if (!input || typeof input !== 'string') return '';
   
   const clean = input.trim().toLowerCase();
