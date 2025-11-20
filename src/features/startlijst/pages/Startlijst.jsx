@@ -1064,6 +1064,18 @@ Plak je data hieronder:`);
                 setRows(updatedRows);
               }}
               disabled={!rows.filter(r => r.type === 'entry').length}
+              title="Automatische startnummers per klasse: WE0=001+, WE1=101+, WE2=201+, etc."
+            >
+              🔢 Auto Startnummers
+            </button>
+            
+            <button
+              className="px-3 py-2 border rounded bg-green-50"
+              onClick={() => {
+                const updatedRows = autoAssignStartnumbers(rows);
+                setRows(updatedRows);
+              }}
+              disabled={!rows.filter(r => r.type === 'entry').length}
             >
               🔢 Auto Startnummers
             </button>
