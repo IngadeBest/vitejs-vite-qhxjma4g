@@ -11,6 +11,65 @@ import { supabase } from "@/lib/supabaseClient";
 // ======= Helpers =======
 const LS_KEY = "wp_startlijst_cache_v1";
 
+// Startnummer mapping per klasse
+const getStartnummerBase = (klasse) => {
+  const normalizedKlasse = normalizeKlasse(klasse);
+  switch (normalizedKlasse.toLowerCase()) {
+    case 'we0': return 1;
+    case 'we1': return 101;
+    case 'we2': return 201;
+    case 'we3': return 301;
+    case 'we4': return 401;
+    case 'junioren': return 501;
+    case 'young riders': return 601;
+    case 'we2+': return 701;
+    default: return 1; // fallback
+  }
+};
+
+// Groepeer rows per klasse
+const groupRowsByClass = (rows) => {
+  const entries = rows.filter(r => r.type === 'entry');
+  const breaks = rows.filter(r => r.type === 'break');
+  
+  // Groepeer entries per klasse
+  const classGroups = {};
+  entries.forEach(entry => {
+    const klasse = normalizeKlasse(entry.klasse || '');
+    if (!classGroups[klasse]) {
+      classGroups[klasse] = [];
+    }
+    classGroups[klasse].push(entry);
+  });
+  
+  return { classGroups, breaks };
+};
+
+// Automatische startnummers toewijzen per klasse
+const autoAssignStartnumbers = (rows) => {
+  const classCounts = {};
+  
+  return rows.map(row => {
+    if (row.type === 'break') return row;
+    
+    const klasse = normalizeKlasse(row.klasse || '');
+    if (!klasse) return row;
+    
+    if (!classCounts[klasse]) {
+      classCounts[klasse] = 0;
+    }
+    classCounts[klasse]++;
+    
+    const base = getStartnummerBase(klasse);
+    const nummer = base + classCounts[klasse] - 1;
+    
+    return {
+      ...row,
+      startnummer: nummer.toString().padStart(3, '0')
+    };
+  });
+};
+
 function parseCSV(text) {
   const lines = text.split(/\r?\n/).filter(Boolean);
   if (!lines.length) return [];
@@ -769,9 +828,9 @@ Plak je data hieronder:`);
     try {
       let query = supabase
         .from("inschrijvingen")
-        .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id")
+        .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,created_at")
         .eq("wedstrijd_id", wedstrijd)
-        .order("startnummer", { ascending: true });
+        .order("created_at", { ascending: true }); // Sorteren op aanmelddatum, oudste eerst
 
       if (klasse) {
         query = query.eq("klasse", klasse);
@@ -899,6 +958,17 @@ Plak je data hieronder:`);
             >
               {loadingFromDB ? "Laden..." : "Laad deelnemers uit DB"}
             </button>
+            
+            <button
+              className="px-3 py-2 border rounded bg-green-50"
+              onClick={() => {
+                const updatedRows = autoAssignStartnumbers(rows);
+                setRows(updatedRows);
+              }}
+              disabled={!rows.filter(r => r.type === 'entry').length}
+            >
+              🔢 Auto Startnummers
+            </button>
           </div>
 
           {dbMessage && (
@@ -1002,7 +1072,6 @@ Plak je data hieronder:`);
                   <th className="p-2 w-10">#</th>
                   <th className="p-2 w-24">Tijd</th>
                   <th className="p-2 w-20">Startnr</th>
-                  <th className="p-2 w-16">Klasse</th>
                   <th className="p-2">Ruiter</th>
                   <th className="p-2">Paard</th>
                   <th className="p-2 w-48">Type / Pauze</th>
