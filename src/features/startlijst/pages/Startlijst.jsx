@@ -32,8 +32,8 @@ const normalizeKlasse = (input) => {
   return klasseMap[clean] || input.trim();
 };
 
-// Startnummer mapping per klasse  
-const getStartnummerBase = (klasse) => {
+// TEMP RENAMED TO AVOID CONFLICT
+const getStartnummerBase_OLD = (klasse) => {
   const normalized = normalizeKlasse(klasse);
   switch (normalized.toLowerCase()) {
     case 'we0': return 1;
@@ -142,8 +142,8 @@ const getStartnummerBase = (klasse) => {
   }
 };
 
-// Groepeer rows per klasse
-const groupRowsByClass = (rows) => {
+// TEMP RENAMED TO AVOID CONFLICT
+const groupRowsByClass_OLD = (rows) => {
   const entries = rows.filter(r => r.type === 'entry');
   const breaks = rows.filter(r => r.type === 'break');
   
@@ -160,8 +160,8 @@ const groupRowsByClass = (rows) => {
   return { classGroups, breaks };
 };
 
-// Automatische startnummers toewijzen per klasse
-const autoAssignStartnumbers = (rows) => {
+// TEMP RENAMED TO AVOID CONFLICT  
+const autoAssignStartnumbers_OLD2 = (rows) => {
   const classCounts = {};
   
   return rows.map(row => {
