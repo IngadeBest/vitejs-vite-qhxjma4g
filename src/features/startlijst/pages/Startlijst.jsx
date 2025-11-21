@@ -603,7 +603,7 @@ export default function Startlijst() {
   };
 
   // Preview modal
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   
   // Starttijd systeem state
   const [dressuurStarttijd, setDressuurStarttijd] = useState("09:00");
