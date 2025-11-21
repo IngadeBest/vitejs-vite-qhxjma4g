@@ -8,6 +8,7 @@ import React, {
 import { Link } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
+import Container from "@/ui/Container";
 
 // ======= Helpers =======
 const LS_KEY = "wp_startlijst_cache_v1";
@@ -1000,66 +1001,105 @@ Plak je data hieronder:`);
   }, [wedstrijd, loadDeelnemersFromDB]);
 
   return (
-    <div className="p-4 max-w-full mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Startlijsten</h1>
-        
-        {/* Navigation links */}
-        <div className="flex gap-2">
-          <Link
-            to="/deelnemers"
-            className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm font-medium"
-          >
-            👥 Naar Deelnemers
-          </Link>
+    <Container>
+      <div className="max-w-7xl mx-auto py-6">
+        {/* Header sectie */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Startlijst Management</h1>
+              <p className="text-gray-600 mt-2">
+                Beheer startlijsten, startnummers en deelnemer volgorde
+              </p>
+            </div>
+            
+            {/* Navigation links */}
+            <div className="flex gap-2">
+              <Link
+                to="/deelnemers"
+                className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm font-medium"
+              >
+                👥 Naar Deelnemers
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
 
       {/* Flex layout zodat preview altijd rechts staat */}
       <div className="flex gap-4 items-start">
         {/* Main editing area (links) */}
         <div className="w-2/3">
-          <div className="grid grid-cols-4 gap-3 mb-4">
-            <select
-              className="border rounded px-2 py-1"
-              value={wedstrijd}
-              onChange={(e) => setWedstrijd(e.target.value)}
-            >
-              <option value="">
-                {loadingWed ? "Laden..." : "— kies wedstrijd —"}
-              </option>
-              {(wedstrijden || []).map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.naam}
-                  {w.datum ? ` (${w.datum})` : ""}
+        {/* Filters sectie */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters & Zoekopdrachten</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Wedstrijd:
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={wedstrijd}
+                onChange={(e) => setWedstrijd(e.target.value)}
+              >
+                <option value="">
+                  {loadingWed ? "Laden..." : "— kies wedstrijd —"}
                 </option>
-              ))}
-            </select>
-            <input
-              className="border rounded px-2 py-1"
-              placeholder="Klasse (WE0–WE4)"
-              value={klasse}
-              onChange={(e) => setKlasse(e.target.value)}
-            />
-            <input
-              className="border rounded px-2 py-1"
-              placeholder="Rubriek"
-              value={rubriek}
-              onChange={(e) => setRubriek(e.target.value)}
-            />
-            <input
-              className="border rounded px-2 py-1"
-              placeholder="Zoeken (ruiter/paard/startnr/tijd/pauze)"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+                {(wedstrijden || []).map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.naam}
+                    {w.datum ? ` (${w.datum})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            <label className="cursor-pointer inline-flex items-center gap-2">
-              <span className="px-3 py-2 border rounded bg-white">
-                CSV uploaden
-              </span>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Klasse:
+              </label>
+              <input
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Klasse (WE0–WE4)"
+                value={klasse}
+                onChange={(e) => setKlasse(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Rubriek:
+              </label>
+              <input
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Rubriek"
+                value={rubriek}
+                onChange={(e) => setRubriek(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Zoeken:
+              </label>
+              <input
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="ruiter/paard/startnr/tijd/pauze"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Actieknoppen sectie */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Acties & Tools</h2>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <label className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors text-sm font-medium text-gray-700">
+              📁 CSV Upload
               <input
                 type="file"
                 accept=".csv,text/csv"
@@ -1069,38 +1109,38 @@ Plak je data hieronder:`);
             </label>
 
             <button
-              className="px-3 py-2 border rounded"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
               onClick={() => setShowPreview(true)}
             >
-              Preview
+              👁️ Preview
             </button>
 
             <button
-              className="px-3 py-2 border rounded"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
               onClick={makeBatchPDF}
               disabled={!filtered.length}
             >
-              Batch PDF
+              📄 Batch PDF
             </button>
 
             <button
-              className="px-3 py-2 border rounded"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
               onClick={() => exportToExcel(filtered, meta, classStartTimes)}
               disabled={!filtered.length}
             >
-              Export naar Excel
+              📊 Excel Export
             </button>
 
             <button
-              className="px-3 py-2 border rounded bg-blue-50"
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
               onClick={loadDeelnemersFromDB}
               disabled={!wedstrijd || loadingFromDB}
             >
-              {loadingFromDB ? "Laden..." : "Laad deelnemers uit DB"}
+              {loadingFromDB ? "⏳ Laden..." : "🔄 DB Laden"}
             </button>
             
             <button
-              className="px-3 py-2 border rounded bg-green-50"
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
               onClick={() => {
                 const updatedRows = autoAssignStartnumbers(rows);
                 setRows(updatedRows);
@@ -1108,49 +1148,64 @@ Plak je data hieronder:`);
               disabled={!rows.filter(r => r.type === 'entry').length}
               title="Automatische startnummers per klasse: WE0=001+, WE1=101+, WE2=201+, etc."
             >
-              🔢 Auto Startnummers
+              🔢 Auto Nummers
             </button>
           </div>
+        </div>
 
           {dbMessage && (
-            <div
-              className={`mb-4 p-2 rounded ${
-                dbMessage.includes("Fout")
-                  ? "bg-red-100 text-red-700"
-                  : dbMessage.includes("✅")
-                  ? "bg-green-100 text-green-700"
-                  : "bg-blue-100 text-blue-700"
-              }`}
-            >
-              {dbMessage}
+            <div className="mb-6">
+              <div
+                className={`p-4 rounded-lg border ${
+                  dbMessage.includes("Fout")
+                    ? "bg-red-50 border-red-200 text-red-800"
+                    : dbMessage.includes("✅")
+                    ? "bg-green-50 border-green-200 text-green-800"
+                    : "bg-blue-50 border-blue-200 text-blue-800"
+                }`}
+              >
+                <p className="font-medium">{dbMessage}</p>
+              </div>
             </div>
           )}
 
-          {/* Data management tools */}
+          {/* Geen deelnemers gevonden helper */}
           {wedstrijd && rows.length === 0 && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
-              <p className="text-sm text-blue-800 mb-2">
-                Geen deelnemers gevonden voor deze wedstrijd.
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                  onClick={copyFromOtherWedstrijd}
-                >
-                  Kopieer van andere wedstrijd
-                </button>
-                <button
-                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                  onClick={addEmptyRow}
-                >
-                  + Nieuwe deelnemer
-                </button>
-                <button
-                  className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
-                  onClick={showManualRecoveryForm}
-                >
-                  Bulk import
-                </button>
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <span className="text-blue-600 text-lg">ℹ️</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-medium text-blue-900 mb-2">
+                    Geen deelnemers gevonden
+                  </h3>
+                  <p className="text-blue-700 mb-4">
+                    Er zijn geen deelnemers gevonden voor deze wedstrijd. Je kunt:
+                  </p>
+                  <div className="flex gap-3 flex-wrap">
+                    <button
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      onClick={copyFromOtherWedstrijd}
+                    >
+                      📋 Kopieer van andere wedstrijd
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                      onClick={addEmptyRow}
+                    >
+                      ➕ Nieuwe deelnemer
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                      onClick={showManualRecoveryForm}
+                    >
+                      📝 Bulk import
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1973,6 +2028,7 @@ Plak je data hieronder:`);
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </Container>
   );
 }
