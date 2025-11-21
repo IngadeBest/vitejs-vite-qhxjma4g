@@ -13,6 +13,49 @@ import Container from "@/ui/Container";
 // ======= Helpers =======
 const LS_KEY = "wp_startlijst_cache_v1";
 
+// Helper functie voor automatische starttijd berekening
+const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauzeMinuten) => {
+  const times = {};
+  let currentDressuurTime = new Date(`1970-01-01T${dressuurStart}:00`);
+  let currentTrailTime = new Date(`1970-01-01T${trailStart}:00`);
+  
+  const addMinutes = (date, minutes) => {
+    return new Date(date.getTime() + minutes * 60000);
+  };
+  
+  const formatTime = (date) => {
+    return date.toTimeString().substring(0, 5);
+  };
+  
+  rows.forEach((row, index) => {
+    const id = row.id || index;
+    
+    if (row.type === 'break') {
+      // Voor pauzes: voeg pauzetijd toe aan beide tijden
+      currentDressuurTime = addMinutes(currentDressuurTime, pauzeMinuten);
+      currentTrailTime = addMinutes(currentTrailTime, pauzeMinuten);
+      times[id] = {
+        dressuur: '',
+        trail: '',
+        type: 'break'
+      };
+    } else {
+      // Voor deelnemers: bereken beide tijden
+      times[id] = {
+        dressuur: formatTime(currentDressuurTime),
+        trail: formatTime(currentTrailTime),
+        type: 'entry'
+      };
+      
+      // Voeg interval toe voor volgende deelnemer
+      currentDressuurTime = addMinutes(currentDressuurTime, tussenPauze);
+      currentTrailTime = addMinutes(currentTrailTime, tussenPauze);
+    }
+  });
+  
+  return times;
+};
+
 // Function to add a new empty row
 const addEmptyRow = (setRows, klasse) => {
   setRows((prev) => [
@@ -561,6 +604,12 @@ export default function Startlijst() {
 
   // Preview modal
   const [showPreview, setShowPreview] = useState(false);
+  
+  // Starttijd systeem state
+  const [dressuurStarttijd, setDressuurStarttijd] = useState("09:00");
+  const [trailStarttijd, setTrailStarttijd] = useState("13:00");
+  const [tussenPauze, setTussenPauze] = useState(5); // minuten tussen deelnemers
+  const [pauzeMinuten, setPauzeMinuten] = useState(15); // minuten voor een pauze
   const [saving, setSaving] = useState(false);
   
   const addEmptyRow = () => {
@@ -1088,6 +1137,65 @@ Plak je data hieronder:`);
                 placeholder="ruiter/paard/startnr/tijd/pauze"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Starttijden configuratie sectie */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">⏰ Starttijden Configuratie</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Dressuur Start:
+              </label>
+              <input
+                type="time"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={dressuurStarttijd}
+                onChange={(e) => setDressuurStarttijd(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Trail Start:
+              </label>
+              <input
+                type="time"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                value={trailStarttijd}
+                onChange={(e) => setTrailStarttijd(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Tussen Deelnemers (min):
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="30"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={tussenPauze}
+                onChange={(e) => setTussenPauze(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Pauze Duur (min):
+              </label>
+              <input
+                type="number"
+                min="5"
+                max="60"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                value={pauzeMinuten}
+                onChange={(e) => setPauzeMinuten(Number(e.target.value))}
               />
             </div>
           </div>
@@ -1932,7 +2040,7 @@ Plak je data hieronder:`);
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-semibold">Preview startlijst</h2>
+              <h2 className="text-xl font-semibold">Preview startlijst met starttijden</h2>
               <button
                 className="px-3 py-1 border rounded"
                 onClick={() => setShowPreview(false)}
@@ -1945,53 +2053,61 @@ Plak je data hieronder:`);
                 <thead>
                   <tr className="bg-gray-100 text-left">
                     <th className="p-2 w-10">#</th>
-                    <th className="p-2 w-24">Tijd</th>
-                    <th className="p-2 w-24">Startnr</th>
+                    <th className="p-2 w-20">Dressuur</th>
+                    <th className="p-2 w-20">Trail</th>
+                    <th className="p-2 w-20">Startnr</th>
                     <th className="p-2">Ruiter</th>
                     <th className="p-2">Paard</th>
-                    <th className="p-2 w-56">Type / Pauze</th>
+                    <th className="p-2 w-32">Type / Pauze</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r, i) => {
-                    const classTime =
-                      r.klasse && classStartTimes[r.klasse]
-                        ? classStartTimes[r.klasse]
-                        : "";
-                    const effectiveTime =
-                      r.type === "break"
-                        ? ""
-                        : r.starttijd || classTime || "--:--";
-                    return (
-                      <tr
-                        key={r.id || i}
-                        className={`border-t ${
-                          r.type === "break" ? "bg-yellow-50" : ""
-                        }`}
-                      >
-                        <td className="p-2">{i + 1}</td>
-                        <td className="p-2">
-                          {r.type === "break" ? "—" : effectiveTime}
-                        </td>
-                        <td className="p-2">
-                          {r.type === "break" ? "—" : r.startnummer}
-                        </td>
-                        <td className="p-2">
-                          {r.type === "break" ? "—" : r.ruiter}
-                        </td>
-                        <td className="p-2">
-                          {r.type === "break" ? "—" : r.paard}
-                        </td>
-                        <td className="p-2">
-                          {r.type === "break"
-                            ? `PAUZE: ${r.label || ""} (${
-                                r.duration || 0
-                              } min)`
-                            : `Rit${r.klasse ? ` (${r.klasse})` : ""}`}
-                        </td>
-                      </tr>
+                  {(() => {
+                    const calculatedTimes = calculateStartTimes(
+                      rows, 
+                      dressuurStarttijd, 
+                      trailStarttijd, 
+                      tussenPauze, 
+                      pauzeMinuten
                     );
-                  })}
+                    
+                    return rows.map((r, i) => {
+                      const times = calculatedTimes[r.id || i];
+                      
+                      return (
+                        <tr
+                          key={r.id || i}
+                          className={`border-t ${
+                            r.type === "break" ? "bg-yellow-50" : ""
+                          }`}
+                        >
+                          <td className="p-2">{i + 1}</td>
+                          <td className="p-2 font-mono text-sm">
+                            {times?.type === "break" ? "—" : times?.dressuur || "—"}
+                          </td>
+                          <td className="p-2 font-mono text-sm">
+                            {times?.type === "break" ? "—" : times?.trail || "—"}
+                          </td>
+                          <td className="p-2">
+                            {r.type === "break" ? "—" : r.startnummer}
+                          </td>
+                          <td className="p-2">
+                            {r.type === "break" ? "—" : r.ruiter}
+                          </td>
+                          <td className="p-2">
+                            {r.type === "break" ? "—" : r.paard}
+                          </td>
+                          <td className="p-2">
+                            {r.type === "break"
+                              ? `PAUZE: ${r.label || ""} (${
+                                  r.duration || 0
+                                } min)`
+                              : `Rit${r.klasse ? ` (${r.klasse})` : ""}`}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>
