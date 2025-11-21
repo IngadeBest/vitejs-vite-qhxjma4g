@@ -605,9 +605,6 @@ export default function Startlijst() {
     setPauseMin(10);
   };
 
-  // Preview modal
-  const [showPreview, setShowPreview] = useState(true);
-  
   // Starttijd systeem state
   const [dressuurStarttijd, setDressuurStarttijd] = useState("09:00");
   const [trailStarttijd, setTrailStarttijd] = useState("13:00");
@@ -967,7 +964,6 @@ Plak je data hieronder:`);
       localStorage.setItem(LS_KEY, JSON.stringify(rows));
       
       setDbMessage(`✅ ${entries.length} deelnemers opgeslagen in database (backup: ${backupKey})`);
-      setShowPreview(false);
       
       // Herlaad data om sync te behouden
       setTimeout(() => {
@@ -1352,14 +1348,31 @@ Plak je data hieronder:`);
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {(() => {
-                    // Sorteer rows: eerst op klasse, dan op volgorde binnen klasse
+                    // Sorteer rows: eerst alle WE0, dan WE1, dan WE2, etc. Pauzes aan het eind
+                    const klasseOrder = ['WE0', 'WE1', 'WE2', 'WE3', 'WE4', 'Junioren', 'Young Riders', 'WE2+'];
+                    
                     const sortedRows = [...filtered].sort((a, b) => {
+                      // Pauzes altijd aan het eind
                       if (a.type === 'break' && b.type === 'break') return 0;
-                      if (a.type === 'break') return 1; // Pauzes aan eind
+                      if (a.type === 'break') return 1; 
                       if (b.type === 'break') return -1;
                       
-                      const klasseA = normalizeKlasse(a.klasse || '') || 'ZZZ';
-                      const klasseB = normalizeKlasse(b.klasse || '') || 'ZZZ';
+                      // Sorteer op klasse volgens vaste volgorde
+                      const klasseA = normalizeKlasse(a.klasse || '') || 'ZZZ_Geen_klasse';
+                      const klasseB = normalizeKlasse(b.klasse || '') || 'ZZZ_Geen_klasse';
+                      
+                      const indexA = klasseOrder.indexOf(klasseA);
+                      const indexB = klasseOrder.indexOf(klasseB);
+                      
+                      // Als beide klassen in de vaste volgorde staan
+                      if (indexA !== -1 && indexB !== -1) {
+                        return indexA - indexB;
+                      }
+                      // Als alleen A in volgorde staat
+                      if (indexA !== -1) return -1;
+                      // Als alleen B in volgorde staat  
+                      if (indexB !== -1) return 1;
+                      // Beide niet in volgorde, sorteer alfabetisch
                       return klasseA.localeCompare(klasseB);
                     });
 
@@ -1725,7 +1738,83 @@ Plak je data hieronder:`);
                 </button>
                 <button
                   className="w-full px-3 py-2 text-sm bg-white border rounded hover:bg-gray-50 text-left"
-                  onClick={() => setShowPreview(true)}
+                  onClick={() => {
+                    // Open een nieuw venster met de volledige startlijst
+                    const printWindow = window.open('', '_blank');
+                    const calculatedTimes = calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                    
+                    const htmlContent = `
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                        <title>Startlijst Volledig Overzicht</title>
+                        <style>
+                          body { font-family: Arial, sans-serif; margin: 20px; }
+                          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                          th { background-color: #f2f2f2; font-weight: bold; }
+                          .class-header { background-color: #e3f2fd; font-weight: bold; }
+                          .break-row { background-color: #fff3e0; }
+                          .dressuur { color: #1976d2; }
+                          .trail { color: #388e3c; }
+                          @media print { body { margin: 0; } }
+                        </style>
+                      </head>
+                      <body>
+                        <h1>Startlijst ${wedstrijden?.find(w => w.id === wedstrijd)?.naam || 'Wedstrijd'}</h1>
+                        <p>Gegenereerd op: ${new Date().toLocaleString()}</p>
+                        <p>Dressuur start: ${dressuurStarttijd} | Trail start: ${trailStarttijd} | Interval: ${tussenPauze} min</p>
+                        
+                        <table>
+                          <tr>
+                            <th>#</th>
+                            <th>Klasse</th>
+                            <th>Dressuur</th>
+                            <th>Trail</th>
+                            <th>Startnr</th>
+                            <th>Ruiter</th>
+                            <th>Paard</th>
+                            <th>Type</th>
+                          </tr>
+                          ${filtered.map((row, index) => {
+                            const times = calculatedTimes[row.id || index] || {};
+                            if (row.type === 'break') {
+                              return `<tr class="break-row">
+                                <td>${index + 1}</td>
+                                <td>PAUZE</td>
+                                <td>—</td>
+                                <td>—</td>
+                                <td>—</td>
+                                <td>${row.label || 'Pauze'}</td>
+                                <td>${row.duration || 0} minuten</td>
+                                <td>Pauze</td>
+                              </tr>`;
+                            }
+                            return `<tr>
+                              <td>${index + 1}</td>
+                              <td>${normalizeKlasse(row.klasse) || 'Geen klasse'}</td>
+                              <td class="dressuur">${times.dressuur || '--:--'}</td>
+                              <td class="trail">${times.trail || '--:--'}</td>
+                              <td>${row.startnummer || ''}</td>
+                              <td>${row.ruiter || ''}</td>
+                              <td>${row.paard || ''}</td>
+                              <td>Deelnemer</td>
+                            </tr>`;
+                          }).join('')}
+                        </table>
+                        
+                        <script>
+                          window.onload = function() {
+                            window.print();
+                          }
+                        </script>
+                      </body>
+                      </html>
+                    `;
+                    
+                    printWindow.document.write(htmlContent);
+                    printWindow.document.close();
+                  }}
                   disabled={!filtered.length}
                 >
                   👁️ Volledig overzicht
@@ -1734,117 +1823,7 @@ Plak je data hieronder:`);
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Preview modal (platte lijst) */}
-      {showPreview && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-semibold">Preview startlijst met starttijden</h2>
-              <button
-                className="px-3 py-1 border rounded"
-                onClick={() => setShowPreview(false)}
-              >
-                Sluiten
-              </button>
-            </div>
-            <div className="max-h-[60vh] overflow-auto border rounded">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-gray-100 text-left">
-                    <th className="p-2 w-10">#</th>
-                    <th className="p-2 w-20">Dressuur</th>
-                    <th className="p-2 w-20">Trail</th>
-                    <th className="p-2 w-20">Startnr</th>
-                    <th className="p-2">Ruiter</th>
-                    <th className="p-2">Paard</th>
-                    <th className="p-2 w-32">Type / Pauze</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const calculatedTimes = calculateStartTimes(
-                      rows, 
-                      dressuurStarttijd, 
-                      trailStarttijd, 
-                      tussenPauze, 
-                      pauzeMinuten
-                    );
-                    
-                    return rows.map((r, i) => {
-                      const times = calculatedTimes[r.id || i];
-                      
-                      return (
-                        <tr
-                          key={r.id || i}
-                          className={`border-t ${
-                            r.type === "break" ? "bg-yellow-50" : ""
-                          }`}
-                        >
-                          <td className="p-2">{i + 1}</td>
-                          <td className="p-2 font-mono text-sm">
-                            {times?.type === "break" ? "—" : times?.dressuur || "—"}
-                          </td>
-                          <td className="p-2 font-mono text-sm">
-                            {times?.type === "break" ? "—" : times?.trail || "—"}
-                          </td>
-                          <td className="p-2">
-                            {r.type === "break" ? "—" : r.startnummer}
-                          </td>
-                          <td className="p-2">
-                            {r.type === "break" ? "—" : r.ruiter}
-                          </td>
-                          <td className="p-2">
-                            {r.type === "break" ? "—" : r.paard}
-                          </td>
-                          <td className="p-2">
-                            {r.type === "break"
-                              ? `PAUZE: ${r.label || ""} (${
-                                  r.duration || 0
-                                } min)`
-                              : `Rit${r.klasse ? ` (${r.klasse})` : ""}`}
-                          </td>
-                        </tr>
-                      );
-                    });
-                  })()}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-3 flex gap-2 justify-end">
-              <button
-                className="px-3 py-2 border rounded"
-                onClick={() => exportToExcel(rows, {...meta, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten}, classStartTimes)}
-              >
-                Export naar Excel
-              </button>
-              <button
-                className="px-3 py-2 border rounded"
-                onClick={async () => {
-                  const blob = await generateSimplePDF(
-                    `Startlijst ${wedstrijd || ""} ${klasse || ""} ${
-                      rubriek || ""
-                    }`.trim(),
-                    rows,
-                    classStartTimes
-                  );
-                  downloadBlob(blob, "startlijst.pdf");
-                }}
-              >
-                Download PDF
-              </button>
-              <button
-                className={`px-3 py-2 border rounded text-white ${saving ? 'bg-gray-400' : 'bg-black'}`}
-                onClick={saveList}
-                disabled={saving}
-              >
-                {saving ? 'Bezig...' : 'Opslaan'}
-              </button>
-            </div>
-          </div>
         </div>
-      )}
       </div>
     </Container>
   );
