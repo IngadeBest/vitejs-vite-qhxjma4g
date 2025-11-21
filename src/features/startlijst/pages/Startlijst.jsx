@@ -612,6 +612,47 @@ export default function Startlijst() {
   const [pauzeMinuten, setPauzeMinuten] = useState(15); // minuten voor een pauze
   const [saving, setSaving] = useState(false);
   
+  // Sorteer functie voor klassen 
+  const sortRowsByClass = useCallback(() => {
+    const klasseOrder = ['WE0', 'WE1', 'WE2', 'WE3', 'WE4', 'Junioren', 'Young Riders', 'WE2+'];
+    
+    setRows(prev => {
+      const sorted = [...prev].sort((a, b) => {
+        // Pauzes altijd aan het eind
+        if (a.type === 'break' && b.type === 'break') return 0;
+        if (a.type === 'break') return 1; 
+        if (b.type === 'break') return -1;
+        
+        // Sorteer op klasse volgens vaste volgorde
+        const klasseA = normalizeKlasse(a.klasse || '') || 'ZZZ_Geen_klasse';
+        const klasseB = normalizeKlasse(b.klasse || '') || 'ZZZ_Geen_klasse';
+        
+        const indexA = klasseOrder.indexOf(klasseA);
+        const indexB = klasseOrder.indexOf(klasseB);
+        
+        // Als beide klassen in de vaste volgorde staan
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        // Als alleen A in volgorde staat
+        if (indexA !== -1) return -1;
+        // Als alleen B in volgorde staat  
+        if (indexB !== -1) return 1;
+        // Beide niet in volgorde, sorteer alfabetisch
+        return klasseA.localeCompare(klasseB);
+      });
+      
+      return sorted;
+    });
+  }, []);
+
+  // Auto-sorteer wanneer er klassen veranderen
+  useEffect(() => {
+    if (rows.length > 0) {
+      sortRowsByClass();
+    }
+  }, []); // Alleen bij component mount
+
   const addEmptyRow = () => {
     const newRow = {
       id: `manual_${Date.now()}`,
@@ -1073,10 +1114,10 @@ Plak je data hieronder:`);
           </div>
         </div>
 
-      {/* Flex layout - links bewerkingstabel, rechts simpele preview */}
+      {/* Flex layout - links bewerkingstabel, rechts preview */}
       <div className="flex gap-6 items-start">
-        {/* Main editing area (links) - nu 70% van de ruimte */}
-        <div className="w-full max-w-5xl">
+        {/* Main editing area (links) - nu 65% van de ruimte */}
+        <div className="flex-1 max-w-4xl">
         {/* Filters sectie */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters & Zoekopdrachten</h2>
@@ -1182,6 +1223,15 @@ Plak je data hieronder:`);
               disabled={!rows.filter(r => r.type === 'entry').length}
             >
               🔢 Auto Nummers
+            </button>
+            
+            <button
+              className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 ml-2"
+              onClick={sortRowsByClass}
+              disabled={!rows.filter(r => r.type === 'entry').length}
+              title="Sorteer alle klassen op volgorde: WE0, WE1, WE2, WE3, WE4, Junioren, Young Riders, WE2+"
+            >
+              📋 Sorteer Klassen
             </button>
           </div>
         </div>
