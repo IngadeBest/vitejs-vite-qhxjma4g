@@ -525,158 +525,57 @@ export default function Startlijst() {
     e.target.value = "";
   };
 
-  // DnD (per deelnemer, in hoofdtabel) - binnen dezelfde klasse
-  const dragData = useRef(null);
-  
-  const onDragStart = (row) => (ev) => {
-    dragData.current = {
-      rowId: row.id,
-      klasse: row.klasse,
-      type: row.type
-    };
-    ev.dataTransfer.effectAllowed = "move";
-    ev.dataTransfer.setData('text/plain', JSON.stringify(dragData.current));
-    
-    // Visual feedback
-    ev.target.style.opacity = '0.5';
-  };
-  
-  const onDragEnd = (ev) => {
-    ev.target.style.opacity = '';
-    dragData.current = null;
-  };
-  
-  const onDragOver = (ev) => {
-    ev.preventDefault();
-    ev.dataTransfer.dropEffect = "move";
-  };
-  
-  const onDrop = (targetRow) => (ev) => {
-    ev.preventDefault();
-    
-    if (!dragData.current) return;
-    
-    const sourceData = dragData.current;
-    
-    // Kan niet op jezelf droppen
-    if (sourceData.rowId === targetRow.id) {
-      dragData.current = null;
-      return;
-    }
+  // Eenvoudige drag & drop - verplaats deelnemers
+  const draggedItem = useRef(null);
 
-    // Pauzes mogen overal heen, deelnemers alleen binnen hun klasse
-    if (
-      sourceData.type === "entry" &&
-      targetRow.type === "entry" &&
-      normalizeKlasse(sourceData.klasse || "") !== normalizeKlasse(targetRow.klasse || "")
-    ) {
-      dragData.current = null;
-      alert("Je kunt deelnemers alleen binnen dezelfde klasse verplaatsen!");
-      return;
-    }
-
-    // Verplaats in rows array
-    setRows((prev) => {
-      const next = prev.slice();
-      const fromIndex = next.findIndex(r => r.id === sourceData.rowId);
-      const toIndex = next.findIndex(r => r.id === targetRow.id);
-      
-      if (fromIndex === -1 || toIndex === -1) return prev;
-      
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
-      return next;
-    });
-    
-    dragData.current = null;
+  const handleDragStart = (e, index) => {
+    draggedItem.current = index;
+    e.target.style.opacity = '0.5';
   };
 
-  // DnD voor hele klassen
-  const classDragData = useRef(null);
-  
-  const onClassDragStart = (klasse) => (ev) => {
-    classDragData.current = { klasse };
-    ev.dataTransfer.effectAllowed = "move";
-    ev.dataTransfer.setData('text/plain', JSON.stringify({ type: 'class', klasse }));
-    
-    // Visual feedback
-    ev.target.style.opacity = '0.5';
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = '';
+    draggedItem.current = null;
   };
-  
-  const onClassDragEnd = (ev) => {
-    ev.target.style.opacity = '';
-    classDragData.current = null;
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    // Add visual feedback for drop zone
+    e.target.closest('tr').classList.add('bg-blue-100');
   };
-  
-  const onClassDrop = (targetKlasse) => (ev) => {
-    ev.preventDefault();
+
+  const handleDragLeave = (e) => {
+    // Remove visual feedback when leaving drop zone
+    e.target.closest('tr').classList.remove('bg-blue-100');
+  };
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
     
-    if (!classDragData.current) return;
-    
-    const sourceKlasse = classDragData.current.klasse;
-    
-    if (sourceKlasse === targetKlasse) {
-      classDragData.current = null;
+    if (draggedItem.current === null || draggedItem.current === dropIndex) {
       return;
     }
     
-    // Verplaats hele klasse
-    setRows((prev) => {
-      const klasseGroups = {};
-      const breaks = [];
-      const others = [];
+    const dragIndex = draggedItem.current;
+    
+    setRows(prev => {
+      const newRows = [...prev];
+      const draggedRow = newRows[dragIndex];
       
-      // Groepeer alle rows
-      prev.forEach(row => {
-        if (row.type === 'break') {
-          breaks.push(row);
-        } else {
-          const klasse = normalizeKlasse(row.klasse) || 'Geen klasse';
-          if (!klasseGroups[klasse]) klasseGroups[klasse] = [];
-          klasseGroups[klasse].push(row);
-        }
-      });
+      // Remove from original position
+      newRows.splice(dragIndex, 1);
       
-      // Vind positie van target klasse
-      const klasseOrder = ['WE0', 'WE1', 'WE2', 'WE3', 'WE4', 'Junioren', 'Young Riders', 'WE2+', 'Geen klasse'];
-      const sourceIndex = klasseOrder.indexOf(sourceKlasse);
-      const targetIndex = klasseOrder.indexOf(targetKlasse);
-      
-      // Herorden de klassen
-      const newOrder = [...klasseOrder];
-      if (sourceIndex !== -1 && targetIndex !== -1) {
-        const [moved] = newOrder.splice(sourceIndex, 1);
-        newOrder.splice(targetIndex, 0, moved);
-      }
-      
-      // Rebuild rows array in nieuwe volgorde
-      const newRows = [];
-      newOrder.forEach(klasse => {
-        if (klasseGroups[klasse]) {
-          newRows.push(...klasseGroups[klasse]);
-        }
-      });
-      
-      // Voeg andere klassen toe
-      Object.keys(klasseGroups).forEach(klasse => {
-        if (!newOrder.includes(klasse)) {
-          newRows.push(...klasseGroups[klasse]);
-        }
-      });
-      
-      // Voeg pauzes toe aan eind
-      newRows.push(...breaks);
+      // Insert at new position (adjust for removed item)
+      const insertIndex = dragIndex < dropIndex ? dropIndex - 1 : dropIndex;
+      newRows.splice(insertIndex, 0, draggedRow);
       
       return newRows;
     });
     
-    classDragData.current = null;
+    draggedItem.current = null;
   };
-  
-  const onClassDragOver = (ev) => {
-    ev.preventDefault();
-    ev.dataTransfer.dropEffect = "move";
-  };
+
+
 
   // Pauze toevoegen
   const [pauseLabel, setPauseLabel] = useState("");
@@ -1539,15 +1438,7 @@ Plak je data hieronder:`);
                       return (
                         <React.Fragment key={`${row.id || index}-${rowKlasse}`}>
                           {showClassHeader && (
-                            <tr 
-                              className="bg-blue-50 cursor-move hover:bg-blue-100"
-                              draggable={row.type !== 'break'}
-                              onDragStart={row.type !== 'break' ? onClassDragStart(rowKlasse) : undefined}
-                              onDragEnd={row.type !== 'break' ? onClassDragEnd : undefined}
-                              onDragOver={row.type !== 'break' ? onClassDragOver : undefined}
-                              onDrop={row.type !== 'break' ? onClassDrop(rowKlasse) : undefined}
-                              title={row.type !== 'break' ? "Sleep om hele klasse te verplaatsen" : undefined}
-                            >
+                            <tr className="bg-blue-50">
                               <td colSpan="8" className="px-4 py-2 text-sm font-semibold text-blue-800 border-b border-blue-200">
                                 {row.type === 'break' ? 
                                   '🍕 Pauzes' : 
@@ -1558,13 +1449,14 @@ Plak je data hieronder:`);
                           )}
                           
                           <tr 
-                            className={`hover:bg-gray-50 ${row.type === 'break' ? 'bg-yellow-50' : ''} cursor-move`}
+                            className={`hover:bg-gray-50 ${row.type === 'break' ? 'bg-yellow-50' : ''} cursor-move transition-colors`}
                             draggable={true}
-                            onDragStart={onDragStart(row)}
-                            onDragEnd={onDragEnd}
-                            onDragOver={onDragOver}
-                            onDrop={onDrop(row)}
-                            title={row.type === 'break' ? "Sleep om pauze te verplaatsen" : "Sleep om deelnemer te verplaatsen (alleen binnen dezelfde klasse)"}
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, index)}
+                            title="Sleep om rij te verplaatsen"
                           >
                             <td className="px-4 py-3 text-sm text-gray-600">
                               {row.type === 'break' ? '—' : klasseItemNumber}
