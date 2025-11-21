@@ -526,53 +526,62 @@ export default function Startlijst() {
   };
 
   // Eenvoudige drag & drop - verplaats deelnemers
-  const draggedItem = useRef(null);
+  const draggedRow = useRef(null);
 
-  const handleDragStart = (e, index) => {
-    draggedItem.current = index;
+  const handleDragStart = (e, row) => {
+    draggedRow.current = row;
     e.target.style.opacity = '0.5';
+    e.target.style.transform = 'rotate(2deg)';
   };
 
   const handleDragEnd = (e) => {
     e.target.style.opacity = '';
-    draggedItem.current = null;
+    e.target.style.transform = '';
+    e.target.closest('tr')?.classList.remove('bg-blue-100');
+    draggedRow.current = null;
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
     // Add visual feedback for drop zone
-    e.target.closest('tr').classList.add('bg-blue-100');
+    e.target.closest('tr')?.classList.add('bg-blue-100');
   };
 
   const handleDragLeave = (e) => {
     // Remove visual feedback when leaving drop zone
-    e.target.closest('tr').classList.remove('bg-blue-100');
+    e.target.closest('tr')?.classList.remove('bg-blue-100');
   };
 
-  const handleDrop = (e, dropIndex) => {
+  const handleDrop = (e, targetRow) => {
     e.preventDefault();
+    e.target.closest('tr')?.classList.remove('bg-blue-100');
     
-    if (draggedItem.current === null || draggedItem.current === dropIndex) {
+    if (!draggedRow.current || draggedRow.current.id === targetRow.id) {
+      draggedRow.current = null;
       return;
     }
     
-    const dragIndex = draggedItem.current;
+    const sourceRow = draggedRow.current;
     
     setRows(prev => {
       const newRows = [...prev];
-      const draggedRow = newRows[dragIndex];
+      const sourceIndex = newRows.findIndex(r => r.id === sourceRow.id);
+      const targetIndex = newRows.findIndex(r => r.id === targetRow.id);
+      
+      if (sourceIndex === -1 || targetIndex === -1) {
+        return prev;
+      }
       
       // Remove from original position
-      newRows.splice(dragIndex, 1);
+      const [movedRow] = newRows.splice(sourceIndex, 1);
       
-      // Insert at new position (adjust for removed item)
-      const insertIndex = dragIndex < dropIndex ? dropIndex - 1 : dropIndex;
-      newRows.splice(insertIndex, 0, draggedRow);
+      // Insert at new position
+      newRows.splice(targetIndex, 0, movedRow);
       
       return newRows;
     });
     
-    draggedItem.current = null;
+    draggedRow.current = null;
   };
 
 
@@ -1451,11 +1460,11 @@ Plak je data hieronder:`);
                           <tr 
                             className={`hover:bg-gray-50 ${row.type === 'break' ? 'bg-yellow-50' : ''} cursor-move transition-colors`}
                             draggable={true}
-                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragStart={(e) => handleDragStart(e, row)}
                             onDragEnd={handleDragEnd}
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, index)}
+                            onDrop={(e) => handleDrop(e, row)}
                             title="Sleep om rij te verplaatsen"
                           >
                             <td className="px-4 py-3 text-sm text-gray-600">
