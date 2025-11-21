@@ -362,13 +362,14 @@ async function exportToExcel(rows, meta = {}, classStartTimes = {}) {
   try {
     const XLSX = await import("xlsx");
     const data = rows.map((r, idx) => {
-      const classTime =
-        r.klasse && classStartTimes[r.klasse] ? classStartTimes[r.klasse] : "";
-      const effectiveTime = r.type === "break" ? "" : r.starttijd || classTime || "";
+      const calculatedTimes = calculateStartTimes(rows, meta.dressuurStarttijd || "09:00", meta.trailStarttijd || "13:00", meta.tussenPauze || 5, meta.pauzeMinuten || 15);
+      const times = calculatedTimes[r.id || idx] || {};
+      
       return {
         Volgorde: idx + 1,
         Type: r.type === "break" ? "PAUZE" : "RIT",
-        Tijd: effectiveTime,
+        Dressuur: r.type === "break" ? "" : times.dressuur || "",
+        Trail: r.type === "break" ? "" : times.trail || "",
         Startnummer: r.type === "break" ? "" : r.startnummer || "",
         Ruiter: r.type === "break" ? "" : r.ruiter || "",
         Paard: r.type === "break" ? "" : r.paard || "",
@@ -395,7 +396,8 @@ async function exportToExcel(rows, meta = {}, classStartTimes = {}) {
     const header = [
       "Volgorde",
       "Type",
-      "Tijd",
+      "Dressuur",
+      "Trail", 
       "Startnummer",
       "Ruiter",
       "Paard",
@@ -405,13 +407,14 @@ async function exportToExcel(rows, meta = {}, classStartTimes = {}) {
     ];
     const lines = [header.join(",")];
     rows.forEach((r, idx) => {
-      const classTime =
-        r.klasse && classStartTimes[r.klasse] ? classStartTimes[r.klasse] : "";
-      const effectiveTime = r.type === "break" ? "" : r.starttijd || classTime || "";
+      const calculatedTimes = calculateStartTimes(rows, meta.dressuurStarttijd || "09:00", meta.trailStarttijd || "13:00", meta.tussenPauze || 5, meta.pauzeMinuten || 15);
+      const times = calculatedTimes[r.id || idx] || {};
+      
       const line = [
         idx + 1,
         r.type === "break" ? "PAUZE" : "RIT",
-        effectiveTime,
+        r.type === "break" ? "" : times.dressuur || "",
+        r.type === "break" ? "" : times.trail || "",
         r.type === "break" ? "" : r.startnummer || "",
         r.type === "break" ? "" : r.ruiter || "",
         r.type === "break" ? "" : r.paard || "",
@@ -1218,9 +1221,20 @@ Plak je data hieronder:`);
 
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-              onClick={() => setShowPreview(true)}
+              onClick={() => {
+                // Scroll naar rechts preview als die buiten zicht is
+                const previewEl = document.querySelector('[data-preview-sidebar]');
+                if (previewEl) {
+                  previewEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                // Highlight de preview even
+                if (previewEl) {
+                  previewEl.classList.add('animate-pulse');
+                  setTimeout(() => previewEl.classList.remove('animate-pulse'), 2000);
+                }
+              }}
             >
-              👁️ Preview
+              👁️ Preview (rechts)
             </button>
 
             <button
@@ -1233,7 +1247,7 @@ Plak je data hieronder:`);
 
             <button
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-              onClick={() => exportToExcel(filtered, meta, classStartTimes)}
+              onClick={() => exportToExcel(filtered, {...meta, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten}, classStartTimes)}
               disabled={!filtered.length}
             >
               📊 Excel Export
@@ -1398,7 +1412,8 @@ Plak je data hieronder:`);
                           <thead>
                             <tr className="bg-gray-50 text-left">
                               <th className="p-3 w-12">#</th>
-                              <th className="p-3 w-24">Tijd</th>
+                              <th className="p-3 w-20">Dressuur</th>
+                              <th className="p-3 w-20">Trail</th>
                               <th className="p-3 w-24">Startnr</th>
                               <th className="p-3">Ruiter</th>
                               <th className="p-3">Paard</th>
@@ -1413,22 +1428,26 @@ Plak je data hieronder:`);
                                 <tr key={row.id || idx} className="border-t hover:bg-gray-50">
                                   <td className="p-3 text-sm text-gray-600">{idx + 1}</td>
                                   <td className="p-3">
-                                    <input
-                                      type="time"
-                                      className="border rounded px-2 py-1 w-24 text-sm"
-                                      value={row.starttijd || ""}
-                                      onChange={(e) => {
-                                        const val = e.target.value;
-                                        setRows((prev) => {
-                                          const next = prev.slice();
-                                          const realIndex = rows.indexOf(row);
-                                          if (realIndex >= 0) {
-                                            next[realIndex] = { ...next[realIndex], starttijd: val };
-                                          }
-                                          return next;
-                                        });
-                                      }}
-                                    />
+                                    {(() => {
+                                      const calculatedTimes = calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                                      const times = calculatedTimes[row.id || idx];
+                                      return (
+                                        <div className="text-xs font-mono text-blue-600">
+                                          {times?.dressuur || '--:--'}
+                                        </div>
+                                      );
+                                    })()}
+                                  </td>
+                                  <td className="p-3">
+                                    {(() => {
+                                      const calculatedTimes = calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                                      const times = calculatedTimes[row.id || idx];
+                                      return (
+                                        <div className="text-xs font-mono text-green-600">
+                                          {times?.trail || '--:--'}
+                                        </div>
+                                      );
+                                    })()}
                                   </td>
                                   <td className="p-3">
                                     <input
@@ -1564,7 +1583,8 @@ Plak je data hieronder:`);
                             <thead>
                               <tr className="bg-gray-50 text-left">
                                 <th className="p-3 w-12">#</th>
-                                <th className="p-3 w-24">Tijd</th>
+                                <th className="p-3 w-20">Dressuur</th>
+                                <th className="p-3 w-20">Trail</th>
                                 <th className="p-3 w-24">Startnr</th>
                                 <th className="p-3">Ruiter</th>
                                 <th className="p-3">Paard</th>
@@ -1579,22 +1599,26 @@ Plak je data hieronder:`);
                                   <tr key={row.id || idx} className="border-t hover:bg-gray-50">
                                     <td className="p-3 text-sm text-gray-600">{idx + 1}</td>
                                     <td className="p-3">
-                                      <input
-                                        type="time"
-                                        className="border rounded px-2 py-1 w-24 text-sm"
-                                        value={row.starttijd || ""}
-                                        onChange={(e) => {
-                                          const val = e.target.value;
-                                          setRows((prev) => {
-                                            const next = prev.slice();
-                                            const realIndex = rows.indexOf(row);
-                                            if (realIndex >= 0) {
-                                              next[realIndex] = { ...next[realIndex], starttijd: val };
-                                            }
-                                            return next;
-                                          });
-                                        }}
-                                      />
+                                      {(() => {
+                                        const calculatedTimes = calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                                        const times = calculatedTimes[row.id || idx];
+                                        return (
+                                          <div className="text-xs font-mono text-blue-600">
+                                            {times?.dressuur || '--:--'}
+                                          </div>
+                                        );
+                                      })()}
+                                    </td>
+                                    <td className="p-3">
+                                      {(() => {
+                                        const calculatedTimes = calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                                        const times = calculatedTimes[row.id || idx];
+                                        return (
+                                          <div className="text-xs font-mono text-green-600">
+                                            {times?.trail || '--:--'}
+                                          </div>
+                                        );
+                                      })()}
                                     </td>
                                     <td className="p-3">
                                       <input
@@ -1848,7 +1872,7 @@ Plak je data hieronder:`);
 
         {/* Live Preview Sidebar (rechts) */}
         <div className="w-1/3">
-          <div className="sticky top-4 space-y-3">
+          <div className="sticky top-4 space-y-3" data-preview-sidebar>
             <div className="bg-gray-50 rounded-lg p-4 border">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold text-gray-700">
@@ -1919,7 +1943,8 @@ Plak je data hieronder:`);
                           <thead>
                             <tr className="bg-gray-50 text-left">
                               <th className="p-2 text-[10px]">#</th>
-                              <th className="p-2 text-[10px]">Tijd</th>
+                              <th className="p-2 text-[10px]">Dressuur</th>
+                              <th className="p-2 text-[10px]">Trail</th>
                               <th className="p-2 text-[10px]">Nr</th>
                               <th className="p-2 text-[10px]">Ruiter</th>
                               <th className="p-2 text-[10px]">Paard</th>
@@ -1929,8 +1954,8 @@ Plak je data hieronder:`);
                             {groupRows.map((r) => {
                               const globalIndex =
                                 filtered.indexOf(r) + 1 || "?";
-                              const effectiveTime =
-                                r.starttijd || classTime || "--:--";
+                              const calculatedTimes = calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                              const times = calculatedTimes[r.id];
                               return (
                                 <tr
                                   key={r.id}
@@ -1939,8 +1964,11 @@ Plak je data hieronder:`);
                                   <td className="p-2 text-gray-600">
                                     {globalIndex}
                                   </td>
-                                  <td className="p-2 font-mono">
-                                    {effectiveTime}
+                                  <td className="p-2 font-mono text-blue-600">
+                                    {times?.dressuur || "--:--"}
+                                  </td>
+                                  <td className="p-2 font-mono text-green-600">
+                                    {times?.trail || "--:--"}
                                   </td>
                                   <td className="p-2 font-mono">
                                     {r.startnummer || "??"}
@@ -2114,7 +2142,7 @@ Plak je data hieronder:`);
             <div className="mt-3 flex gap-2 justify-end">
               <button
                 className="px-3 py-2 border rounded"
-                onClick={() => exportToExcel(rows, meta, classStartTimes)}
+                onClick={() => exportToExcel(rows, {...meta, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten}, classStartTimes)}
               >
                 Export naar Excel
               </button>
