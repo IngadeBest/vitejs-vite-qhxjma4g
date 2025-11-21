@@ -526,66 +526,156 @@ export default function Startlijst() {
   };
 
   // DnD (per deelnemer, in hoofdtabel) - binnen dezelfde klasse
-  const dragIndex = useRef(null);
-  const onDragStart = (idx) => (ev) => {
-    dragIndex.current = idx;
+  const dragData = useRef(null);
+  
+  const onDragStart = (row) => (ev) => {
+    dragData.current = {
+      rowId: row.id,
+      klasse: row.klasse,
+      type: row.type
+    };
     ev.dataTransfer.effectAllowed = "move";
+    ev.dataTransfer.setData('text/plain', JSON.stringify(dragData.current));
+    
+    // Visual feedback
+    ev.target.style.opacity = '0.5';
   };
-  const onDragOver = (idx) => (ev) => {
+  
+  const onDragEnd = (ev) => {
+    ev.target.style.opacity = '';
+    dragData.current = null;
+  };
+  
+  const onDragOver = (ev) => {
     ev.preventDefault();
     ev.dataTransfer.dropEffect = "move";
   };
-  const onDrop = (idx) => (ev) => {
+  
+  const onDrop = (targetRow) => (ev) => {
     ev.preventDefault();
-    const from = dragIndex.current;
-    if (from === null || from === idx) return;
-
-    const sourceRow = filtered[from];
-    const targetRow = filtered[idx];
-
-    // Pauzes mogen overal heen, deelnemers alleen binnen hun klasse
-    if (
-      sourceRow?.type === "entry" &&
-      targetRow?.type === "entry" &&
-      (sourceRow.klasse || "") !== (targetRow.klasse || "")
-    ) {
-      dragIndex.current = null;
+    
+    if (!dragData.current) return;
+    
+    const sourceData = dragData.current;
+    
+    // Kan niet op jezelf droppen
+    if (sourceData.rowId === targetRow.id) {
+      dragData.current = null;
       return;
     }
 
+    // Pauzes mogen overal heen, deelnemers alleen binnen hun klasse
+    if (
+      sourceData.type === "entry" &&
+      targetRow.type === "entry" &&
+      normalizeKlasse(sourceData.klasse || "") !== normalizeKlasse(targetRow.klasse || "")
+    ) {
+      dragData.current = null;
+      alert("Je kunt deelnemers alleen binnen dezelfde klasse verplaatsen!");
+      return;
+    }
+
+    // Verplaats in rows array
     setRows((prev) => {
       const next = prev.slice();
-      const fromReal = prev.indexOf(sourceRow);
-      const toReal = prev.indexOf(targetRow);
-      if (fromReal === -1 || toReal === -1) return prev;
-      const [moved] = next.splice(fromReal, 1);
-      next.splice(toReal, 0, moved);
+      const fromIndex = next.findIndex(r => r.id === sourceData.rowId);
+      const toIndex = next.findIndex(r => r.id === targetRow.id);
+      
+      if (fromIndex === -1 || toIndex === -1) return prev;
+      
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
       return next;
     });
-    dragIndex.current = null;
+    
+    dragData.current = null;
   };
 
-  // DnD voor klassen (chips)
-  const classDragIndex = useRef(null);
-  const onClassDragStart = (index) => (e) => {
-    classDragIndex.current = index;
-    e.dataTransfer.effectAllowed = "move";
+  // DnD voor hele klassen
+  const classDragData = useRef(null);
+  
+  const onClassDragStart = (klasse) => (ev) => {
+    classDragData.current = { klasse };
+    ev.dataTransfer.effectAllowed = "move";
+    ev.dataTransfer.setData('text/plain', JSON.stringify({ type: 'class', klasse }));
+    
+    // Visual feedback
+    ev.target.style.opacity = '0.5';
   };
-  const onClassDragOver = (index) => (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+  
+  const onClassDragEnd = (ev) => {
+    ev.target.style.opacity = '';
+    classDragData.current = null;
   };
-  const onClassDrop = (index) => (e) => {
-    e.preventDefault();
-    const from = classDragIndex.current;
-    if (from === null || from === index) return;
-    setClassOrder((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(index, 0, moved);
-      return next;
+  
+  const onClassDrop = (targetKlasse) => (ev) => {
+    ev.preventDefault();
+    
+    if (!classDragData.current) return;
+    
+    const sourceKlasse = classDragData.current.klasse;
+    
+    if (sourceKlasse === targetKlasse) {
+      classDragData.current = null;
+      return;
+    }
+    
+    // Verplaats hele klasse
+    setRows((prev) => {
+      const klasseGroups = {};
+      const breaks = [];
+      const others = [];
+      
+      // Groepeer alle rows
+      prev.forEach(row => {
+        if (row.type === 'break') {
+          breaks.push(row);
+        } else {
+          const klasse = normalizeKlasse(row.klasse) || 'Geen klasse';
+          if (!klasseGroups[klasse]) klasseGroups[klasse] = [];
+          klasseGroups[klasse].push(row);
+        }
+      });
+      
+      // Vind positie van target klasse
+      const klasseOrder = ['WE0', 'WE1', 'WE2', 'WE3', 'WE4', 'Junioren', 'Young Riders', 'WE2+', 'Geen klasse'];
+      const sourceIndex = klasseOrder.indexOf(sourceKlasse);
+      const targetIndex = klasseOrder.indexOf(targetKlasse);
+      
+      // Herorden de klassen
+      const newOrder = [...klasseOrder];
+      if (sourceIndex !== -1 && targetIndex !== -1) {
+        const [moved] = newOrder.splice(sourceIndex, 1);
+        newOrder.splice(targetIndex, 0, moved);
+      }
+      
+      // Rebuild rows array in nieuwe volgorde
+      const newRows = [];
+      newOrder.forEach(klasse => {
+        if (klasseGroups[klasse]) {
+          newRows.push(...klasseGroups[klasse]);
+        }
+      });
+      
+      // Voeg andere klassen toe
+      Object.keys(klasseGroups).forEach(klasse => {
+        if (!newOrder.includes(klasse)) {
+          newRows.push(...klasseGroups[klasse]);
+        }
+      });
+      
+      // Voeg pauzes toe aan eind
+      newRows.push(...breaks);
+      
+      return newRows;
     });
-    classDragIndex.current = null;
+    
+    classDragData.current = null;
+  };
+  
+  const onClassDragOver = (ev) => {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = "move";
   };
 
   // Pauze toevoegen
@@ -1449,7 +1539,15 @@ Plak je data hieronder:`);
                       return (
                         <React.Fragment key={`${row.id || index}-${rowKlasse}`}>
                           {showClassHeader && (
-                            <tr className="bg-blue-50">
+                            <tr 
+                              className="bg-blue-50 cursor-move hover:bg-blue-100"
+                              draggable={row.type !== 'break'}
+                              onDragStart={row.type !== 'break' ? onClassDragStart(rowKlasse) : undefined}
+                              onDragEnd={row.type !== 'break' ? onClassDragEnd : undefined}
+                              onDragOver={row.type !== 'break' ? onClassDragOver : undefined}
+                              onDrop={row.type !== 'break' ? onClassDrop(rowKlasse) : undefined}
+                              title={row.type !== 'break' ? "Sleep om hele klasse te verplaatsen" : undefined}
+                            >
                               <td colSpan="8" className="px-4 py-2 text-sm font-semibold text-blue-800 border-b border-blue-200">
                                 {row.type === 'break' ? 
                                   '🍕 Pauzes' : 
@@ -1460,11 +1558,13 @@ Plak je data hieronder:`);
                           )}
                           
                           <tr 
-                            className={`hover:bg-gray-50 ${row.type === 'break' ? 'bg-yellow-50' : ''}`}
-                            draggable={row.type !== 'break'}
-                            onDragStart={row.type !== 'break' ? onDragStart(index) : undefined}
-                            onDragOver={onDragOver(index)}
-                            onDrop={onDrop(index)}
+                            className={`hover:bg-gray-50 ${row.type === 'break' ? 'bg-yellow-50' : ''} cursor-move`}
+                            draggable={true}
+                            onDragStart={onDragStart(row)}
+                            onDragEnd={onDragEnd}
+                            onDragOver={onDragOver}
+                            onDrop={onDrop(row)}
+                            title={row.type === 'break' ? "Sleep om pauze te verplaatsen" : "Sleep om deelnemer te verplaatsen (alleen binnen dezelfde klasse)"}
                           >
                             <td className="px-4 py-3 text-sm text-gray-600">
                               {row.type === 'break' ? '—' : klasseItemNumber}
