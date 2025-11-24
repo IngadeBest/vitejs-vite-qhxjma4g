@@ -190,7 +190,7 @@ export default function ProtocolGenerator() {
   const [config, setConfig] = useState({
     wedstrijd_id: "",
     klasse: "",
-    onderdeel: "stijl",
+    onderdeel: "",  // No default - user must choose
     datum: new Date().toISOString().split("T")[0],
     jury: ""
   });
@@ -508,6 +508,7 @@ export default function ProtocolGenerator() {
 
           <label>Onderdeel*</label>
           <select value={config.onderdeel} onChange={(e)=>setConfig(c=>({...c, onderdeel:e.target.value}))}>
+            <option value="">— kies onderdeel —</option>
             {ONDERDELEN.map(o=> <option key={o.code} value={o.code}>{o.label}</option>)}
           </select>
 

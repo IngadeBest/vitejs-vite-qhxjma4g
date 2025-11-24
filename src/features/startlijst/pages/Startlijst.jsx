@@ -1592,6 +1592,7 @@ Plak je data hieronder:`);
 
                     let currentKlasse = null;
                     let klasseItemNumber = 0;
+                    const seenKlasses = new Set(); // Track which class headers we've shown
                     
                     return sortedRows.map((row, index) => {
                       // Ensure every row has a valid ID
@@ -1601,10 +1602,12 @@ Plak je data hieronder:`);
                       // Check if we need a class header
                       const rowKlasse = row.type === 'break' ? 'PAUZE' : (normalizeKlasse(row.klasse) || 'Geen klasse');
                       const showClassHeader = rowKlasse !== currentKlasse;
+                      const isFirstHeaderForClass = !seenKlasses.has(rowKlasse);
                       
                       if (showClassHeader) {
                         currentKlasse = rowKlasse;
                         klasseItemNumber = 0;
+                        seenKlasses.add(rowKlasse);
                       }
                       
                       if (row.type !== 'break') {
@@ -1618,22 +1621,28 @@ Plak je data hieronder:`);
                         <React.Fragment key={`${row.id || index}-${rowKlasse}`}>
                           {showClassHeader && (
                             <tr 
-                              className="bg-blue-50 hover:bg-blue-100 cursor-move transition-colors"
-                              draggable={row.type !== 'break'}
-                              onDragStart={row.type !== 'break' ? (e) => handleClassDragStart(e, rowKlasse) : undefined}
-                              onDragEnd={row.type !== 'break' ? handleClassDragEnd : undefined}
+                              className={`${row.type !== 'break' ? 'bg-blue-50 hover:bg-blue-100' : 'bg-yellow-50'} ${row.type !== 'break' && isFirstHeaderForClass ? 'cursor-move' : ''} transition-colors`}
+                              draggable={row.type !== 'break' && isFirstHeaderForClass}
+                              onDragStart={row.type !== 'break' && isFirstHeaderForClass ? (e) => {
+                                console.log('🏷️ Dragging class header:', rowKlasse, 'isFirst:', isFirstHeaderForClass);
+                                handleClassDragStart(e, rowKlasse);
+                              } : undefined}
+                              onDragEnd={row.type !== 'break' && isFirstHeaderForClass ? handleClassDragEnd : undefined}
                               onDragOver={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                if (row.type !== 'break') handleClassDragOver(e);
+                                if (row.type !== 'break' && isFirstHeaderForClass) handleClassDragOver(e);
                               }}
-                              onDrop={row.type !== 'break' ? (e) => handleClassDrop(e, rowKlasse) : undefined}
-                              title={row.type !== 'break' ? "Sleep om hele klasse te verplaatsen" : undefined}
+                              onDrop={row.type !== 'break' && isFirstHeaderForClass ? (e) => {
+                                console.log('📥 Dropping on class header:', rowKlasse);
+                                handleClassDrop(e, rowKlasse);
+                              } : undefined}
+                              title={row.type !== 'break' && isFirstHeaderForClass ? "Sleep om hele klasse te verplaatsen" : undefined}
                             >
                               <td colSpan="8" className="px-4 py-2 text-sm font-semibold text-blue-800 border-b border-blue-200">
                                 <div className="flex items-center gap-2">
-                                  {row.type !== 'break' && (
-                                    <span className="text-blue-600 cursor-move" title="Sleep hier om klasse te verplaatsen">
+                                  {row.type !== 'break' && isFirstHeaderForClass && (
+                                    <span className="text-blue-600 cursor-move text-lg" title="Sleep hier om klasse te verplaatsen">
                                       ⋮⋮
                                     </span>
                                   )}
