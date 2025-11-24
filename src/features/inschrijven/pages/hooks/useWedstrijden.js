@@ -42,6 +42,13 @@ export function useWedstrijden(onlyOpen = false) {
               datum: "2025-09-10",
               status: "concept",
               locatie: "Hippisch Centrum Noord"
+            },
+            {
+              id: "4",
+              naam: "Winterwedstrijd 2025",
+              datum: "2025-12-06", 
+              status: "gesloten",
+              locatie: "Indoor Manege"
             }
           ];
           
@@ -67,6 +74,13 @@ export function useWedstrijden(onlyOpen = false) {
             datum: "2025-07-20",
             status: "open",
             locatie: "Ruitersport Centrum"
+          },
+          {
+            id: "4",
+            naam: "Winterwedstrijd 2025",
+            datum: "2025-12-06",
+            status: "gesloten", 
+            locatie: "Indoor Manege"
           }
         ];
         

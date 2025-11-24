@@ -111,13 +111,17 @@ export default function PublicInschrijven() {
   // categorie removed, no per-klasse categorieen to enforce
 
   const disabled = useMemo(() => {
-  if (!form.wedstrijd_id || !form.klasse) return true;
+    // Check if wedstrijd is gesloten or concept
+    if (gekozenWedstrijd && (gekozenWedstrijd.status === 'gesloten' || gekozenWedstrijd.status === 'concept')) {
+      return true;
+    }
+    if (!form.wedstrijd_id || !form.klasse) return true;
     if (!form.ruiter || !form.paard || !form.email) return true;
     // leeftijd_ruiter is optional but if present must be a positive integer
     if (form.leeftijd_ruiter && !/^[0-9]{1,3}$/.test(String(form.leeftijd_ruiter))) return true;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return true;
     return false;
-  }, [form]);
+  }, [form, gekozenWedstrijd]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -210,6 +214,22 @@ export default function PublicInschrijven() {
     <Container maxWidth={1100}>
       <h2>Inschrijfformulier Ruiters</h2>
       <p style={{ color: "#555" }}>Velden met * zijn verplicht.</p>
+
+      {/* Status controle */}
+      {gekozenWedstrijd && gekozenWedstrijd.status === 'gesloten' && (
+        <Alert variant="warning" style={{ marginBottom: "20px" }}>
+          <h3>Inschrijvingen gesloten</h3>
+          <p>Inschrijvingen voor <strong>{gekozenWedstrijd.naam}</strong> op {gekozenWedstrijd.datum} zijn gesloten. 
+          Contact de organisatie voor meer informatie.</p>
+        </Alert>
+      )}
+
+      {gekozenWedstrijd && gekozenWedstrijd.status === 'concept' && (
+        <Alert variant="info" style={{ marginBottom: "20px" }}>
+          <h3>Wedstrijd in voorbereiding</h3>
+          <p><strong>{gekozenWedstrijd.naam}</strong> is nog in voorbereiding. Inschrijvingen zijn nog niet geopend.</p>
+        </Alert>
+      )}
 
       <Card variant="info" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial" }}>
       <form
