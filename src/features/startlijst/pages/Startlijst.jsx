@@ -528,52 +528,12 @@ export default function Startlijst() {
   // Drag & drop handlers voor deelnemers
   const draggedRow = useRef(null);
   
-  // Klasse drag & drop handlers
-  const draggedClass = useRef(null);
-
-  const handleClassDragStart = (e, klasse) => {
-    console.log('🏷️ Class drag start:', klasse);
-    draggedClass.current = klasse;
-    e.target.style.opacity = '0.7';
-    e.target.style.transform = 'scale(1.02)';
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', JSON.stringify({type: 'class', klasse}));
-  };
-
-  const handleClassDragEnd = (e) => {
-    e.target.style.opacity = '';
-    e.target.style.transform = '';
-    e.target.closest('tr')?.classList.remove('bg-blue-200');
-    draggedClass.current = null;
-  };
-
-  const handleClassDragOver = (e) => {
-    e.preventDefault(); // MUST prevent default to allow drop
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    const tr = e.target.closest('tr');
-    if (tr && tr.classList.contains('bg-blue-50')) {
-      tr.classList.add('bg-blue-200');
-    }
-  };
-
-  const handleClassDrop = (e, targetKlasse) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const tr = e.target.closest('tr');
-    if (tr) tr.classList.remove('bg-blue-200');
-    
-    if (!draggedClass.current || draggedClass.current === targetKlasse) {
-      draggedClass.current = null;
-      return;
-    }
-    
-    const sourceKlasse = draggedClass.current;
-    console.log('🔄 Moving class:', sourceKlasse, '→', targetKlasse);
+  // Klasse verplaats functies (up/down knoppen)
+  const moveClassUp = useCallback((klasseToMove) => {
+    console.log('⬆️ Moving class up:', klasseToMove);
     
     setRows(prev => {
-      // Group rows by class in CURRENT order (not predefined order)
+      // Group rows by class in CURRENT order
       const klasseGroups = {};
       const klasseOrder = [];
       const breaks = [];
@@ -585,48 +545,81 @@ export default function Startlijst() {
           const rowKlasse = normalizeKlasse(row.klasse) || 'Geen klasse';
           if (!klasseGroups[rowKlasse]) {
             klasseGroups[rowKlasse] = [];
-            klasseOrder.push(rowKlasse); // Track order as we encounter them
+            klasseOrder.push(rowKlasse);
           }
           klasseGroups[rowKlasse].push(row);
         }
       });
       
-      console.log('Current class order:', klasseOrder);
-      console.log('Moving from', sourceKlasse, 'to', targetKlasse);
-      
-      // Find indices in CURRENT order
-      const sourceIndex = klasseOrder.indexOf(sourceKlasse);
-      const targetIndex = klasseOrder.indexOf(targetKlasse);
-      
-      if (sourceIndex === -1 || targetIndex === -1) {
-        console.log('❌ Class not found in order');
-        return prev;
+      const currentIndex = klasseOrder.indexOf(klasseToMove);
+      if (currentIndex <= 0) {
+        console.log('Already at top');
+        return prev; // Already at top
       }
       
-      // Reorder classes - remove source and insert at target position
+      // Swap with previous class
       const newOrder = [...klasseOrder];
-      const [moved] = newOrder.splice(sourceIndex, 1);
-      newOrder.splice(targetIndex, 0, moved);
+      [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
       
-      console.log('New class order:', newOrder);
-      
-      // Rebuild rows in new order
+      // Rebuild rows
       const newRows = [];
       newOrder.forEach(klasse => {
         if (klasseGroups[klasse] && klasseGroups[klasse].length > 0) {
           newRows.push(...klasseGroups[klasse]);
         }
       });
-      
-      // Add breaks at end
       newRows.push(...breaks);
       
-      console.log('✅ Class reorder complete, new rows:', newRows.length);
+      console.log('✅ Moved up:', klasseToMove);
       return newRows;
     });
+  }, []);
+
+  const moveClassDown = useCallback((klasseToMove) => {
+    console.log('⬇️ Moving class down:', klasseToMove);
     
-    draggedClass.current = null;
-  };
+    setRows(prev => {
+      // Group rows by class in CURRENT order
+      const klasseGroups = {};
+      const klasseOrder = [];
+      const breaks = [];
+      
+      prev.forEach(row => {
+        if (row.type === 'break') {
+          breaks.push(row);
+        } else {
+          const rowKlasse = normalizeKlasse(row.klasse) || 'Geen klasse';
+          if (!klasseGroups[rowKlasse]) {
+            klasseGroups[rowKlasse] = [];
+            klasseOrder.push(rowKlasse);
+          }
+          klasseGroups[rowKlasse].push(row);
+        }
+      });
+      
+      const currentIndex = klasseOrder.indexOf(klasseToMove);
+      if (currentIndex === -1 || currentIndex >= klasseOrder.length - 1) {
+        console.log('Already at bottom');
+        return prev; // Already at bottom
+      }
+      
+      // Swap with next class
+      const newOrder = [...klasseOrder];
+      [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
+      
+      // Rebuild rows
+      const newRows = [];
+      newOrder.forEach(klasse => {
+        if (klasseGroups[klasse] && klasseGroups[klasse].length > 0) {
+          newRows.push(...klasseGroups[klasse]);
+        }
+      });
+      newRows.push(...breaks);
+      
+      console.log('✅ Moved down:', klasseToMove);
+      return newRows;
+    });
+  }, []);
 
   const handleDragStart = (e, row) => {
     console.log('🚀 Drag start:', row.id, row.ruiter || row.label || 'Unknown');
@@ -1620,36 +1613,33 @@ Plak je data hieronder:`);
                       return (
                         <React.Fragment key={`${row.id || index}-${rowKlasse}`}>
                           {showClassHeader && (
-                            <tr 
-                              className={`${row.type !== 'break' ? 'bg-blue-50 hover:bg-blue-100' : 'bg-yellow-50'} ${row.type !== 'break' && isFirstHeaderForClass ? 'cursor-move' : ''} transition-colors`}
-                              draggable={row.type !== 'break' && isFirstHeaderForClass}
-                              onDragStart={row.type !== 'break' && isFirstHeaderForClass ? (e) => {
-                                console.log('🏷️ Dragging class header:', rowKlasse, 'isFirst:', isFirstHeaderForClass);
-                                handleClassDragStart(e, rowKlasse);
-                              } : undefined}
-                              onDragEnd={row.type !== 'break' && isFirstHeaderForClass ? handleClassDragEnd : undefined}
-                              onDragOver={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (row.type !== 'break' && isFirstHeaderForClass) handleClassDragOver(e);
-                              }}
-                              onDrop={row.type !== 'break' && isFirstHeaderForClass ? (e) => {
-                                console.log('📥 Dropping on class header:', rowKlasse);
-                                handleClassDrop(e, rowKlasse);
-                              } : undefined}
-                              title={row.type !== 'break' && isFirstHeaderForClass ? "Sleep om hele klasse te verplaatsen" : undefined}
-                            >
+                            <tr className={`${row.type !== 'break' ? 'bg-blue-50' : 'bg-yellow-50'} transition-colors`}>
                               <td colSpan="8" className="px-4 py-2 text-sm font-semibold text-blue-800 border-b border-blue-200">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    {row.type === 'break' ? 
+                                      '🍕 Pauzes' : 
+                                      `📋 Klasse ${rowKlasse} ${row.type !== 'break' ? `(startnrs vanaf ${getStartnummerBase(rowKlasse).toString().padStart(3, '0')})` : ''}`
+                                    }
+                                  </div>
                                   {row.type !== 'break' && isFirstHeaderForClass && (
-                                    <span className="text-blue-600 cursor-move text-lg" title="Sleep hier om klasse te verplaatsen">
-                                      ⋮⋮
-                                    </span>
+                                    <div className="flex gap-1">
+                                      <button
+                                        onClick={() => moveClassUp(rowKlasse)}
+                                        className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                                        title="Verplaats klasse naar boven"
+                                      >
+                                        ▲
+                                      </button>
+                                      <button
+                                        onClick={() => moveClassDown(rowKlasse)}
+                                        className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                                        title="Verplaats klasse naar beneden"
+                                      >
+                                        ▼
+                                      </button>
+                                    </div>
                                   )}
-                                  {row.type === 'break' ? 
-                                    '🍕 Pauzes' : 
-                                    `📋 Klasse ${rowKlasse} ${row.type !== 'break' ? `(startnrs vanaf ${getStartnummerBase(rowKlasse).toString().padStart(3, '0')})` : ''}`
-                                  }
                                 </div>
                               </td>
                             </tr>
