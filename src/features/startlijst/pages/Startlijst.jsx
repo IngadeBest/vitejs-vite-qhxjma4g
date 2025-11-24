@@ -573,8 +573,9 @@ export default function Startlijst() {
     console.log('🔄 Moving class:', sourceKlasse, '→', targetKlasse);
     
     setRows(prev => {
-      // Group rows by class
+      // Group rows by class in CURRENT order (not predefined order)
       const klasseGroups = {};
+      const klasseOrder = [];
       const breaks = [];
       
       prev.forEach(row => {
@@ -582,22 +583,32 @@ export default function Startlijst() {
           breaks.push(row);
         } else {
           const rowKlasse = normalizeKlasse(row.klasse) || 'Geen klasse';
-          if (!klasseGroups[rowKlasse]) klasseGroups[rowKlasse] = [];
+          if (!klasseGroups[rowKlasse]) {
+            klasseGroups[rowKlasse] = [];
+            klasseOrder.push(rowKlasse); // Track order as we encounter them
+          }
           klasseGroups[rowKlasse].push(row);
         }
       });
       
-      // Get class order
-      const klasseOrder = ['WE0', 'WE1', 'WE2', 'WE3', 'WE4', 'Junioren', 'Young Riders', 'WE2+', 'Geen klasse'];
+      console.log('Current class order:', klasseOrder);
+      console.log('Moving from', sourceKlasse, 'to', targetKlasse);
+      
+      // Find indices in CURRENT order
       const sourceIndex = klasseOrder.indexOf(sourceKlasse);
       const targetIndex = klasseOrder.indexOf(targetKlasse);
       
-      // Reorder classes
-      const newOrder = [...klasseOrder];
-      if (sourceIndex !== -1 && targetIndex !== -1) {
-        const [moved] = newOrder.splice(sourceIndex, 1);
-        newOrder.splice(targetIndex, 0, moved);
+      if (sourceIndex === -1 || targetIndex === -1) {
+        console.log('❌ Class not found in order');
+        return prev;
       }
+      
+      // Reorder classes - remove source and insert at target position
+      const newOrder = [...klasseOrder];
+      const [moved] = newOrder.splice(sourceIndex, 1);
+      newOrder.splice(targetIndex, 0, moved);
+      
+      console.log('New class order:', newOrder);
       
       // Rebuild rows in new order
       const newRows = [];
@@ -610,7 +621,7 @@ export default function Startlijst() {
       // Add breaks at end
       newRows.push(...breaks);
       
-      console.log('✅ Class reorder complete');
+      console.log('✅ Class reorder complete, new rows:', newRows.length);
       return newRows;
     });
     
@@ -642,13 +653,19 @@ export default function Startlijst() {
     // Add visual feedback for drop zone
     const tr = e.target.closest('tr');
     if (tr && !tr.classList.contains('bg-blue-50')) {
+      // Add border to show where item will be dropped
+      tr.style.borderTop = '3px solid #3b82f6';
       tr.classList.add('bg-blue-100');
     }
   };
 
   const handleDragLeave = (e) => {
     // Remove visual feedback when leaving drop zone
-    e.target.closest('tr')?.classList.remove('bg-blue-100');
+    const tr = e.target.closest('tr');
+    if (tr) {
+      tr.classList.remove('bg-blue-100');
+      tr.style.borderTop = '';
+    }
   };
 
   const handleDrop = (e, targetRow) => {
@@ -656,7 +673,10 @@ export default function Startlijst() {
     e.stopPropagation();
     
     const tr = e.target.closest('tr');
-    if (tr) tr.classList.remove('bg-blue-100');
+    if (tr) {
+      tr.classList.remove('bg-blue-100');
+      tr.style.borderTop = '';
+    }
     
     if (!draggedRow.current) {
       console.log('❌ No dragged row');

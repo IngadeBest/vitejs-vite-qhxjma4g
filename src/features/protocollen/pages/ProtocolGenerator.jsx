@@ -603,7 +603,7 @@ export default function ProtocolGenerator() {
           </div>
 
           <div style={{ border:"1px solid #e5e7eb", borderRadius:12, padding:12, background:"#fff" }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Preview items</div>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Preview items ({items.length})</div>
             <table width="100%" cellPadding={6} style={{ borderCollapse: "collapse", fontSize: 14 }}>
               <thead><tr style={{ background: "#f7f7f7" }}><th align="left" style={{ width:60 }}>#</th><th align="left">Item</th></tr></thead>
               <tbody>
@@ -616,12 +616,47 @@ export default function ProtocolGenerator() {
               </tbody>
             </table>
             {items.length===0 && <div style={{ color:"#777" }}>Nog geen items</div>}
+            
+            <div style={{ marginTop: 16, borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>Preview deelnemers ({dbRows.length + csvRows.length})</div>
+              {dbRows.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <strong>Uit database:</strong> {dbRows.length} deelnemers
+                  <ul style={{ marginTop: 4, fontSize: 13 }}>
+                    {dbRows.slice(0, 3).map((d, i) => (
+                      <li key={i}>{d.startnummer} - {d.ruiter} ({d.paard})</li>
+                    ))}
+                    {dbRows.length > 3 && <li>... en {dbRows.length - 3} meer</li>}
+                  </ul>
+                </div>
+              )}
+              {csvRows.length > 0 && (
+                <div>
+                  <strong>Uit CSV:</strong> {csvRows.length} deelnemers
+                </div>
+              )}
+              {dbRows.length === 0 && csvRows.length === 0 && (
+                <div style={{ color:"#777" }}>Nog geen deelnemers geladen</div>
+              )}
+            </div>
           </div>
         </div>
 
         <div style={{ marginTop: 24, display: "flex", gap: 10 }}>
           <button onClick={() => setStap(1)}>Terug</button>
-          <button onClick={() => setStap(3)} disabled={!items.length || (csvRows.length === 0 && dbRows.length === 0)}>Volgende: Overzicht & PDF</button>
+          <button 
+            onClick={() => {
+              console.log('Button clicked, items:', items.length, 'csvRows:', csvRows.length, 'dbRows:', dbRows.length);
+              setStap(3);
+            }} 
+            disabled={!items.length || (csvRows.length === 0 && dbRows.length === 0)}
+            style={{
+              opacity: (!items.length || (csvRows.length === 0 && dbRows.length === 0)) ? 0.5 : 1,
+              cursor: (!items.length || (csvRows.length === 0 && dbRows.length === 0)) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Volgende: Overzicht & PDF {dbRows.length > 0 ? `(${dbRows.length} deelnemers)` : ''}
+          </button>
         </div>
       </div>
     </>
