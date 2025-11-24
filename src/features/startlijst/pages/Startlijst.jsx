@@ -548,7 +548,7 @@ export default function Startlijst() {
   };
 
   const handleClassDragOver = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // MUST prevent default to allow drop
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
     const tr = e.target.closest('tr');
@@ -636,12 +636,14 @@ export default function Startlijst() {
   };
 
   const handleDragOver = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // MUST prevent default to allow drop
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
     // Add visual feedback for drop zone
     const tr = e.target.closest('tr');
-    if (tr) tr.classList.add('bg-blue-100');
+    if (tr && !tr.classList.contains('bg-blue-50')) {
+      tr.classList.add('bg-blue-100');
+    }
   };
 
   const handleDragLeave = (e) => {
@@ -1600,7 +1602,11 @@ Plak je data hieronder:`);
                               draggable={row.type !== 'break'}
                               onDragStart={row.type !== 'break' ? (e) => handleClassDragStart(e, rowKlasse) : undefined}
                               onDragEnd={row.type !== 'break' ? handleClassDragEnd : undefined}
-                              onDragOver={row.type !== 'break' ? handleClassDragOver : undefined}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (row.type !== 'break') handleClassDragOver(e);
+                              }}
                               onDrop={row.type !== 'break' ? (e) => handleClassDrop(e, rowKlasse) : undefined}
                               title={row.type !== 'break' ? "Sleep om hele klasse te verplaatsen" : undefined}
                             >
@@ -1626,7 +1632,10 @@ Plak je data hieronder:`);
                               handleDragStart(e, row);
                             }}
                             onDragEnd={handleDragEnd}
-                            onDragOver={handleDragOver}
+                            onDragOver={(e) => {
+                              e.preventDefault(); // Critical for drop to work
+                              handleDragOver(e);
+                            }}
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, row)}
                             title="Sleep om rij te verplaatsen"

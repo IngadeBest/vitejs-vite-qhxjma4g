@@ -261,89 +261,115 @@ export default function ProtocolGenerator() {
 
   // load deelnemers directly from inschrijvingen table for selected wedstrijd+klasse
   async function loadDeelnemersFromDB() {
-    if (!config.wedstrijd_id || !config.klasse) { setDbMsg('Selecteer wedstrijd en klasse eerst'); return; }
+    if (!config.wedstrijd_id || !config.klasse) { 
+      setDbMsg('⚠️ Selecteer eerst wedstrijd en klasse'); 
+      return; 
+    }
+    
     setDbMsg('Laden...');
+    console.log('Loading deelnemers for:', { wedstrijd_id: config.wedstrijd_id, klasse: config.klasse });
+    
+    // Helper function to load from localStorage
+    const loadFromLocalStorage = () => {
+      const storageKey = `startlijst_${config.wedstrijd_id}`;
+      console.log('Trying localStorage with key:', storageKey);
+      
+      const stored = localStorage.getItem(storageKey) || localStorage.getItem('wp_startlijst_cache_v1');
+      
+      if (!stored) {
+        console.log('No localStorage data found');
+        return null;
+      }
+      
+      try {
+        const parsed = JSON.parse(stored);
+        console.log('Parsed localStorage data, entries:', parsed.length);
+        
+        const klasseNorm = config.klasse.toLowerCase().replace(/[^a-z0-9]/g, '');
+        console.log('Filtering for normalized klasse:', klasseNorm);
+        
+        const filtered = parsed.filter(r => {
+          if (r.type !== 'entry') return false;
+          const rowKlasse = (r.klasse || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const matches = rowKlasse === klasseNorm;
+          if (matches) console.log('Match found:', r.ruiter, r.klasse, '→', rowKlasse);
+          return matches;
+        });
+        
+        console.log('Filtered results:', filtered.length);
+        
+        if (filtered.length === 0) {
+          return null;
+        }
+        
+        const norm = filtered.map((r, i) => ({
+          ruiter: r.ruiter || '',
+          paard: r.paard || '',
+          rubriek: r.rubriek || selectedRubriek || 'senior',
+          startnummer: r.startnummer || String(lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i)
+        }));
+        
+        return norm;
+      } catch (parseErr) {
+        console.error('Error parsing localStorage:', parseErr);
+        return null;
+      }
+    };
+    
     try {
-      const { data, error } = await supabase.from('inschrijvingen').select('ruiter,paard,startnummer,rubriek').eq('wedstrijd_id', config.wedstrijd_id).eq('klasse', config.klasse).order('startnummer', { ascending: true });
+      // Try database first
+      const { data, error } = await supabase
+        .from('inschrijvingen')
+        .select('ruiter,paard,startnummer,rubriek')
+        .eq('wedstrijd_id', config.wedstrijd_id)
+        .eq('klasse', config.klasse)
+        .order('startnummer', { ascending: true });
       
       if (error) {
-        console.warn("Database error, trying localStorage:", error);
+        console.warn("Database error:", error);
         throw error;
       }
       
-      if (!data || data.length === 0) {
-        // Try localStorage fallback
-        const storageKey = `startlijst_${config.wedstrijd_id}`;
-        const stored = localStorage.getItem(storageKey) || localStorage.getItem('wp_startlijst_cache_v1');
+      if (data && data.length > 0) {
+        // Database success
+        const norm = data.map((r, i) => ({
+          ruiter: r.ruiter || '',
+          paard: r.paard || '',
+          rubriek: r.rubriek || selectedRubriek || 'senior',
+          startnummer: (r.startnummer != null && r.startnummer !== '') 
+            ? String(r.startnummer) 
+            : String(lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i)
+        }));
         
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const klasseNorm = config.klasse.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const filtered = parsed.filter(r => {
-            if (r.type !== 'entry') return false;
-            const rowKlasse = (r.klasse || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            return rowKlasse === klasseNorm;
-          });
-          
-          const norm = filtered.map((r, i) => ({
-            ruiter: r.ruiter || '',
-            paard: r.paard || '',
-            rubriek: r.rubriek || selectedRubriek || 'senior',
-            startnummer: r.startnummer || String(lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i)
-          }));
-          
-          setDbRows(norm);
-          setDbMsg(`✅ ${norm.length} deelnemers geladen (localStorage)`);
-          setDbHint('');
-          return;
-        }
-        
-        setDbMsg('⚠️ Geen deelnemers gevonden');
+        setDbRows(norm);
+        setDbMsg(`✅ ${norm.length} deelnemers geladen uit database`);
+        setDbHint('');
         return;
       }
       
-      const norm = (data || []).map((r, i) => ({
-        ruiter: r.ruiter || '',
-        paard: r.paard || '',
-        rubriek: r.rubriek || selectedRubriek || 'senior',
-        startnummer: (r.startnummer != null && r.startnummer !== '') ? String(r.startnummer) : String( lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i )
-      }));
-      setDbRows(norm);
-      setDbMsg(`Gevonden ${norm.length} deelnemers uit DB`);
-      setDbHint('');
-    } catch (e) {
-      const em = (e?.message || String(e));
-      console.error("Load error, trying localStorage:", e);
-      
-      // Fallback to localStorage
-      const storageKey = `startlijst_${config.wedstrijd_id}`;
-      const stored = localStorage.getItem(storageKey) || localStorage.getItem('wp_startlijst_cache_v1');
-      
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const klasseNorm = config.klasse.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const filtered = parsed.filter(r => {
-            if (r.type !== 'entry') return false;
-            const rowKlasse = (r.klasse || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            return rowKlasse === klasseNorm;
-          });
-          
-          const norm = filtered.map((r, i) => ({
-            ruiter: r.ruiter || '',
-            paard: r.paard || '',
-            rubriek: r.rubriek || selectedRubriek || 'senior',
-            startnummer: r.startnummer || String(lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i)
-          }));
-          
-          setDbRows(norm);
-          setDbMsg(`✅ ${norm.length} deelnemers geladen (localStorage - database niet beschikbaar)`);
-          setDbHint('');
-        } catch (parseErr) {
-          setDbMsg('Kon deelnemers niet laden: ' + em);
-        }
+      // Database returned empty, try localStorage
+      const localData = loadFromLocalStorage();
+      if (localData && localData.length > 0) {
+        setDbRows(localData);
+        setDbMsg(`✅ ${localData.length} deelnemers geladen (localStorage)`);
+        setDbHint('');
       } else {
-        setDbMsg('⚠️ Geen opgeslagen data gevonden (database niet beschikbaar)');
+        setDbMsg('⚠️ Geen deelnemers gevonden voor deze wedstrijd en klasse');
+        setDbHint('Zorg dat je eerst deelnemers hebt opgeslagen in de Startlijst pagina');
+      }
+      
+    } catch (e) {
+      // Database error, try localStorage
+      console.error("Database error, falling back to localStorage:", e);
+      
+      const localData = loadFromLocalStorage();
+      if (localData && localData.length > 0) {
+        setDbRows(localData);
+        setDbMsg(`✅ ${localData.length} deelnemers geladen (localStorage - database niet beschikbaar)`);
+        setDbHint('');
+      } else {
+        setDbMsg('❌ Database niet beschikbaar en geen lokale data gevonden');
+        setDbHint('Sla eerst deelnemers op via de Startlijst pagina');
       }
     }
   }
