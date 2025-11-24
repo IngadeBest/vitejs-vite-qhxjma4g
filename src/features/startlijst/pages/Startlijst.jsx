@@ -525,6 +525,9 @@ export default function Startlijst() {
     e.target.value = "";
   };
 
+  // Drag & drop handlers voor deelnemers
+  const draggedRow = useRef(null);
+  
   // Klasse drag & drop handlers
   const draggedClass = useRef(null);
 
