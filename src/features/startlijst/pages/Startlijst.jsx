@@ -1067,9 +1067,7 @@ Plak je data hieronder:`);
     setDbMessage("Opslaan...");
 
     try {
-      // Eenvoudige aanpak: verwijder alle bestaande entries voor deze wedstrijd en voeg alle huidige toe
-      
-      // Stap 1: BACKUP check - ensure we have data in current rows
+      // BACKUP check - ensure we have data in current rows
       const entries = rows
         .filter(row => row.type === 'entry')
         .filter(row => row.ruiter && row.ruiter.trim());
@@ -1078,47 +1076,42 @@ Plak je data hieronder:`);
         throw new Error("Geen geldige deelnemers om op te slaan. Operatie geannuleerd voor veiligheid.");
       }
       
-      // Save to localStorage (always works)
+      // Stap 1: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
+      const { error: deleteError } = await supabase
+        .from('inschrijvingen')
+        .delete()
+        .eq('wedstrijd_id', wedstrijd);
+      
+      if (deleteError) {
+        console.error("Database delete error:", deleteError);
+        throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
+      }
+
+      // Stap 2: Voeg alle huidige entries toe
+      const entriesToInsert = entries.map(row => ({
+        wedstrijd_id: wedstrijd,
+        ruiter: row.ruiter.trim(),
+        paard: row.paard ? row.paard.trim() : null,
+        startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
+        klasse: normalizeKlasse(row.klasse),
+        rubriek: rubriek || 'Algemeen',
+      }));
+
+      const { error: insertError } = await supabase
+        .from('inschrijvingen')
+        .insert(entriesToInsert);
+      
+      if (insertError) {
+        console.error("Database insert error:", insertError);
+        throw new Error(`Database fout bij invoegen: ${insertError.message || JSON.stringify(insertError)}`);
+      }
+      
+      // Save to localStorage as backup (after successful database save)
       const storageKey = `startlijst_${wedstrijd}`;
       localStorage.setItem(storageKey, JSON.stringify(rows));
       localStorage.setItem(LS_KEY, JSON.stringify(rows));
       
-      // Try database save (may fail if tables don't exist)
-      try {
-        // Stap 1: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
-        const { error: deleteError } = await supabase
-          .from('inschrijvingen')
-          .delete()
-          .eq('wedstrijd_id', wedstrijd);
-        
-        if (deleteError) {
-          console.warn("Database delete warning:", deleteError);
-        }
-
-        // Stap 2: Voeg alle huidige entries toe
-        const entriesToInsert = entries.map(row => ({
-          wedstrijd_id: wedstrijd,
-          ruiter: row.ruiter.trim(),
-          paard: row.paard ? row.paard.trim() : null,
-          startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
-          klasse: normalizeKlasse(row.klasse),
-          rubriek: rubriek || 'Algemeen',
-        }));
-
-        const { error: insertError } = await supabase
-          .from('inschrijvingen')
-          .insert(entriesToInsert);
-        
-        if (insertError) {
-          console.warn("Database insert warning:", insertError);
-          throw insertError;
-        }
-        
-        setDbMessage(`✅ ${entries.length} deelnemers opgeslagen (database + localStorage)`);
-      } catch (dbError) {
-        console.warn("Database save failed, using localStorage only:", dbError);
-        setDbMessage(`✅ ${entries.length} deelnemers opgeslagen (localStorage - database niet beschikbaar)`);
-      }
+      setDbMessage(`✅ ${entries.length} deelnemers succesvol opgeslagen in database`);
       
       // Herlaad data om sync te behouden
       setTimeout(() => {
@@ -1128,8 +1121,8 @@ Plak je data hieronder:`);
     } catch (error) {
       console.error('Error saving to database:', error);
       const errorMsg = error?.message || String(error);
-      setDbMessage(`❌ Fout bij opslaan: ${errorMsg} (Backup beschikbaar: ${backupKey})`);
-      alert(`Fout bij opslaan naar database: ${errorMsg}\n\nBackup gemaakt: ${backupKey}`);
+      setDbMessage(`❌ Fout bij opslaan naar database: ${errorMsg}`);
+      alert(`Fout bij opslaan naar database:\n\n${errorMsg}\n\nBackup gemaakt in localStorage: ${backupKey}`);
     } finally {
       setSaving(false);
     }
