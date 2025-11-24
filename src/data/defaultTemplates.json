@@ -1,15 +1,632 @@
 {
   "dressuur": {
+    "WE0": {
+      "sections": [
+        {
+          "title": "Dressuur – Introductieklasse (WE0)",
+          "columns": [
+            "Onderdeel",
+            "Score",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              "Binnenkomen in arbeidsdraf, halthouden en groeten",
+              "",
+              ""
+            ],
+            [
+              "Voorwaarts in arbeidsdraf, rechterhand",
+              "",
+              ""
+            ],
+            [
+              "Slangenvolte 3 bogen",
+              "",
+              ""
+            ],
+            [
+              "Van hand veranderen, enkele passen verruimen, arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "Halve grote volte links",
+              "",
+              ""
+            ],
+            [
+              "Halve grote volte rechts",
+              "",
+              ""
+            ],
+            [
+              "Halthouden en 4 seconden stilstaan",
+              "",
+              ""
+            ],
+            [
+              "Voorwaarts in arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "Op de lange zijde: 2× gebroken lijn 3–5 meter",
+              "",
+              ""
+            ],
+            [
+              "Arbeidsdraf doorzitten",
+              "",
+              ""
+            ],
+            [
+              "Grote volte (B–E–B)",
+              "",
+              ""
+            ],
+            [
+              "Arbeidsgalop rechts aanspringen, hoefslag volgen",
+              "",
+              ""
+            ],
+            [
+              "Overgang naar de arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "Van hand veranderen (E–M)",
+              "",
+              ""
+            ],
+            [
+              "Arbeidsgalop links aanspringen",
+              "",
+              ""
+            ],
+            [
+              "Grote volte (E–B–E)",
+              "",
+              ""
+            ],
+            [
+              "Volte 15 m met overgang naar draf",
+              "",
+              ""
+            ],
+            [
+              "Linksomkeert 15 m",
+              "",
+              ""
+            ],
+            [
+              "Volte 15 m rechts",
+              "",
+              ""
+            ],
+            [
+              "Afwenden",
+              "",
+              ""
+            ],
+            [
+              "Halthouden en groeten",
+              "",
+              ""
+            ],
+            [
+              "Gangen – takt, regelmaat, ritme",
+              "",
+              ""
+            ],
+            [
+              "Impuls – losgelatenheid, correct ruggebruik en gebruik achterhand",
+              "",
+              ""
+            ],
+            [
+              "Gehoorzaamheid – ontspanning, oplettendheid, vertrouwen, lichtheid en aanleuning",
+              "",
+              ""
+            ],
+            [
+              "Harmonie – sympathiek, paardvriendelijk rijden en gebruik hulpmiddelen",
+              "",
+              ""
+            ],
+            [
+              "Rijden op de zit – houding en inwerking, lichtheid in de verbinding",
+              "",
+              ""
+            ],
+            [
+              "Presentatie van de combinatie",
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    "WE1": {
+      "sections": [
+        {
+          "title": "Dressuur – WE-1 Beginners klasse",
+          "columns": [
+            "Onderdeel",
+            "Score",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              "A-X, X – Binnenkomen in arbeidsdraf, halthouden en groeten",
+              "",
+              ""
+            ],
+            [
+              "X, C – Voorwaarts in arbeidsdraf, linkerhand",
+              "",
+              ""
+            ],
+            [
+              "A, tussen D en X – Afwenden; volte 10 m links met enkele passen binnenhand überstreichen",
+              "",
+              ""
+            ],
+            [
+              "Tussen X en G, C – Volte 10 m rechts met enkele passen binnenhand überstreichen, linkerhand",
+              "",
+              ""
+            ],
+            [
+              "Tussen C en H – Overgang naar arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "Tussen H en E, tussen M en B – Afwenden, recht oversteken; kwart voorwaartse wending om de voorhand naar rechts",
+              "",
+              ""
+            ],
+            [
+              "Tussen B en F – Afwenden, recht oversteken en enkele passen de stap verruimen",
+              "",
+              ""
+            ],
+            [
+              "Tussen E en K – Kwart voorwaartse wending om de voorhand naar links",
+              "",
+              ""
+            ],
+            [
+              "Tussen K en A – Overgang naar arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "Tussen A en F – Arbeidsgalop links aanspringen",
+              "",
+              ""
+            ],
+            [
+              "B–E–B – Grote volte met enkele sprongen middengalop",
+              "",
+              ""
+            ],
+            [
+              "H–X–F – Van hand veranderen en via enkele drafpassen naar de stap",
+              "",
+              ""
+            ],
+            [
+              "Tussen F en A – Overgang naar arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "Tussen A en K – Arbeidsgalop rechts aanspringen",
+              "",
+              ""
+            ],
+            [
+              "E–B–E – Grote volte met enkele sprongen middengalop",
+              "",
+              ""
+            ],
+            [
+              "Tussen H en C – Overgang naar arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "M–X–K – Van hand veranderen en enkele passen middendraf",
+              "",
+              ""
+            ],
+            [
+              "Ca. 5 m voorbij A – Afwenden (kwartlijn), daarna 5 m wijken voor het linkerbeen",
+              "",
+              ""
+            ],
+            [
+              "M–G–B – Linksomkeert",
+              "",
+              ""
+            ],
+            [
+              "Ca. 5 m voorbij A – Afwenden (kwartlijn), daarna 5 m wijken voor het rechterbeen",
+              "",
+              ""
+            ],
+            [
+              "H–G–E – Rechtsomkeert",
+              "",
+              ""
+            ],
+            [
+              "A – Halthouden 5 sec en 4–6 passen achterwaarts, voorwaarts in arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "F–X–H (tussen H en C) – Van hand veranderen, halsstrekken, teugels weer op maat maken",
+              "",
+              ""
+            ],
+            [
+              "B, G – Halve volte 10 m rechts, halthouden en groeten; in vrije stap bij A de baan verlaten",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Gangen (takt, regelmaat, ritme)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Impuls (losgelatenheid, correct ruggebruik en gebruik achterhand)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Gehoorzaamheid (ontspanning, oplettendheid, vertrouwen, lichtheid, aanleuning)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Harmonie (sympathiek, paardvriendelijk rijden en gebruik hulpmiddelen)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Rijden op de zit (houding, inwerking, lichtheid in de verbinding)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Presentatie van de combinatie",
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
     "WE2": {
       "sections": [
         {
-          "title": "Dressuur – Onderdelen",
-          "columns": ["Onderdeel", "Score", "Opmerkingen"],
+          "title": "Dressuur – WE2 Lichte klasse",
+          "columns": [
+            "Onderdeel",
+            "Score",
+            "Opmerkingen"
+          ],
           "rows": [
-            ["Aanspringen galop links", "", ""],
-            ["Overgang galop–draf", "", ""],
-            ["Slangevolte draf", "", ""],
-            ["Halthouden en groeten", "", ""]
+            [
+              "A-X, X – Binnenkomen in arbeidsdraf, halthouden en groeten",
+              "",
+              ""
+            ],
+            [
+              "X, C – Voorwaarts in arbeidsdraf, rechterhand",
+              "",
+              ""
+            ],
+            [
+              "K – Volte 10 meter",
+              "",
+              ""
+            ],
+            [
+              "K-E, E – Travers, rechtuit",
+              "",
+              ""
+            ],
+            [
+              "C – Halthouden, 6 passen achterwaarts, voorwaarts in arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "M–X–K, K – Van hand veranderen, daarbij draf verruimen, daarna arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "F – Volte 10 meter",
+              "",
+              ""
+            ],
+            [
+              "F–B, B – Travers, rechtuit",
+              "",
+              ""
+            ],
+            [
+              "C – Verzamelde stap",
+              "",
+              ""
+            ],
+            [
+              "H, M – Kwart keertwending om de achterhand links, daarna rechterhand",
+              "",
+              ""
+            ],
+            [
+              "B – Kwart keertwending om de achterhand rechts",
+              "",
+              ""
+            ],
+            [
+              "E–M, M – Van hand veranderen, voor M enkele passen middenstap, daarna arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "Tussen C en H – Arbeidsgalop links",
+              "",
+              ""
+            ],
+            [
+              "E–B–E, E – Grote volte in middengalop, daarna arbeidsgalop",
+              "",
+              ""
+            ],
+            [
+              "A, X – Afwenden en verzamelde galop, volte 10 meter links",
+              "",
+              ""
+            ],
+            [
+              "X – Eenvoudige galopwissel",
+              "",
+              ""
+            ],
+            [
+              "X, C – Volte 10 meter rechts, rechterhand",
+              "",
+              ""
+            ],
+            [
+              "B–E–B, B – Grote volte in middengalop, arbeidsgalop",
+              "",
+              ""
+            ],
+            [
+              "A – Verzamelde galop, slangenvolte met 3 bogen met op de A–C-lijn eenvoudige galopwissels",
+              "",
+              ""
+            ],
+            [
+              "M–E, E – Van hand veranderen met op de A–C-lijn eenvoudige galopwissel, verzamelde galop",
+              "",
+              ""
+            ],
+            [
+              "A – Afwenden",
+              "",
+              ""
+            ],
+            [
+              "G – Halthouden en groeten, in vrije stap rijbaan verlaten",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Gangen: takt, regelmaat, ritme",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Impuls: losgelatenheid, correct ruggebruik en gebruik van de achterhand",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Gehoorzaamheid: ontspanning, oplettendheid, vertrouwen, lichtheid en aanleuning",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Harmonie: sympathiek, paardvriendelijk rijden en gebruik van de hulpmiddelen",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Rijden op zit: houding en inwerking van de ruiter",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Presentatie van de combinatie",
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    "WE2PLUS": {
+      "sections": [
+        {
+          "title": "Dressuur – WE2+ Lichte klasse",
+          "columns": [
+            "Onderdeel",
+            "Score",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              "A-X / X – Binnenkomen in verzamelde galop, halthouden en groeten",
+              "",
+              ""
+            ],
+            [
+              "X / C – Voorwaarts in arbeidsdraf, linkerhand",
+              "",
+              ""
+            ],
+            [
+              "H-X-F – Van hand veranderen in middendraf",
+              "",
+              ""
+            ],
+            [
+              "A – Halthouden 3 sec. onbeweeglijk, 5 passen achterwaarts, voorwaarts arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "K-E – Schouderbinnenwaarts",
+              "",
+              ""
+            ],
+            [
+              "E – Volte 12 m vóór E in arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "E-G / C – Appuyeren in arbeidsstap naar rechts (rechterhand)",
+              "",
+              ""
+            ],
+            [
+              "M / B-K – Arbeidsdraf, van hand veranderen",
+              "",
+              ""
+            ],
+            [
+              "F-B – Schouderbinnenwaarts",
+              "",
+              ""
+            ],
+            [
+              "B – Volte 12 m vóór B in arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "B-G / C – Appuyeren in arbeidsstap naar links (rechterhand)",
+              "",
+              ""
+            ],
+            [
+              "M-G-M – Afwenden, (halve) keertwending om de achterhand naar rechts",
+              "",
+              ""
+            ],
+            [
+              "M-E / E – Van hand veranderen in middenstap, daarna arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "K-D-K – Afwenden, (halve) keertwending om de achterhand naar links",
+              "",
+              ""
+            ],
+            [
+              "K-A / A – Verzamelde stap, overgang naar verzamelde galop links",
+              "",
+              ""
+            ],
+            [
+              "B / E – Kwart pirouette naar links (linkerhand)",
+              "",
+              ""
+            ],
+            [
+              "F-X-H – Van hand veranderen met vliegende wissel op de diagonaal",
+              "",
+              ""
+            ],
+            [
+              "B / E – Kwart pirouette naar rechts (rechterhand)",
+              "",
+              ""
+            ],
+            [
+              "M-X-K – Van hand veranderen met vliegende wissel op de diagonaal",
+              "",
+              ""
+            ],
+            [
+              "B – Grote volte in uitgestrekte galop links, daarna verzamelde galop",
+              "",
+              ""
+            ],
+            [
+              "B – Door een S van hand veranderen met eenvoudige galopwissel",
+              "",
+              ""
+            ],
+            [
+              "E – Grote volte in uitgestrekte galop rechts, daarna verzamelde galop",
+              "",
+              ""
+            ],
+            [
+              "C – Slangvolte met 3 bogen met vliegende wissels op de A–C-lijn",
+              "",
+              ""
+            ],
+            [
+              "A / G – Afwenden, halthouden en groeten",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Gangen (takt, regelmaat, ritme)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Impuls (losgelatenheid, ruggebruik, gebruik achterhand)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Gehoorzaamheid (ontspanning, oplettendheid, vertrouwen, lichtheid, aanleuning)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Harmonie (sympathiek, paardvriendelijk rijden, gebruik hulpmiddelen)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Zit, houding en inwerking van de ruiter",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Presentatie van de combinatie",
+              "",
+              ""
+            ]
           ]
         }
       ]
@@ -17,12 +634,148 @@
     "WE3": {
       "sections": [
         {
-          "title": "Dressuur – Onderdelen",
-          "columns": ["Onderdeel", "Score", "Opmerkingen"],
+          "title": "Dressuur – WE3 Gevorderden klasse",
+          "columns": [
+            "Onderdeel",
+            "Score",
+            "Opmerkingen"
+          ],
           "rows": [
-            ["Cirkel verzameld draf", "", ""],
-            ["Schouderbinnenwaarts", "", ""],
-            ["Travers", "", ""]
+            [
+              "Binnenkomen in verzamelde galop, halthouden en groeten, voorwaarts in arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "Rechte lijn van minimaal 10 meter in verzamelde stap",
+              "",
+              ""
+            ],
+            [
+              "Hele stappirouette naar rechts",
+              "",
+              ""
+            ],
+            [
+              "Hele stappirouette naar links",
+              "",
+              ""
+            ],
+            [
+              "Halthouden, minstens 6 en maximaal 10 passen achterwaarts en direct voorwaarts in arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "Appuyement naar rechts (minstens 10 meter)",
+              "",
+              ""
+            ],
+            [
+              "Appuyement naar links (minstens 10 meter)",
+              "",
+              ""
+            ],
+            [
+              "Slangenvolte met 3 bogen",
+              "",
+              ""
+            ],
+            [
+              "Twee maal wijken voor het been, beide kanten op, beide minimaal 10 meter",
+              "",
+              ""
+            ],
+            [
+              "Minimaal 15 meter middendraf",
+              "",
+              ""
+            ],
+            [
+              "Halthouden, 6 passen achterwaarts, direct voorwaarts in verzamelde rechtergalop",
+              "",
+              ""
+            ],
+            [
+              "3 voltes in verschillend tempo op de rechterhand (20 m uitgestrekte galop, 15 m arbeidsgalop, 10 m verzamelde galop)",
+              "",
+              ""
+            ],
+            [
+              "Vliegende wissel",
+              "",
+              ""
+            ],
+            [
+              "3 voltes in verschillend tempo op de linkerhand (20 m uitgestrekte galop, 15 m arbeidsgalop, 10 m verzamelde galop)",
+              "",
+              ""
+            ],
+            [
+              "Een acht bestaande uit twee even grote cirkels (max. 10 meter) met een vliegende galopwissel",
+              "",
+              ""
+            ],
+            [
+              "Keertwending naar een kant naar keuze",
+              "",
+              ""
+            ],
+            [
+              "Vliegende wissel",
+              "",
+              ""
+            ],
+            [
+              "Keertwending naar de andere kant ten opzichte van oefening 16",
+              "",
+              ""
+            ],
+            [
+              "Tempowisselingen in galop: uitgestrekte galop op de lange zijde, verzamelde galop op de volgende korte zijde, uitgestrekte galop op de volgende lange zijde",
+              "",
+              ""
+            ],
+            [
+              "Snelheid opvoeren en snelle stop, daarna doorgaan in galop",
+              "",
+              ""
+            ],
+            [
+              "Slangenvolte met 4 bogen met vliegende wissels bij het passeren van de middellijn",
+              "",
+              ""
+            ],
+            [
+              "Verzamelde galop op de middellijn, halthouden en groeten",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Gangen: takt, regelmaat, ritme",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Impuls: gewilligheid om voorwaarts te gaan, losgelatenheid, correct ruggebruik en gebruik van de achterhand",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Gehoorzaamheid: ontspanning, oplettendheid en vertrouwen, lichtheid en aanleuning",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Ruiter: houding en zit van de ruiter, effectiviteit van de hulpen",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Artistiek: muziek en indeling van de proef",
+              "",
+              ""
+            ]
           ]
         }
       ]
@@ -30,12 +783,426 @@
     "WE4": {
       "sections": [
         {
-          "title": "Dressuur – Onderdelen",
-          "columns": ["Onderdeel", "Score", "Opmerkingen"],
+          "title": "Dressuur – WE4 Masters",
+          "columns": [
+            "Onderdeel",
+            "Score",
+            "Opmerkingen"
+          ],
           "rows": [
-            ["Galoppirouette", "", ""],
-            ["Wissels per sprong", "", ""],
-            ["Halve passade", "", ""]
+            [
+              "Binnenkomen in verzamelde galop, halthouden en groeten, voorwaarts in arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "Rechte lijn van minimaal 10 meter in verzamelde stap",
+              "",
+              ""
+            ],
+            [
+              "Hele stappirouette naar rechts",
+              "",
+              ""
+            ],
+            [
+              "Hele stappirouette naar links",
+              "",
+              ""
+            ],
+            [
+              "Halthouden, minstens 6 en maximaal 10 passen achterwaarts en direct voorwaarts in arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "Appuyement naar rechts (minstens 10 meter)",
+              "",
+              ""
+            ],
+            [
+              "Appuyement naar links (minstens 10 meter)",
+              "",
+              ""
+            ],
+            [
+              "Slangenvolte met 3 bogen",
+              "",
+              ""
+            ],
+            [
+              "Twee maal wijken voor het been, beide kanten op, beide minimaal 10 meter",
+              "",
+              ""
+            ],
+            [
+              "Minimaal 15 meter middendraf",
+              "",
+              ""
+            ],
+            [
+              "Halthouden, 6 passen achterwaarts, direct voorwaarts in verzamelde rechtergalop",
+              "",
+              ""
+            ],
+            [
+              "3 voltes in verschillend tempo op de rechterhand (20 m uitgestrekte galop, 15 m arbeidsgalop, 10 m verzamelde galop)",
+              "",
+              ""
+            ],
+            [
+              "Vliegende wissel",
+              "",
+              ""
+            ],
+            [
+              "3 voltes in verschillend tempo op de linkerhand (20 m uitgestrekte galop, 15 m arbeidsgalop, 10 m verzamelde galop)",
+              "",
+              ""
+            ],
+            [
+              "Een acht bestaande uit twee even grote cirkels (max. 10 meter) met een vliegende galopwissel",
+              "",
+              ""
+            ],
+            [
+              "Keertwending naar een kant naar keuze",
+              "",
+              ""
+            ],
+            [
+              "Vliegende wissel",
+              "",
+              ""
+            ],
+            [
+              "Keertwending naar de andere kant ten opzichte van oefening 16",
+              "",
+              ""
+            ],
+            [
+              "Tempowisselingen in galop: uitgestrekte galop op de lange zijde, verzamelde galop op de volgende korte zijde, uitgestrekte galop op de volgende lange zijde",
+              "",
+              ""
+            ],
+            [
+              "Snelheid opvoeren en snelle stop, daarna doorgaan in galop",
+              "",
+              ""
+            ],
+            [
+              "Slangenvolte met 4 bogen met vliegende wissels bij het passeren van de middellijn",
+              "",
+              ""
+            ],
+            [
+              "Verzamelde galop op de middellijn, halthouden en groeten",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Gangen: takt, regelmaat, ritme",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Impuls: gewilligheid om voorwaarts te gaan, losgelatenheid, correct ruggebruik en gebruik van de achterhand",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Gehoorzaamheid: ontspanning, oplettendheid en vertrouwen, lichtheid en aanleuning",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Ruiter: houding en zit van de ruiter, effectiviteit van de hulpen",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – Artistiek: muziek en indeling van de proef",
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    "JUNIOR": {
+      "sections": [
+        {
+          "title": "Dressuur – WAWE Junioren",
+          "columns": [
+            "Onderdeel",
+            "Score",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              "A-X – Binnenkomen in arbeidsgalop; op de middellijn onbeweeglijk halthouden op de achterhand, groeten; voorwaarts in arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "G – 10 m volte links en 10 m volte rechts; C – linkerhand",
+              "",
+              ""
+            ],
+            [
+              "HXF – Middendraf",
+              "",
+              ""
+            ],
+            [
+              "A-DB-BG-C – Afwenden op AC-lijn; wijken voor het linkerbeen (DB); wijken voor het rechterbeen (BG); C – rechterhand",
+              "",
+              ""
+            ],
+            [
+              "C-M – Overgang naar stap; ME – uitgestrekte stap; EKD – verzamelde stap",
+              "",
+              ""
+            ],
+            [
+              "D-F – Onbeweeglijk halthouden, 4 passen achterwaarts; overgang naar stap; direct voorwaarts in stap, rechterhand",
+              "",
+              ""
+            ],
+            [
+              "A – Overgang naar arbeidsgalop",
+              "",
+              ""
+            ],
+            [
+              "K-H – Middengalop; H – terug naar arbeidsgalop",
+              "",
+              ""
+            ],
+            [
+              "C – Rijdt 3 cirkels rechts (20 m uitgestrekte galop, 15 m middengalop, 10 m verzamelde galop)",
+              "",
+              ""
+            ],
+            [
+              "MK – Vliegende wissel naar links",
+              "",
+              ""
+            ],
+            [
+              "A – Rijdt 3 cirkels links (20 m uitgestrekte galop, 15 m middengalop, 10 m verzamelde galop)",
+              "",
+              ""
+            ],
+            [
+              "B – Vliegende wissel naar rechts",
+              "",
+              ""
+            ],
+            [
+              "BMCH – Contragalop",
+              "",
+              ""
+            ],
+            [
+              "E-K – Rijdt naar de kwartlijn; halve volte 5 m in travers, eindigen bij K",
+              "",
+              ""
+            ],
+            [
+              "B – Vliegende wissel naar links",
+              "",
+              ""
+            ],
+            [
+              "BFAK – Contragalop",
+              "",
+              ""
+            ],
+            [
+              "E-H – Rijdt naar de kwartlijn; halve volte 5 m in travers, eindigen bij H",
+              "",
+              ""
+            ],
+            [
+              "K – Arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "A-X – Afwenden op de middellijn; X – halthouden, onbeweeglijk groeten",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – A: Gangen, losgelatenheid en regelmaat",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – B: Impuls, voorwaartse drang, elasticiteit van de passen, souplesse van de rug en onderbrengen van de achterhand",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – C: Overgangen en acceptatie van het bit, oplettendheid en vertrouwen",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – D: Positie en zit van de ruiter, correct geven en effectiviteit van de hulpen",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – E: Muziek en presentatie",
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    "YOUNG_RIDERS": {
+      "sections": [
+        {
+          "title": "Dressuur – WAWE Young Riders",
+          "columns": [
+            "Onderdeel",
+            "Score",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              "Binnenkomen in verzamelde galop",
+              "",
+              ""
+            ],
+            [
+              "Onbeweeglijk halthouden op de achterhand, voorwaarts in middenstap",
+              "",
+              ""
+            ],
+            [
+              "Figuur 8 met 2 voltes van 8 m doorsnee",
+              "",
+              ""
+            ],
+            [
+              "Hele stappirouette, keuze kant",
+              "",
+              ""
+            ],
+            [
+              "Hele stappirouette, andere kant dan oefening 4",
+              "",
+              ""
+            ],
+            [
+              "Uitgestrekte stap op rechte lijn (minimaal 20 m)",
+              "",
+              ""
+            ],
+            [
+              "Onbeweeglijk halthouden, 6–10 passen achterwaarts, voorwaarts in middenstap",
+              "",
+              ""
+            ],
+            [
+              "Vanaf middellijn appuyeren naar kwart-lijn, wisselen van richting en terug naar middellijn",
+              "",
+              ""
+            ],
+            [
+              "Overgang naar verzamelde draf",
+              "",
+              ""
+            ],
+            [
+              "Wijken voor het been beide kanten (minimaal 10 m)",
+              "",
+              ""
+            ],
+            [
+              "Diagonaal in middendraf",
+              "",
+              ""
+            ],
+            [
+              "Verzamelde draf, onbeweeglijk halthouden, 6–10 passen achterwaarts en direct voorwaarts in verzamelde galop",
+              "",
+              ""
+            ],
+            [
+              "Drie voltes op één hand (20 m uitgestrekte galop, 15 m middengalop, 10 m verzamelde galop)",
+              "",
+              ""
+            ],
+            [
+              "Vliegende galopwissel",
+              "",
+              ""
+            ],
+            [
+              "Drie voltes op de andere hand dan in oefening 13",
+              "",
+              ""
+            ],
+            [
+              "Halve galoppirouette, keuze hand, met zo weinig mogelijk passen en behoud van galopritme",
+              "",
+              ""
+            ],
+            [
+              "Vliegende galopwissel",
+              "",
+              ""
+            ],
+            [
+              "Halve galoppirouette op de andere hand dan oefening 16",
+              "",
+              ""
+            ],
+            [
+              "Uitgestrekte galop op de lange zijdes, verzamelde galop op de korte zijdes",
+              "",
+              ""
+            ],
+            [
+              "Slangenvolte met 4 bogen met vliegende galopwissels op de middellijn bij verandering van richting",
+              "",
+              ""
+            ],
+            [
+              "Op de middellijn: direct uitgestrekte galop, sliding stop op de achterhand, onbeweeglijk stilstaan en groeten",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – A: Tempo, vrijheid van bewegen, regelmaat (×2)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – B: Impuls, voorwaartse drang, elasticiteit en souplesse in de rug (×2)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – C: Overgangen en acceptatie van het bit, oplettendheid en vertrouwen (×2)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – D: Houding en zit van de ruiter, correctheid en effectiviteit van de hulpen (×2)",
+              "",
+              ""
+            ],
+            [
+              "Algemene punten – E: Algemene presentatie",
+              "",
+              ""
+            ]
           ]
         }
       ]
@@ -46,8 +1213,32 @@
       "sections": [
         {
           "title": "Speed – Hindernissen (tijd)",
-          "columns": ["#", "Onderdeel", "Tijd/Punten", "Opmerkingen"],
-          "rows": [[1, "Slalom", "", ""], [2, "3 vaten", "", ""], [3, "Brug", "", ""]]
+          "columns": [
+            "#",
+            "Onderdeel",
+            "Tijd/Punten",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              1,
+              "Slalom",
+              "",
+              ""
+            ],
+            [
+              2,
+              "3 vaten",
+              "",
+              ""
+            ],
+            [
+              3,
+              "Brug",
+              "",
+              ""
+            ]
+          ]
         }
       ]
     },
@@ -55,8 +1246,32 @@
       "sections": [
         {
           "title": "Speed – Hindernissen (tijd)",
-          "columns": ["#", "Onderdeel", "Tijd/Punten", "Opmerkingen"],
-          "rows": [[1, "Belgang", "", ""], [2, "Parallelslalom", "", ""], [3, "Garrocha", "", ""]]
+          "columns": [
+            "#",
+            "Onderdeel",
+            "Tijd/Punten",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              1,
+              "Belgang",
+              "",
+              ""
+            ],
+            [
+              2,
+              "Parallelslalom",
+              "",
+              ""
+            ],
+            [
+              3,
+              "Garrocha",
+              "",
+              ""
+            ]
+          ]
         }
       ]
     },
@@ -64,8 +1279,32 @@
       "sections": [
         {
           "title": "Speed – Hindernissen (tijd)",
-          "columns": ["#", "Onderdeel", "Tijd/Punten", "Opmerkingen"],
-          "rows": [[1, "Kledingstuk omhangen", "", ""], [2, "Round pen", "", ""], [3, "Tafel met kan", "", ""]]
+          "columns": [
+            "#",
+            "Onderdeel",
+            "Tijd/Punten",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              1,
+              "Kledingstuk omhangen",
+              "",
+              ""
+            ],
+            [
+              2,
+              "Round pen",
+              "",
+              ""
+            ],
+            [
+              3,
+              "Tafel met kan",
+              "",
+              ""
+            ]
+          ]
         }
       ]
     }
