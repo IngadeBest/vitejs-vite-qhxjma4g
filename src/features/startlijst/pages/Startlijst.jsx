@@ -1064,7 +1064,7 @@ Plak je data hieronder:`);
     localStorage.setItem("last_backup", JSON.stringify({ key: backupKey, timestamp, wedstrijd }));
     
     setSaving(true);
-    setDbMessage("Opslaan naar database...");
+    setDbMessage("Opslaan...");
 
     try {
       // Eenvoudige aanpak: verwijder alle bestaande entries voor deze wedstrijd en voeg alle huidige toe
@@ -1078,40 +1078,47 @@ Plak je data hieronder:`);
         throw new Error("Geen geldige deelnemers om op te slaan. Operatie geannuleerd voor veiligheid.");
       }
       
-      // Stap 1: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
-      const { error: deleteError } = await supabase
-        .from('inschrijvingen')
-        .delete()
-        .eq('wedstrijd_id', wedstrijd);
-      
-      if (deleteError) {
-        console.error("Delete error:", deleteError);
-        throw deleteError;
-      }
-
-      // Stap 2: Voeg alle huidige entries toe
-      const entriesToInsert = entries.map(row => ({
-        wedstrijd_id: wedstrijd,
-        ruiter: row.ruiter.trim(),
-        paard: row.paard ? row.paard.trim() : null,
-        startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
-        klasse: normalizeKlasse(row.klasse),
-        rubriek: rubriek || 'Algemeen',
-      }));
-
-      const { error: insertError } = await supabase
-        .from('inschrijvingen')
-        .insert(entriesToInsert);
-      
-      if (insertError) {
-        console.error("Insert error:", insertError);
-        throw insertError;
-      }
-
-      // Save to localStorage als backup
+      // Save to localStorage (always works)
+      const storageKey = `startlijst_${wedstrijd}`;
+      localStorage.setItem(storageKey, JSON.stringify(rows));
       localStorage.setItem(LS_KEY, JSON.stringify(rows));
       
-      setDbMessage(`✅ ${entries.length} deelnemers opgeslagen in database (backup: ${backupKey})`);
+      // Try database save (may fail if tables don't exist)
+      try {
+        // Stap 1: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
+        const { error: deleteError } = await supabase
+          .from('inschrijvingen')
+          .delete()
+          .eq('wedstrijd_id', wedstrijd);
+        
+        if (deleteError) {
+          console.warn("Database delete warning:", deleteError);
+        }
+
+        // Stap 2: Voeg alle huidige entries toe
+        const entriesToInsert = entries.map(row => ({
+          wedstrijd_id: wedstrijd,
+          ruiter: row.ruiter.trim(),
+          paard: row.paard ? row.paard.trim() : null,
+          startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
+          klasse: normalizeKlasse(row.klasse),
+          rubriek: rubriek || 'Algemeen',
+        }));
+
+        const { error: insertError } = await supabase
+          .from('inschrijvingen')
+          .insert(entriesToInsert);
+        
+        if (insertError) {
+          console.warn("Database insert warning:", insertError);
+          throw insertError;
+        }
+        
+        setDbMessage(`✅ ${entries.length} deelnemers opgeslagen (database + localStorage)`);
+      } catch (dbError) {
+        console.warn("Database save failed, using localStorage only:", dbError);
+        setDbMessage(`✅ ${entries.length} deelnemers opgeslagen (localStorage - database niet beschikbaar)`);
+      }
       
       // Herlaad data om sync te behouden
       setTimeout(() => {
@@ -1164,7 +1171,26 @@ Plak je data hieronder:`);
       const { data, error } = await query;
       console.log("Database query result:", { dataLength: data?.length, error, wedstrijd_id: wedstrijd });
       
-      if (error) throw error;
+      if (error) {
+        console.warn("Database error, trying localStorage:", error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        // Try localStorage fallback
+        console.log("No database data, trying localStorage");
+        const storageKey = `startlijst_${wedstrijd}`;
+        const stored = localStorage.getItem(storageKey) || localStorage.getItem(LS_KEY);
+        
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const filteredRows = klasse ? parsed.filter(r => normalizeKlasse(r.klasse) === klasse) : parsed;
+          setRows(filteredRows);
+          setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage)`);
+          setLoadingFromDB(false);
+          return;
+        }
+      }
 
       const loadedRows = (data || []).map((r, i) => ({
         id: `db_${Date.now()}_${i}`,
@@ -1183,8 +1209,24 @@ Plak je data hieronder:`);
       console.log("Loaded rows:", loadedRows);
     } catch (e) {
       const errorMsg = e?.message || String(e);
-      setDbMessage(`Fout bij laden: ${errorMsg}`);
-      console.error("Error loading participants:", e);
+      console.error("Error loading participants, trying localStorage:", e);
+      
+      // Fallback to localStorage
+      const storageKey = `startlijst_${wedstrijd}`;
+      const stored = localStorage.getItem(storageKey) || localStorage.getItem(LS_KEY);
+      
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const filteredRows = klasse ? parsed.filter(r => normalizeKlasse(r.klasse) === klasse) : parsed;
+          setRows(filteredRows);
+          setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage - database niet beschikbaar)`);
+        } catch (parseErr) {
+          setDbMessage(`❌ Fout bij laden: ${errorMsg}`);
+        }
+      } else {
+        setDbMessage(`⚠️ Geen opgeslagen data gevonden (database niet beschikbaar)`);
+      }
     } finally {
       setLoadingFromDB(false);
     }

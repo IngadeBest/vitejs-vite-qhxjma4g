@@ -265,7 +265,43 @@ export default function ProtocolGenerator() {
     setDbMsg('Laden...');
     try {
       const { data, error } = await supabase.from('inschrijvingen').select('ruiter,paard,startnummer,rubriek').eq('wedstrijd_id', config.wedstrijd_id).eq('klasse', config.klasse).order('startnummer', { ascending: true });
-      if (error) throw error;
+      
+      if (error) {
+        console.warn("Database error, trying localStorage:", error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        // Try localStorage fallback
+        const storageKey = `startlijst_${config.wedstrijd_id}`;
+        const stored = localStorage.getItem(storageKey) || localStorage.getItem('wp_startlijst_cache_v1');
+        
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const klasseNorm = config.klasse.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const filtered = parsed.filter(r => {
+            if (r.type !== 'entry') return false;
+            const rowKlasse = (r.klasse || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            return rowKlasse === klasseNorm;
+          });
+          
+          const norm = filtered.map((r, i) => ({
+            ruiter: r.ruiter || '',
+            paard: r.paard || '',
+            rubriek: r.rubriek || selectedRubriek || 'senior',
+            startnummer: r.startnummer || String(lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i)
+          }));
+          
+          setDbRows(norm);
+          setDbMsg(`✅ ${norm.length} deelnemers geladen (localStorage)`);
+          setDbHint('');
+          return;
+        }
+        
+        setDbMsg('⚠️ Geen deelnemers gevonden');
+        return;
+      }
+      
       const norm = (data || []).map((r, i) => ({
         ruiter: r.ruiter || '',
         paard: r.paard || '',
@@ -277,9 +313,37 @@ export default function ProtocolGenerator() {
       setDbHint('');
     } catch (e) {
       const em = (e?.message || String(e));
-      setDbMsg('Kon deelnemers niet laden: ' + em);
-      if (/column .* does not exist|Could not find the|bad request/i.test(String(em)) || String(em).toLowerCase().includes('could not find')) {
-        setDbHint("-- Indien kolom ontbreekt: voeg 'klasse' toe aan inschrijvingen:\nALTER TABLE inschrijvingen ADD COLUMN IF NOT EXISTS klasse text;\nCREATE INDEX IF NOT EXISTS idx_inschrijvingen_klasse ON inschrijvingen(klasse);");
+      console.error("Load error, trying localStorage:", e);
+      
+      // Fallback to localStorage
+      const storageKey = `startlijst_${config.wedstrijd_id}`;
+      const stored = localStorage.getItem(storageKey) || localStorage.getItem('wp_startlijst_cache_v1');
+      
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const klasseNorm = config.klasse.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const filtered = parsed.filter(r => {
+            if (r.type !== 'entry') return false;
+            const rowKlasse = (r.klasse || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            return rowKlasse === klasseNorm;
+          });
+          
+          const norm = filtered.map((r, i) => ({
+            ruiter: r.ruiter || '',
+            paard: r.paard || '',
+            rubriek: r.rubriek || selectedRubriek || 'senior',
+            startnummer: r.startnummer || String(lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i)
+          }));
+          
+          setDbRows(norm);
+          setDbMsg(`✅ ${norm.length} deelnemers geladen (localStorage - database niet beschikbaar)`);
+          setDbHint('');
+        } catch (parseErr) {
+          setDbMsg('Kon deelnemers niet laden: ' + em);
+        }
+      } else {
+        setDbMsg('⚠️ Geen opgeslagen data gevonden (database niet beschikbaar)');
       }
     }
   }
