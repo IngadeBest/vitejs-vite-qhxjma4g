@@ -163,6 +163,36 @@ function protocolToDoc(doc, p, items) {
                : "Working Point • Speedtrail Protocol";
   titleBar(doc, title, `${p.klasse_naam || p.klasse}`);
   const infoY = infoBoxesSideBySide(doc, p);
+  
+  // Voor dressuur: gebruik 3-kolommen format (Onderdeel, Score, Opmerkingen)
+  if (p.onderdeel === "dressuur") {
+    autoTable(doc, {
+      startY: infoY + 16,
+      head: [["Onderdeel", "Score", "Opmerkingen"]],
+      body: items.map(item => [item, "", ""]),
+      styles: { 
+        fontSize: 10, 
+        cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, 
+        lineColor: BORDER, 
+        lineWidth: 0.2,
+        valign: "top"
+      },
+      headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold" },
+      theme: "grid",
+      margin: MARGIN,
+      columnStyles: {
+        0: { cellWidth: 320 },  // Onderdeel breed
+        1: { cellWidth: 60, halign: "center" },  // Score smal en gecentreerd
+        2: { cellWidth: "auto" }  // Opmerkingen rest van ruimte
+      }
+    });
+    const afterTable = doc.lastAutoTable.finalY;
+    totalsBox(doc, afterTable + 6, p.max_score ? Number(p.max_score) : null, null);
+    signatureLine(doc);
+    return;
+  }
+  
+  // Voor stijl/speed: gebruik obstakel format
   const afterItems = obstaclesTable(doc, items, infoY + 16);
   let afterAlg = afterItems;
   if (p.onderdeel === "stijl") {
@@ -219,6 +249,49 @@ export default function ProtocolGenerator() {
     (async () => {
       setDbMsg(""); setDbMax(null); setItems([]);
       if (!config.wedstrijd_id || !config.klasse || !config.onderdeel) return;
+      
+      // Voor dressuur: gebruik defaultTemplates.json
+      if (config.onderdeel === "dressuur") {
+        try {
+          const templates = await import('../../../data/defaultTemplates.json');
+          const klasseMap = {
+            'we0': 'WE0',
+            'we1': 'WE1', 
+            'we2': 'WE2',
+            'we2+': 'WE2PLUS',
+            'we2plus': 'WE2PLUS',
+            'we3': 'WE3',
+            'we4': 'WE4',
+            'junior': 'JUNIOR',
+            'junioren': 'JUNIOR',
+            'young riders': 'YOUNG_RIDERS',
+            'yr': 'YOUNG_RIDERS'
+          };
+          
+          const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
+          console.log('Loading dressuur template for:', config.klasse, '→', normalizedKlasse);
+          
+          const template = templates.default?.dressuur?.[normalizedKlasse];
+          
+          if (template && template.sections && template.sections[0]) {
+            const section = template.sections[0];
+            const itemsList = section.rows.map(row => row[0]); // Eerste kolom is de omschrijving
+            setItems(itemsList);
+            setDbMsg(`✅ Dressuurproef geladen: ${section.title} (${itemsList.length} onderdelen)`);
+            console.log('Loaded dressuur items:', itemsList.length);
+          } else {
+            setDbMsg(`⚠️ Geen dressuurproef gevonden voor klasse ${config.klasse}`);
+            console.warn('No template found for:', normalizedKlasse, 'Available:', Object.keys(templates.default?.dressuur || {}));
+          }
+          return;
+        } catch (e) {
+          console.error('Error loading dressuur template:', e);
+          setDbMsg("Kon dressuurproef niet laden: " + (e?.message || String(e)));
+          return;
+        }
+      }
+      
+      // Voor stijl/speed: haal uit database
       try {
         const { data: proef, error: e1 } = await supabase
           .from("proeven").select("id, max_score, naam")
