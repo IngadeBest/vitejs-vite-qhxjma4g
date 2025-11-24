@@ -1874,7 +1874,7 @@ Plak je data hieronder:`);
             </div>
           </div>
         </div>
-        </div>
+      </div>
       </div>
     </Container>
   );
