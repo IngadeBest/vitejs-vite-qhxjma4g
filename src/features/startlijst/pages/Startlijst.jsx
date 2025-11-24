@@ -529,22 +529,30 @@ export default function Startlijst() {
   const draggedRow = useRef(null);
 
   const handleDragStart = (e, row) => {
+    console.log('🚀 Drag start:', row.id, row.ruiter || row.label || 'Unknown');
     draggedRow.current = row;
     e.target.style.opacity = '0.5';
-    e.target.style.transform = 'rotate(2deg)';
+    e.target.style.transform = 'scale(1.02)';
+    e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({id: row.id, type: 'row'}));
   };
 
   const handleDragEnd = (e) => {
     e.target.style.opacity = '';
     e.target.style.transform = '';
+    e.target.style.boxShadow = '';
     e.target.closest('tr')?.classList.remove('bg-blue-100');
     draggedRow.current = null;
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
     // Add visual feedback for drop zone
-    e.target.closest('tr')?.classList.add('bg-blue-100');
+    const tr = e.target.closest('tr');
+    if (tr) tr.classList.add('bg-blue-100');
   };
 
   const handleDragLeave = (e) => {
@@ -554,14 +562,24 @@ export default function Startlijst() {
 
   const handleDrop = (e, targetRow) => {
     e.preventDefault();
-    e.target.closest('tr')?.classList.remove('bg-blue-100');
+    e.stopPropagation();
     
-    if (!draggedRow.current || draggedRow.current.id === targetRow.id) {
+    const tr = e.target.closest('tr');
+    if (tr) tr.classList.remove('bg-blue-100');
+    
+    if (!draggedRow.current) {
+      console.log('❌ No dragged row');
+      return;
+    }
+    
+    if (draggedRow.current.id === targetRow.id) {
+      console.log('↩️ Same row, ignoring');
       draggedRow.current = null;
       return;
     }
     
     const sourceRow = draggedRow.current;
+    console.log('🔄 Moving:', sourceRow.ruiter || sourceRow.label, '→', targetRow.ruiter || targetRow.label);
     
     setRows(prev => {
       const newRows = [...prev];
@@ -569,6 +587,7 @@ export default function Startlijst() {
       const targetIndex = newRows.findIndex(r => r.id === targetRow.id);
       
       if (sourceIndex === -1 || targetIndex === -1) {
+        console.log('❌ Invalid indices:', { sourceIndex, targetIndex });
         return prev;
       }
       
@@ -578,6 +597,7 @@ export default function Startlijst() {
       // Insert at new position
       newRows.splice(targetIndex, 0, movedRow);
       
+      console.log('✅ Reorder complete');
       return newRows;
     });
     
@@ -1428,6 +1448,10 @@ Plak je data hieronder:`);
                     let klasseItemNumber = 0;
                     
                     return sortedRows.map((row, index) => {
+                      // Ensure every row has a valid ID
+                      if (!row.id) {
+                        row.id = `row_${Date.now()}_${index}`;
+                      }
                       // Check if we need a class header
                       const rowKlasse = row.type === 'break' ? 'PAUZE' : (normalizeKlasse(row.klasse) || 'Geen klasse');
                       const showClassHeader = rowKlasse !== currentKlasse;
@@ -1460,7 +1484,10 @@ Plak je data hieronder:`);
                           <tr 
                             className={`hover:bg-gray-50 ${row.type === 'break' ? 'bg-yellow-50' : ''} cursor-move transition-colors`}
                             draggable={true}
-                            onDragStart={(e) => handleDragStart(e, row)}
+                            onDragStart={(e) => {
+                              console.log('Drag start on element:', e.target.tagName);
+                              handleDragStart(e, row);
+                            }}
                             onDragEnd={handleDragEnd}
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
@@ -1468,7 +1495,12 @@ Plak je data hieronder:`);
                             title="Sleep om rij te verplaatsen"
                           >
                             <td className="px-4 py-3 text-sm text-gray-600">
-                              {row.type === 'break' ? '—' : klasseItemNumber}
+                              <div className="flex items-center gap-2">
+                                <span className="cursor-move text-gray-400 hover:text-gray-600" title="Sleep hier om rij te verplaatsen">
+                                  ⋮⋮
+                                </span>
+                                {row.type === 'break' ? '—' : klasseItemNumber}
+                              </div>
                             </td>
                             <td className="px-4 py-3">
                               {row.type === 'break' ? (
