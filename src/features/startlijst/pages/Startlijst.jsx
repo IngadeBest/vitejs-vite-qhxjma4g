@@ -1555,39 +1555,13 @@ Plak je data hieronder:`);
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {(() => {
-                    // Sorteer rows: eerst alle WE0, dan WE1, dan WE2, etc. Pauzes aan het eind
-                    const klasseOrder = ['WE0', 'WE1', 'WE2', 'WE3', 'WE4', 'Junioren', 'Young Riders', 'WE2+'];
-                    
-                    const sortedRows = [...filtered].sort((a, b) => {
-                      // Pauzes altijd aan het eind
-                      if (a.type === 'break' && b.type === 'break') return 0;
-                      if (a.type === 'break') return 1; 
-                      if (b.type === 'break') return -1;
-                      
-                      // Sorteer op klasse volgens vaste volgorde
-                      const klasseA = normalizeKlasse(a.klasse || '') || 'ZZZ_Geen_klasse';
-                      const klasseB = normalizeKlasse(b.klasse || '') || 'ZZZ_Geen_klasse';
-                      
-                      const indexA = klasseOrder.indexOf(klasseA);
-                      const indexB = klasseOrder.indexOf(klasseB);
-                      
-                      // Als beide klassen in de vaste volgorde staan
-                      if (indexA !== -1 && indexB !== -1) {
-                        return indexA - indexB;
-                      }
-                      // Als alleen A in volgorde staat
-                      if (indexA !== -1) return -1;
-                      // Als alleen B in volgorde staat  
-                      if (indexB !== -1) return 1;
-                      // Beide niet in volgorde, sorteer alfabetisch
-                      return klasseA.localeCompare(klasseB);
-                    });
-
+                    // Gebruik filtered rows in huidige volgorde (geen extra sorting)
+                    // De volgorde wordt nu bepaald door moveClassUp/Down functies
                     let currentKlasse = null;
                     let klasseItemNumber = 0;
                     const seenKlasses = new Set(); // Track which class headers we've shown
                     
-                    return sortedRows.map((row, index) => {
+                    return filtered.map((row, index) => {
                       // Ensure every row has a valid ID
                       if (!row.id) {
                         row.id = `row_${Date.now()}_${index}`;
