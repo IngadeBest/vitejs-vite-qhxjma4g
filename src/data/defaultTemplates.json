@@ -4,35 +4,147 @@
       "sections": [
         {
           "title": "Dressuur – Introductieklasse (WE0)",
-          "columns": ["Letter", "Oefening", "Punten", "Beoordeling"],
+          "columns": [
+            "Onderdeel",
+            "Score",
+            "Opmerkingen"
+          ],
           "rows": [
-            ["A-X-X", "Binnenkomen in arbeidsdraf, halthouden en groeten", "", "Aanleunig, takt en regelmaat, rechtgerichtheid, overgang op r4, plaats, kwaliteit halt, ontspanning"],
-            ["X-C-C", "Voorwaarts in arbeidsdraf, Rechterhand", "Aanleunig, takt en regelmaat, rechtgerichtheid, plaats, overgang"],
-            ["C", "Slangenvolte 3 bogen", "Aanleunig, takt en regelmaat, stelling en buiging, figuur"],
-            ["K-X-M", "Van hand veranderen, enkele passen verruimen, arbeidsdraf", "Aanleunig, takt en regelmaat, rechtgerichtheid, overgang op r4, verruimen"],
-            ["M", "Arbeidsdraf", "Aanleunig, takt en regelmaat, stelling en buiging, figuur"],
-            ["C-X", "Halve grote volte links", "Aanleunig, takt en regelmaat, stelling en buiging, figuur"],
-            ["X-A", "Halve grote volte rechts", "Aanleunig, takt en regelmaat, stelling en buiging, figuur"],
-            ["A", "Halthouden en 4 seconden stilstaan", "Aanleunig, takt en regelmaat, rechtgerichtheid, overgang op r4, plaats, kwaliteit halt, ontspanning"],
-            ["A", "Voorwaarts in arbeidsstap", "Aanleunig, takt en regelmaat, rechtgerichtheid, overgang"],
-            ["K-H (K.E en E-H)", "Op de lange zijde: 2x gebroken lijn 3-5 meter", "Aanleunig, takt en regelmaat, rechtgerichtheid, overgang"],
-            ["C", "Arbeidsdraf doorziten", "Aanleunig, takt en regelmaat, rechtgerichtheid, plaats, overgang"],
-            ["B-E-B", "Grote volte", "Aanleunig, takt en regelmaat, stelling en buiging, figuur"],
-            ["Voor E", "Arbeidsgalop rechts aanspringen, Hoefslag volgen", "Aanleunig, takt en regelmaat, stelling en buiging, figuur, overgang galop"],
-            ["Tussen A-K", "Overgang naar de arbeidsdraf", "Aanleunig, takt en regelmaat, rechtgerichtheid, plaats, overgang op de zit"],
-            ["E-M", "Van hand veranderen", "Aanleunig, takt en regelmaat, rechtgerichtheid, figuur"],
-            ["Tussen X-G", "Arbeidsgalop links aanspringen", "Aanleunig, takt en regelmaat, stelling en buiging, plaats, overgang galop de zit"],
-            ["E-B-E", "Grote volte", "Aanleunig, takt en regelmaat, stelling en buiging, figuur"],
-            ["E", "Volte 15 m met overgang naar draf", "Aanleunig, takt en regelmaat, rechtgerichtheid, overgang op de zit"],
-            ["Tussen E-K richting H", "Linksomkeert 15 m", "Aanleunig, takt en regelmaat, regelmaat, , stelling en buiging, figuur"],
-            ["B", "Volte 15 m rechts", "Aanleunig, takt en regelmaat, stelling en buiging, figuur"],
-            ["A", "Afwenden", "Aanleunig, takt en regelmaat, stelling en buiging, plaats"],
-            ["Tussen X-G", "Halthouden en groeten", "Aanleunig, takt en regelmaat, rechtgerichtheid, overgang op r4, plaats, kwaliteit halt, ontspanning"],
-            ["Gangen, Takt, regelmaat, ritme", "", ""],
-            ["Impuls, Losgelatenheid van het paard, correct gebruik en de souplesse van de achterhand", "", ""],
-            ["Gehoorzaamheid. De ontspanning, oplettendheid en vertrouwen, lichtheid en aanleunig", "", ""],
-            ["Rijden op de zit. Houding en inwerking van de ruiter. Lichtheid en de verbinding", "", ""],
-            ["Presentatie van de combinatie", "", ""]
+            [
+              "A-X, X – Binnenkomen in arbeidsdraf, halthouden en groeten",
+              "",
+              ""
+            ],
+            [
+              "X-C, C – Voorwaarts in arbeidsdraf, rechterhand",
+              "",
+              ""
+            ],
+            [
+              "C – Slangenvolte 3 bogen",
+              "",
+              ""
+            ],
+            [
+              "K–X–M, M – Van hand veranderen, enkele passen verruimen, arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "C–X – Halve grote volte links",
+              "",
+              ""
+            ],
+            [
+              "X–A – Halve grote volte rechts",
+              "",
+              ""
+            ],
+            [
+              "A – Halthouden en 4 seconden stilstaan",
+              "",
+              ""
+            ],
+            [
+              "A – Voorwaarts in arbeidsstap",
+              "",
+              ""
+            ],
+            [
+              "K–H (K–E en E–H) – Op de lange zijde: 2× gebroken lijn 3–5 m",
+              "",
+              ""
+            ],
+            [
+              "C – Arbeidsdraf doorzitten",
+              "",
+              ""
+            ],
+            [
+              "B–E–B – Grote volte",
+              "",
+              ""
+            ],
+            [
+              "Voor E, B – Arbeidsgalop rechts aanspringen, hoefslag volgen",
+              "",
+              ""
+            ],
+            [
+              "Tussen A–K – Overgang naar de arbeidsdraf",
+              "",
+              ""
+            ],
+            [
+              "E–M – Van hand veranderen",
+              "",
+              ""
+            ],
+            [
+              "Tussen C en H – Arbeidsgalop links aanspringen",
+              "",
+              ""
+            ],
+            [
+              "E–B–E – Grote volte",
+              "",
+              ""
+            ],
+            [
+              "E – Volte 15 m met overgang naar draf",
+              "",
+              ""
+            ],
+            [
+              "Tussen E–K richting H – Linksomkeert 15 m",
+              "",
+              ""
+            ],
+            [
+              "B – Volte 15 m rechts",
+              "",
+              ""
+            ],
+            [
+              "A – Afwenden",
+              "",
+              ""
+            ],
+            [
+              "Tussen X–G – Halthouden en groeten; in vrije stap de rijbaan verlaten bij A",
+              "",
+              ""
+            ],
+            [
+              "Gangen – takt, regelmaat, ritme",
+              "",
+              ""
+            ],
+            [
+              "Impuls – losgelatenheid, correct ruggebruik en gebruik van de achterhand",
+              "",
+              ""
+            ],
+            [
+              "Gehoorzaamheid – ontspanning, oplettendheid, vertrouwen, lichtheid en aanleuning",
+              "",
+              ""
+            ],
+            [
+              "Harmonie – sympathiek, paardvriendelijk rijden en gebruik van de hulpmiddelen",
+              "",
+              ""
+            ],
+            [
+              "Rijden op de zit – houding en inwerking van de ruiter, lichtheid in de verbinding",
+              "",
+              ""
+            ],
+            [
+              "Presentatie van de combinatie",
+              "",
+              ""
+            ]
           ]
         }
       ]
@@ -848,7 +960,7 @@
               ""
             ],
             [
-              "C-M – Overgang naar stap; ME – uitgestrekte stap; EKD – verzamelde stap",
+              "C-M / ME / EKD – Overgang naar stap; ME – uitgestrekte stap; EKD – verzamelde stap",
               "",
               ""
             ],
@@ -873,7 +985,7 @@
               ""
             ],
             [
-              "MK – Vliegende wissel naar links",
+              "M-K – Vliegende wissel naar links",
               "",
               ""
             ],
@@ -888,7 +1000,7 @@
               ""
             ],
             [
-              "BMCH – Contragalop",
+              "B-M-C-H – Contragalop",
               "",
               ""
             ],
@@ -903,7 +1015,7 @@
               ""
             ],
             [
-              "BFAK – Contragalop",
+              "B-F-A-K – Contragalop",
               "",
               ""
             ],
@@ -1100,29 +1212,242 @@
     "WE2": {
       "sections": [
         {
-          "title": "Speed – Hindernissen (tijd)",
+          "title": "Speedtrail – Protocol per combinatie",
           "columns": [
-            "#",
-            "Onderdeel",
-            "Tijd/Punten",
+            "Hindernis",
+            "Straftijd",
+            "Totaal",
             "Opmerkingen"
           ],
           "rows": [
             [
-              1,
-              "Slalom",
+              "3 tonnen",
+              "+5 sec per ton",
               "",
               ""
             ],
             [
-              2,
-              "3 vaten",
+              "2 tonnen",
+              "+5 sec per ton",
               "",
               ""
             ],
             [
-              3,
               "Brug",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Parallel slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Enkele slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Slalom achterwaarts",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Bel",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Sprong",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Pen",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Poort",
+              "+10 sec per deel, +30 sec totaal om",
+              "",
+              ""
+            ],
+            [
+              "Travers balk",
+              "+7 sec afgooien, +5 sec benen verkeerde kant",
+              "",
+              ""
+            ],
+            [
+              "Garrocha uit ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Garrocha in ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Ringsteken",
+              "-5 sec als ring met garrocha wordt teruggeplaatst; omrijden houder +5 sec",
+              "",
+              ""
+            ],
+            [
+              "Hoedje omhangen",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal straftijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Gereden tijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal tijd",
+              "",
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    "WE2PLUS": {
+      "sections": [
+        {
+          "title": "Speedtrail – Protocol per combinatie",
+          "columns": [
+            "Hindernis",
+            "Straftijd",
+            "Totaal",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              "3 tonnen",
+              "+5 sec per ton",
+              "",
+              ""
+            ],
+            [
+              "2 tonnen",
+              "+5 sec per ton",
+              "",
+              ""
+            ],
+            [
+              "Brug",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Parallel slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Enkele slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Slalom achterwaarts",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Bel",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Sprong",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Pen",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Poort",
+              "+10 sec per deel, +30 sec totaal om",
+              "",
+              ""
+            ],
+            [
+              "Travers balk",
+              "+7 sec afgooien, +5 sec benen verkeerde kant",
+              "",
+              ""
+            ],
+            [
+              "Garrocha uit ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Garrocha in ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Ringsteken",
+              "-5 sec als ring met garrocha wordt teruggeplaatst; omrijden houder +5 sec",
+              "",
+              ""
+            ],
+            [
+              "Hoedje omhangen",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal straftijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Gereden tijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal tijd",
+              "",
               "",
               ""
             ]
@@ -1133,29 +1458,119 @@
     "WE3": {
       "sections": [
         {
-          "title": "Speed – Hindernissen (tijd)",
+          "title": "Speedtrail – Protocol per combinatie",
           "columns": [
-            "#",
-            "Onderdeel",
-            "Tijd/Punten",
+            "Hindernis",
+            "Straftijd",
+            "Totaal",
             "Opmerkingen"
           ],
           "rows": [
             [
-              1,
-              "Belgang",
+              "3 tonnen",
+              "+5 sec per ton",
               "",
               ""
             ],
             [
-              2,
-              "Parallelslalom",
+              "2 tonnen",
+              "+5 sec per ton",
               "",
               ""
             ],
             [
-              3,
-              "Garrocha",
+              "Brug",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Parallel slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Enkele slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Slalom achterwaarts",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Bel",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Sprong",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Pen",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Poort",
+              "+10 sec per deel, +30 sec totaal om",
+              "",
+              ""
+            ],
+            [
+              "Travers balk",
+              "+7 sec afgooien, +5 sec benen verkeerde kant",
+              "",
+              ""
+            ],
+            [
+              "Garrocha uit ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Garrocha in ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Ringsteken",
+              "-5 sec als ring met garrocha wordt teruggeplaatst; omrijden houder +5 sec",
+              "",
+              ""
+            ],
+            [
+              "Hoedje omhangen",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal straftijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Gereden tijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal tijd",
+              "",
               "",
               ""
             ]
@@ -1166,29 +1581,365 @@
     "WE4": {
       "sections": [
         {
-          "title": "Speed – Hindernissen (tijd)",
+          "title": "Speedtrail – Protocol per combinatie",
           "columns": [
-            "#",
-            "Onderdeel",
-            "Tijd/Punten",
+            "Hindernis",
+            "Straftijd",
+            "Totaal",
             "Opmerkingen"
           ],
           "rows": [
             [
-              1,
-              "Kledingstuk omhangen",
+              "3 tonnen",
+              "+5 sec per ton",
               "",
               ""
             ],
             [
-              2,
-              "Round pen",
+              "2 tonnen",
+              "+5 sec per ton",
               "",
               ""
             ],
             [
-              3,
-              "Tafel met kan",
+              "Brug",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Parallel slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Enkele slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Slalom achterwaarts",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Bel",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Sprong",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Pen",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Poort",
+              "+10 sec per deel, +30 sec totaal om",
+              "",
+              ""
+            ],
+            [
+              "Travers balk",
+              "+7 sec afgooien, +5 sec benen verkeerde kant",
+              "",
+              ""
+            ],
+            [
+              "Garrocha uit ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Garrocha in ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Ringsteken",
+              "-5 sec als ring met garrocha wordt teruggeplaatst; omrijden houder +5 sec",
+              "",
+              ""
+            ],
+            [
+              "Hoedje omhangen",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal straftijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Gereden tijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal tijd",
+              "",
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    "JUNIOR": {
+      "sections": [
+        {
+          "title": "Speedtrail – Protocol per combinatie",
+          "columns": [
+            "Hindernis",
+            "Straftijd",
+            "Totaal",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              "3 tonnen",
+              "+5 sec per ton",
+              "",
+              ""
+            ],
+            [
+              "2 tonnen",
+              "+5 sec per ton",
+              "",
+              ""
+            ],
+            [
+              "Brug",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Parallel slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Enkele slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Slalom achterwaarts",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Bel",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Sprong",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Pen",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Poort",
+              "+10 sec per deel, +30 sec totaal om",
+              "",
+              ""
+            ],
+            [
+              "Travers balk",
+              "+7 sec afgooien, +5 sec benen verkeerde kant",
+              "",
+              ""
+            ],
+            [
+              "Garrocha uit ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Garrocha in ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Ringsteken",
+              "-5 sec als ring met garrocha wordt teruggeplaatst; omrijden houder +5 sec",
+              "",
+              ""
+            ],
+            [
+              "Hoedje omhangen",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal straftijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Gereden tijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal tijd",
+              "",
+              "",
+              ""
+            ]
+          ]
+        }
+      ]
+    },
+    "YOUNG_RIDERS": {
+      "sections": [
+        {
+          "title": "Speedtrail – Protocol per combinatie",
+          "columns": [
+            "Hindernis",
+            "Straftijd",
+            "Totaal",
+            "Opmerkingen"
+          ],
+          "rows": [
+            [
+              "3 tonnen",
+              "+5 sec per ton",
+              "",
+              ""
+            ],
+            [
+              "2 tonnen",
+              "+5 sec per ton",
+              "",
+              ""
+            ],
+            [
+              "Brug",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Parallel slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Enkele slalom",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Slalom achterwaarts",
+              "+3 sec per paal",
+              "",
+              ""
+            ],
+            [
+              "Bel",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Sprong",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Pen",
+              "+5 sec per deel",
+              "",
+              ""
+            ],
+            [
+              "Poort",
+              "+10 sec per deel, +30 sec totaal om",
+              "",
+              ""
+            ],
+            [
+              "Travers balk",
+              "+7 sec afgooien, +5 sec benen verkeerde kant",
+              "",
+              ""
+            ],
+            [
+              "Garrocha uit ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Garrocha in ton",
+              "+5 sec ton om",
+              "",
+              ""
+            ],
+            [
+              "Ringsteken",
+              "-5 sec als ring met garrocha wordt teruggeplaatst; omrijden houder +5 sec",
+              "",
+              ""
+            ],
+            [
+              "Hoedje omhangen",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal straftijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Gereden tijd",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Totaal tijd",
+              "",
               "",
               ""
             ]
