@@ -56,10 +56,12 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauze
   return times;
 };
 
-// Per-klasse starttijd berekening
+// Per-klasse starttijd berekening - automatisch doornummeren
 const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeMinuten) => {
   const times = {};
-  const klasseTimes = {}; // Track per klasse
+  let currentDressuurTime = null;
+  let currentTrailTime = null;
+  let lastKlasse = null;
   
   const addMinutes = (date, minutes) => {
     return new Date(date.getTime() + minutes * 60000);
@@ -73,15 +75,13 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeM
     const id = row.id || index;
     
     if (row.type === 'break') {
-      // Voor pauzes: tel tijd op voor alle klassen
-      Object.keys(klasseTimes).forEach(klasse => {
-        if (klasseTimes[klasse].dressuur) {
-          klasseTimes[klasse].dressuur = addMinutes(klasseTimes[klasse].dressuur, pauzeMinuten);
-        }
-        if (klasseTimes[klasse].trail) {
-          klasseTimes[klasse].trail = addMinutes(klasseTimes[klasse].trail, pauzeMinuten);
-        }
-      });
+      // Voor pauzes: voeg pauzetijd toe aan lopende tijden
+      if (currentDressuurTime) {
+        currentDressuurTime = addMinutes(currentDressuurTime, pauzeMinuten);
+      }
+      if (currentTrailTime) {
+        currentTrailTime = addMinutes(currentTrailTime, pauzeMinuten);
+      }
       times[id] = {
         dressuur: '',
         trail: '',
@@ -90,27 +90,42 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeM
     } else {
       const klasse = normalizeKlasse(row.klasse) || 'Geen klasse';
       
-      // Initialiseer klasse tijden als deze nog niet bestaan
-      if (!klasseTimes[klasse]) {
+      // Check of klasse wijzigt en of er een specifieke starttijd is
+      if (klasse !== lastKlasse) {
         const klasseConfig = klasseStartTimes[klasse] || {};
-        klasseTimes[klasse] = {
-          dressuur: klasseConfig.dressuur ? new Date(`1970-01-01T${klasseConfig.dressuur}:00`) : null,
-          trail: klasseConfig.trail ? new Date(`1970-01-01T${klasseConfig.trail}:00`) : null
-        };
+        
+        // Als er een specifieke starttijd is voor deze klasse, gebruik die
+        // Anders blijf doornummeren vanaf vorige tijd
+        if (klasseConfig.dressuur) {
+          currentDressuurTime = new Date(`1970-01-01T${klasseConfig.dressuur}:00`);
+        } else if (!currentDressuurTime) {
+          // Geen tijd ingesteld en geen lopende tijd: laat leeg
+          currentDressuurTime = null;
+        }
+        // Anders: blijf doornummeren (currentDressuurTime blijft behouden)
+        
+        if (klasseConfig.trail) {
+          currentTrailTime = new Date(`1970-01-01T${klasseConfig.trail}:00`);
+        } else if (!currentTrailTime) {
+          currentTrailTime = null;
+        }
+        // Anders: blijf doornummeren
+        
+        lastKlasse = klasse;
       }
       
       times[id] = {
-        dressuur: klasseTimes[klasse].dressuur ? formatTime(klasseTimes[klasse].dressuur) : '',
-        trail: klasseTimes[klasse].trail ? formatTime(klasseTimes[klasse].trail) : '',
+        dressuur: currentDressuurTime ? formatTime(currentDressuurTime) : '',
+        trail: currentTrailTime ? formatTime(currentTrailTime) : '',
         type: 'entry'
       };
       
-      // Voeg interval toe voor volgende deelnemer in deze klasse
-      if (klasseTimes[klasse].dressuur) {
-        klasseTimes[klasse].dressuur = addMinutes(klasseTimes[klasse].dressuur, tussenPauze);
+      // Voeg interval toe voor volgende deelnemer
+      if (currentDressuurTime) {
+        currentDressuurTime = addMinutes(currentDressuurTime, tussenPauze);
       }
-      if (klasseTimes[klasse].trail) {
-        klasseTimes[klasse].trail = addMinutes(klasseTimes[klasse].trail, tussenPauze);
+      if (currentTrailTime) {
+        currentTrailTime = addMinutes(currentTrailTime, tussenPauze);
       }
     }
   });
@@ -876,29 +891,51 @@ export default function Startlijst() {
     const klasseOrder = ['WE0', 'WE1', 'WE2', 'WE3', 'WE4', 'Junioren', 'Young Riders', 'WE2+'];
     
     setRows(prev => {
-      const sorted = [...prev].sort((a, b) => {
-        // Pauzes altijd aan het eind
-        if (a.type === 'break' && b.type === 'break') return 0;
-        if (a.type === 'break') return 1; 
-        if (b.type === 'break') return -1;
-        
-        // Sorteer op klasse volgens vaste volgorde
-        const klasseA = normalizeKlasse(a.klasse || '') || 'ZZZ_Geen_klasse';
-        const klasseB = normalizeKlasse(b.klasse || '') || 'ZZZ_Geen_klasse';
-        
-        const indexA = klasseOrder.indexOf(klasseA);
-        const indexB = klasseOrder.indexOf(klasseB);
-        
-        // Als beide klassen in de vaste volgorde staan
-        if (indexA !== -1 && indexB !== -1) {
-          return indexA - indexB;
+      // Groepeer per klasse, behoud pauzes op hun positie
+      const groups = [];
+      let currentGroup = [];
+      
+      prev.forEach(row => {
+        if (row.type === 'break') {
+          // Pauze: voeg huidige groep toe en start nieuwe
+          if (currentGroup.length > 0) {
+            groups.push({ type: 'entries', items: currentGroup });
+            currentGroup = [];
+          }
+          groups.push({ type: 'break', items: [row] });
+        } else {
+          currentGroup.push(row);
         }
-        // Als alleen A in volgorde staat
-        if (indexA !== -1) return -1;
-        // Als alleen B in volgorde staat  
-        if (indexB !== -1) return 1;
-        // Beide niet in volgorde, sorteer alfabetisch
-        return klasseA.localeCompare(klasseB);
+      });
+      
+      // Voeg laatste groep toe
+      if (currentGroup.length > 0) {
+        groups.push({ type: 'entries', items: currentGroup });
+      }
+      
+      // Sorteer entries binnen elke groep
+      const sorted = [];
+      groups.forEach(group => {
+        if (group.type === 'break') {
+          sorted.push(...group.items);
+        } else {
+          // Sorteer entries op klasse
+          const sortedEntries = group.items.sort((a, b) => {
+            const klasseA = normalizeKlasse(a.klasse || '') || 'ZZZ_Geen_klasse';
+            const klasseB = normalizeKlasse(b.klasse || '') || 'ZZZ_Geen_klasse';
+            
+            const indexA = klasseOrder.indexOf(klasseA);
+            const indexB = klasseOrder.indexOf(klasseB);
+            
+            if (indexA !== -1 && indexB !== -1) {
+              return indexA - indexB;
+            }
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            return klasseA.localeCompare(klasseB);
+          });
+          sorted.push(...sortedEntries);
+        }
       });
       
       return sorted;
@@ -1542,7 +1579,11 @@ Plak je data hieronder:`);
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
             <h3 className="text-md font-semibold text-gray-900 mb-3">Per klasse starttijden (optioneel)</h3>
             <p className="text-sm text-gray-600 mb-3">
-              Vul hier specifieke starttijden in per klasse. Als je dit leeg laat, wordt automatisch doorgenummerd vanaf de algemene starttijden hierboven.
+              ⏱️ <strong>Automatisch doornummeren:</strong> Vul een starttijd in voor de eerste klasse. Alle klassen erna nummeren automatisch door, 
+              tenzij je voor een volgende klasse een nieuwe starttijd invult - dan begint vanaf daar weer een nieuwe reeks.
+            </p>
+            <p className="text-sm text-gray-500 mb-3">
+              Voorbeeld: WE0 start om 09:00, WE1 start automatisch door (bijv. 09:30), maar WE2 kun je instellen op 13:00 (na pauze).
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {classOrder.map((klasse) => (
@@ -1731,7 +1772,10 @@ Plak je data hieronder:`);
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Startlijst Bewerken</h2>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Startlijst Bewerken</h2>
+                  <p className="text-xs text-gray-500 mt-1">💡 Sleep rijen (inclusief pauzes) om volgorde aan te passen</p>
+                </div>
                 <div className="text-sm text-gray-600">
                   {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
                 </div>
