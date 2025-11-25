@@ -404,11 +404,14 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   doc.setFillColor(...BLUE);
   doc.rect(0, 0, pageWidth, 64, "F");
   
-  // Titel in header
+  // Titel in header met datum
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.text("Working Point \u2022 Startlijst", 40, 35);
+  const titelMetDatum = wedstrijdInfo.datum 
+    ? `Working Point \u2022 Startlijst \u2022 ${wedstrijdInfo.datum}`
+    : "Working Point \u2022 Startlijst";
+  doc.text(titelMetDatum, 40, 35);
   
   // Wedstrijd info in header
   doc.setFontSize(11);
@@ -475,9 +478,10 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
           content: [`KLASSE: ${rowKlasse}`, "", "", "", "", ""],
           styles: { 
             fontStyle: "bold", 
-            fillColor: BLUE, 
-            textColor: [255, 255, 255],
-            halign: "left"
+            fillColor: LIGHT_HEAD,  // Lichtblauw ipv donkerblauw
+            textColor: BLUE,        // Donkerblauw tekst ipv wit
+            halign: "left",
+            fontSize: 11
           }
         });
       }
