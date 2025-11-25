@@ -448,6 +448,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
     // Groepeer rows per klasse
     const grouped = [];
     let currentKlasse = null;
+    let entryCounter = 0; // Teller voor alleen deelnemers (geen pauzes)
     
     rows.forEach((r, idx) => {
       if (r.type === 'break') {
@@ -462,6 +463,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
           Paard: `${r.duration || 0} minuten`,
         });
       } else {
+        entryCounter++;
         const rowKlasse = normalizeKlasse(r.klasse) || 'Geen klasse';
         
         // Voeg klasse header toe als nieuwe klasse
@@ -481,7 +483,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
         // Voeg deelnemer toe
         const times = calculatedTimes[r.id || idx] || {};
         grouped.push({
-          Volgorde: idx + 1,
+          Volgorde: entryCounter,
           Klasse: rowKlasse,
           Dressuur: times.dressuur || "",
           Trail: times.trail || "",
@@ -533,6 +535,8 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
     const lines = [header.join(",")];
     
     let currentKlasse = null;
+    let entryCounter = 0;
+    
     rows.forEach((r, idx) => {
       if (r.type === 'break') {
         lines.push([
@@ -545,6 +549,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
           `${r.duration || 0} minuten`
         ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
       } else {
+        entryCounter++;
         const rowKlasse = normalizeKlasse(r.klasse) || 'Geen klasse';
         
         if (rowKlasse !== currentKlasse) {
@@ -562,7 +567,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
         
         const times = calculatedTimes[r.id || idx] || {};
         const line = [
-          idx + 1,
+          entryCounter,
           rowKlasse,
           times.dressuur || "",
           times.trail || "",
