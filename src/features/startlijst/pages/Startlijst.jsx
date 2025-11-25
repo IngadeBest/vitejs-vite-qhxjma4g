@@ -1495,20 +1495,6 @@ Plak je data hieronder:`);
           const filteredRows = klasse ? parsed.filter(r => normalizeKlasse(r.klasse) === klasse) : parsed;
           setRows(filteredRows);
           setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage - database niet beschikbaar)`);
-    } catch (e) {
-      const errorMsg = e?.message || String(e);
-      console.error("Error loading participants, trying localStorage:", e);
-      
-      // Fallback to localStorage
-      const storageKey = `startlijst_${wedstrijd}`;
-      const stored = localStorage.getItem(storageKey) || localStorage.getItem(LS_KEY);
-      
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const filteredRows = klasse ? parsed.filter(r => normalizeKlasse(r.klasse) === klasse) : parsed;
-          setRows(filteredRows);
-          setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage - database niet beschikbaar)`);
         } catch (parseErr) {
           setDbMessage(`❌ Fout bij laden: ${errorMsg}`);
         }
