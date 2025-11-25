@@ -164,12 +164,26 @@ function protocolToDoc(doc, p, items) {
   titleBar(doc, title, `${p.klasse_naam || p.klasse}`);
   const infoY = infoBoxesSideBySide(doc, p);
   
-  // Voor dressuur: gebruik 3-kolommen format (Onderdeel, Score, Opmerkingen)
+  // Voor dressuur: gebruik 4-kolommen format (Letter, Onderdeel, Score, Opmerkingen)
   if (p.onderdeel === "dressuur") {
+    const tableData = items.map(item => {
+      // Item format: ["Letter", "Omschrijving", "Beoordeling"]
+      if (Array.isArray(item) && item.length >= 2) {
+        return [
+          item[0] || "",  // Letter
+          item[1] || "",  // Omschrijving
+          "",             // Score
+          item[2] || ""   // Beoordeling/Opmerkingen
+        ];
+      }
+      // Fallback voor oude format (gewone string)
+      return ["", item, "", ""];
+    });
+    
     autoTable(doc, {
       startY: infoY + 16,
-      head: [["Onderdeel", "Score", "Opmerkingen"]],
-      body: items.map(item => [item, "", ""]),
+      head: [["Letter", "Onderdeel", "Score", "Opmerkingen"]],
+      body: tableData,
       styles: { 
         fontSize: 10, 
         cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, 
@@ -181,9 +195,10 @@ function protocolToDoc(doc, p, items) {
       theme: "grid",
       margin: MARGIN,
       columnStyles: {
-        0: { cellWidth: 320 },  // Onderdeel breed
-        1: { cellWidth: 60, halign: "center" },  // Score smal en gecentreerd
-        2: { cellWidth: "auto" }  // Opmerkingen rest van ruimte
+        0: { cellWidth: 60 },   // Letter
+        1: { cellWidth: 240 },  // Onderdeel
+        2: { cellWidth: 60, halign: "center" },  // Score
+        3: { cellWidth: "auto" }  // Opmerkingen
       }
     });
     const afterTable = doc.lastAutoTable.finalY;
@@ -192,7 +207,8 @@ function protocolToDoc(doc, p, items) {
     return;
   }
   
-  // Voor stijl/speed: gebruik obstakel format
+  // Voor stijl/speed: oude layout
+  titleBar(doc, title, `${p.klasse_naam || p.klasse}`);
   const afterItems = obstaclesTable(doc, items, infoY + 16);
   let afterAlg = afterItems;
   if (p.onderdeel === "stijl") {
