@@ -15,8 +15,8 @@ const KLASSEN = [
   { code: "we2p", labelKey: "WE2+", naam: "WE2+",                     min: 8,  max: 12 },
   { code: "we3", labelKey: "WE3", naam: "WE3",                       min: 10, max: 14 },
   { code: "we4", labelKey: "WE4", naam: "WE4",                       min: 12, max: 16 },
-  { code: "yr", labelKey: "YR", naam: "Young Riders",                min: 6,  max: 10 },
-  { code: "junior", labelKey: "JR", naam: "Junioren",               min: 6,  max: 10 },
+  { code: "yr", labelKey: "YR", naam: "Young Riders",                min: 10, max: 14 },
+  { code: "junior", labelKey: "JR", naam: "Junioren",               min: 10, max: 14 },
 ];
 const ONDERDELEN = [
   { code: "dressuur", label: "Dressuur" },
@@ -196,6 +196,7 @@ function protocolToDoc(doc, p, items) {
   const afterItems = obstaclesTable(doc, items, infoY + 16);
   let afterAlg = afterItems;
   if (p.onderdeel === "stijl") {
+    // WE0 en WE1 krijgen basis algemene punten, rest (WE2, WE2+, WE3, WE4, YR, JR) krijgt uitgebreide punten
     const punten = (p.klasse === "we0" || p.klasse === "we1") ? ALG_PUNTEN_WE0_WE1 : ALG_PUNTEN_WE2PLUS;
     afterAlg = generalPointsTable(doc, punten, afterItems + 12, items.length + 1);
   }
