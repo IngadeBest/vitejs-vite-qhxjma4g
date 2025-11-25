@@ -14,7 +14,7 @@ import Container from "@/ui/Container";
 const LS_KEY = "wp_startlijst_cache_v1";
 
 // Helper functie voor automatische starttijd berekening
-const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauzeMinuten) => {
+const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0) => {
   const times = {};
   let currentDressuurTime = new Date(`1970-01-01T${dressuurStart}:00`);
   let currentTrailTime = new Date(`1970-01-01T${trailStart}:00`);
@@ -49,7 +49,8 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauze
       
       // Voeg interval toe voor volgende deelnemer
       currentDressuurTime = addMinutes(currentDressuurTime, tussenPauze);
-      currentTrailTime = addMinutes(currentTrailTime, tussenPauze);
+      // Trail krijgt extra ombouwtijd
+      currentTrailTime = addMinutes(currentTrailTime, tussenPauze + trailOmbouwtijd);
     }
   });
   
@@ -57,7 +58,7 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauze
 };
 
 // Per-klasse starttijd berekening - automatisch doornummeren
-const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeMinuten) => {
+const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0) => {
   const times = {};
   let currentDressuurTime = null;
   let currentTrailTime = null;
@@ -125,7 +126,8 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeM
         currentDressuurTime = addMinutes(currentDressuurTime, tussenPauze);
       }
       if (currentTrailTime) {
-        currentTrailTime = addMinutes(currentTrailTime, tussenPauze);
+        // Trail krijgt extra ombouwtijd
+        currentTrailTime = addMinutes(currentTrailTime, tussenPauze + trailOmbouwtijd);
       }
     }
   });
@@ -885,6 +887,7 @@ export default function Startlijst() {
   const [dressuurStarttijd, setDressuurStarttijd] = useState("09:00");
   const [trailStarttijd, setTrailStarttijd] = useState("13:00");
   const [tussenPauze, setTussenPauze] = useState(6); // minuten tussen deelnemers
+  const [trailOmbouwtijd, setTrailOmbouwtijd] = useState(0); // extra tijd voor ombouwen trail (0-15 min)
   const [pauzeMinuten, setPauzeMinuten] = useState(15); // minuten voor een pauze
   const [saving, setSaving] = useState(false);
   
@@ -1270,7 +1273,36 @@ Plak je data hieronder:`);
         throw new Error("Geen geldige deelnemers om op te slaan. Operatie geannuleerd voor veiligheid.");
       }
       
-      // Stap 1: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
+      // Stap 1: Sla pauzes en configuratie op in wedstrijden.startlijst_config
+      const breaks = rows.filter(row => row.type === 'break').map((br, idx) => ({
+        id: br.id,
+        label: br.label || 'Pauze',
+        duration: br.duration || 15,
+        position: rows.indexOf(br) // bewaar positie in lijst
+      }));
+      
+      const startlijstConfig = {
+        dressuurStart: dressuurStarttijd,
+        trailStart: trailStarttijd,
+        interval: tussenPauze,
+        trailOmbouwtijd: trailOmbouwtijd,
+        pauzeMinuten: pauzeMinuten,
+        pauses: breaks,
+        klasseStartTimes: klasseStartTimes,
+        rowOrder: rows.map(r => ({ id: r.id, type: r.type })) // bewaar volgorde
+      };
+      
+      const { error: configError } = await supabase
+        .from('wedstrijden')
+        .update({ startlijst_config: startlijstConfig })
+        .eq('id', wedstrijd);
+      
+      if (configError) {
+        console.warn("Kon startlijst_config niet opslaan:", configError);
+        // Ga door - dit is niet kritisch
+      }
+      
+      // Stap 2: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
       const { error: deleteError } = await supabase
         .from('inschrijvingen')
         .delete()
@@ -1281,14 +1313,15 @@ Plak je data hieronder:`);
         throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
       }
 
-      // Stap 2: Voeg alle huidige entries toe
-      const entriesToInsert = entries.map(row => ({
+      // Stap 3: Voeg alle huidige entries toe MET volgorde
+      const entriesToInsert = entries.map((row, idx) => ({
         wedstrijd_id: wedstrijd,
         ruiter: row.ruiter.trim(),
         paard: row.paard ? row.paard.trim() : null,
         startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
         klasse: normalizeKlasse(row.klasse),
         rubriek: rubriek || 'Algemeen',
+        volgorde: rows.indexOf(row) // bewaar originele positie
       }));
 
       const { error: insertError } = await supabase
@@ -1305,12 +1338,12 @@ Plak je data hieronder:`);
       localStorage.setItem(storageKey, JSON.stringify(rows));
       localStorage.setItem(LS_KEY, JSON.stringify(rows));
       
-      setDbMessage(`✅ ${entries.length} deelnemers succesvol opgeslagen in database`);
+      setDbMessage(`✅ ${entries.length} deelnemers + ${breaks.length} pauzes opgeslagen`);
       
-      // Herlaad data om sync te behouden
-      setTimeout(() => {
-        loadDeelnemersFromDB();
-      }, 1000);
+      // NIET herladen - dat verpest de volgorde!
+      // setTimeout(() => {
+      //   loadDeelnemersFromDB();
+      // }, 1000);
 
     } catch (error) {
       console.error('Error saving to database:', error);
@@ -1328,8 +1361,8 @@ Plak je data hieronder:`);
   const makeBatchPDF = async () => {
     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
     const calculatedTimes = hasKlasseStartTimes 
-      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten)
-      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
     
     const blob = await generateSimplePDF(
       `Startlijst ${klasse || ""} ${rubriek || ""}`.trim(),
@@ -1352,11 +1385,29 @@ Plak je data hieronder:`);
     console.log("Loading deelnemers for wedstrijd:", wedstrijd, "klasse:", klasse);
     
     try {
+      // Stap 1: Laad wedstrijd config (voor pauzes en instellingen)
+      const { data: wedstrijdData, error: wedstrijdError } = await supabase
+        .from("wedstrijden")
+        .select("startlijst_config")
+        .eq("id", wedstrijd)
+        .single();
+      
+      const config = wedstrijdData?.startlijst_config || {};
+      console.log("Loaded startlijst_config:", config);
+      
+      // Herstel instellingen
+      if (config.dressuurStart) setDressuurStarttijd(config.dressuurStart);
+      if (config.trailStart) setTrailStarttijd(config.trailStart);
+      if (config.interval) setTussenPauze(config.interval);
+      if (config.trailOmbouwtijd !== undefined) setTrailOmbouwtijd(config.trailOmbouwtijd);
+      if (config.pauzeMinuten) setPauzeMinuten(config.pauzeMinuten);
+      if (config.klasseStartTimes) setKlasseStartTimes(config.klasseStartTimes);
+      
+      // Stap 2: Laad deelnemers (sorteer op volgorde veld indien aanwezig)
       let query = supabase
         .from("inschrijvingen")
-        .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,created_at")
-        .eq("wedstrijd_id", wedstrijd)
-        .order("created_at", { ascending: true }); // Sorteren op aanmelddatum, oudste eerst
+        .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde")
+        .eq("wedstrijd_id", wedstrijd);
 
       if (klasse) {
         query = query.eq("klasse", klasse);
@@ -1386,21 +1437,64 @@ Plak je data hieronder:`);
         }
       }
 
-      const loadedRows = (data || []).map((r, i) => ({
-        id: `db_${Date.now()}_${i}`,
+      // Sorteer op volgorde indien aanwezig
+      const sortedData = (data || []).sort((a, b) => {
+        if (a.volgorde !== undefined && b.volgorde !== undefined) {
+          return a.volgorde - b.volgorde;
+        }
+        return 0; // behoud huidige volgorde
+      });
+
+      const loadedRows = sortedData.map((r, i) => ({
+        id: r.id || `db_${Date.now()}_${i}`,
         type: "entry",
         ruiter: r.ruiter || "",
         paard: r.paard || "",
         startnummer: (r.startnummer || "").toString(),
-        klasse: normalizeKlasse(r.klasse) || "", // Normaliseer klasse bij laden
+        klasse: normalizeKlasse(r.klasse) || "",
         starttijd: "",
-        dbId: r.id, // Store database ID for later updates/deletes
-        fromDB: true, // Mark as loaded from database
+        dbId: r.id,
+        fromDB: true,
       }));
 
-      setRows(loadedRows);
-      setDbMessage(`${loadedRows.length} deelnemers geladen uit database`);
-      console.log("Loaded rows:", loadedRows);
+      // Stap 3: Voeg pauzes weer toe op juiste positie
+      const pauses = config.pauses || [];
+      const combined = [...loadedRows];
+      
+      pauses.forEach(pause => {
+        const pauseRow = {
+          id: pause.id || `break_${Date.now()}_${Math.random()}`,
+          type: 'break',
+          label: pause.label || 'Pauze',
+          duration: pause.duration || 15
+        };
+        
+        // Voeg pauze in op opgeslagen positie
+        if (pause.position !== undefined && pause.position <= combined.length) {
+          combined.splice(pause.position, 0, pauseRow);
+        } else {
+          // Fallback: voeg toe aan eind
+          combined.push(pauseRow);
+        }
+      });
+
+      setRows(combined);
+      setDbMessage(`✅ ${loadedRows.length} deelnemers + ${pauses.length} pauzes geladen`);
+      console.log("Loaded rows with pauses:", combined);
+    } catch (e) {
+      const errorMsg = e?.message || String(e);
+      console.error("Error loading participants, trying localStorage:", e);
+      
+      // Fallback to localStorage
+      const storageKey = `startlijst_${wedstrijd}`;
+      const stored = localStorage.getItem(storageKey) || localStorage.getItem(LS_KEY);
+      
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const filteredRows = klasse ? parsed.filter(r => normalizeKlasse(r.klasse) === klasse) : parsed;
+          setRows(filteredRows);
+          setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage - database niet beschikbaar)`);
     } catch (e) {
       const errorMsg = e?.message || String(e);
       console.error("Error loading participants, trying localStorage:", e);
@@ -1527,8 +1621,8 @@ Plak je data hieronder:`);
 
         {/* Startnummer Configuratie (vereenvoudigd) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-4 flex-wrap">
               <h2 className="text-lg font-semibold text-gray-900">Starttijden</h2>
               <div className="flex items-center gap-2 text-sm">
                 <label className="text-gray-600">Dressuur:</label>
@@ -1557,25 +1651,49 @@ Plak je data hieronder:`);
                 <span className="text-gray-600 text-sm">min</span>
               </div>
             </div>
-            <button
-              className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-              onClick={() => {
-                const updatedRows = autoAssignStartnumbers(rows);
-                setRows(updatedRows);
-              }}
-              disabled={!rows.filter(r => r.type === 'entry').length}
-            >
-              🔢 Auto Nummers
-            </button>
-            
-            <button
-              className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 ml-2"
-              onClick={sortRowsByClass}
-              disabled={!rows.filter(r => r.type === 'entry').length}
-              title="Sorteer alle klassen op volgorde: WE0, WE1, WE2, WE3, WE4, Junioren, Young Riders, WE2+"
-            >
-              📋 Sorteer Klassen
-            </button>
+            <div className="flex gap-2">
+              <button
+                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                onClick={() => {
+                  const updatedRows = autoAssignStartnumbers(rows);
+                  setRows(updatedRows);
+                }}
+                disabled={!rows.filter(r => r.type === 'entry').length}
+              >
+                🔢 Auto Nummers
+              </button>
+              
+              <button
+                className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                onClick={sortRowsByClass}
+                disabled={!rows.filter(r => r.type === 'entry').length}
+                title="Sorteer alle klassen op volgorde: WE0, WE1, WE2, WE3, WE4, Junioren, Young Riders, WE2+"
+              >
+                📋 Sorteer Klassen
+              </button>
+            </div>
+          </div>
+          
+          {/* Trail ombouwtijd */}
+          <div className="border-t pt-3">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-gray-700">🔧 Trail ombouwtijd:</label>
+              <input
+                type="number"
+                min="0"
+                max="15"
+                className="border rounded px-2 py-1 w-16 text-sm"
+                value={trailOmbouwtijd}
+                onChange={(e) => setTrailOmbouwtijd(Number(e.target.value))}
+              />
+              <span className="text-sm text-gray-600">minuten extra (0-15)</span>
+              <span className="text-xs text-gray-500 ml-2">
+                {trailOmbouwtijd > 0 
+                  ? `Trail interval wordt ${tussenPauze + trailOmbouwtijd} min (${tussenPauze} + ${trailOmbouwtijd})`
+                  : 'Trail gebruikt zelfde interval als dressuur'
+                }
+              </span>
+            </div>
           </div>
         </div>
 
@@ -1832,8 +1950,8 @@ Plak je data hieronder:`);
                       // Gebruik per-klasse starttijden als deze ingesteld zijn, anders gebruik algemene tijden
                       const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                       const calculatedTimes = hasKlasseStartTimes 
-                        ? calculateStartTimesPerClass(rows, klasseStartTimes, tussenPauze, pauzeMinuten)
-                        : calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                        ? calculateStartTimesPerClass(rows, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+                        : calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
                       const times = calculatedTimes[row.id || index] || {};
 
                       return (
@@ -2116,8 +2234,8 @@ Plak je data hieronder:`);
                   onClick={() => {
                     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                     const calculatedTimes = hasKlasseStartTimes 
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten)
-                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
                     exportToExcel(filtered, meta, calculatedTimes);
                   }}
                   disabled={!filtered.length}
@@ -2223,8 +2341,8 @@ Plak je data hieronder:`);
                     const printWindow = window.open('', '_blank');
                     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                     const calculatedTimes = hasKlasseStartTimes 
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten)
-                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
                     
                     const htmlContent = `
                       <!DOCTYPE html>
