@@ -455,27 +455,44 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   
   const tableStartY = infoData.length > 0 ? doc.lastAutoTable.finalY + 16 : infoStartY + 16;
 
-  const body = rows.map((r, i) => {
+  // Groepeer per klasse met klasse headers
+  const body = [];
+  let currentKlasse = null;
+  
+  rows.forEach((r, i) => {
     if (r.type === "break") {
-      // Gebruik gewone tekst ipv emoji voor betere PDF compatibiliteit
-      return [
-        "",
-        "",
-        "",
-        "",
-        `PAUZE: ${r.label || "Pauze"} (${r.duration || 0} min)`,
-        "",
-      ];
+      // Pauze regel
+      body.push({
+        content: ["", "", "", "", `PAUZE: ${r.label || "Pauze"} (${r.duration || 0} min)`, ""],
+        styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center" }
+      });
+    } else {
+      // Voeg klasse header toe als nieuwe klasse
+      const rowKlasse = r.klasse || "Onbekend";
+      if (rowKlasse !== currentKlasse) {
+        currentKlasse = rowKlasse;
+        body.push({
+          content: [`KLASSE: ${rowKlasse}`, "", "", "", "", ""],
+          styles: { 
+            fontStyle: "bold", 
+            fillColor: BLUE, 
+            textColor: [255, 255, 255],
+            halign: "left"
+          }
+        });
+      }
+      
+      // Data regel
+      const times = calculatedTimes[r.id || i] || {};
+      body.push([
+        String(i + 1),
+        times.dressuur || "--:--",
+        times.trail || "--:--",
+        r.startnummer || "",
+        r.ruiter || "",
+        r.paard || "",
+      ]);
     }
-    const times = calculatedTimes[r.id || i] || {};
-    return [
-      String(i + 1),
-      times.dressuur || "--:--",
-      times.trail || "--:--",
-      r.startnummer || "",
-      r.ruiter || "",
-      r.paard || "",
-    ];
   });
 
   autoTable(doc, {
@@ -493,14 +510,6 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
       fontStyle: "bold"
     },
     margin: { left: 40, right: 40 },
-    didParseCell: (data) => {
-      const r = rows[data.row.index];
-      if (r?.type === "break") {
-        data.cell.styles.fontStyle = "bold";
-        data.cell.styles.fillColor = [255, 243, 224]; // Licht oranje
-        data.cell.styles.halign = "center";
-      }
-    },
   });
 
   return doc.output("blob");
