@@ -137,15 +137,20 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
   });
   return doc.lastAutoTable.finalY;
 }
-function totalsBox(doc, startY, maxPoints = null, extraLabel = null) {
+function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true) {
   const totalLabel = maxPoints ? `Totaal (${maxPoints} max. punten)` : "Totaal";
+  const bodyRows = [["Subtotaal", ""]];
+  
+  // Alleen "Puntenaftrek en reden" toevoegen als showPuntenaftrek true is
+  if (showPuntenaftrek) {
+    bodyRows.push(["Puntenaftrek en reden", ""]);
+  }
+  
+  bodyRows.push([extraLabel || totalLabel, ""]);
+  
   autoTable(doc, {
     startY, head: [],
-    body: [
-      ["Subtotaal", ""],
-      ["Puntenaftrek en reden", ""],
-      [extraLabel || totalLabel, ""],
-    ],
+    body: bodyRows,
     styles: { fontSize: 10, cellPadding: 6, lineColor: BORDER, lineWidth: 0.2 },
     theme: "grid", margin: MARGIN, columnStyles: { 0: { cellWidth: 220, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
   });
@@ -219,7 +224,9 @@ function protocolToDoc(doc, p, items) {
   }
   const maxPoints = p.max_score ? Number(p.max_score) : null;
   const isSpeed = p.onderdeel === "speed";
-  totalsBox(doc, afterAlg + 6, isSpeed ? null : maxPoints, isSpeed ? "Tijd / Strafseconden / Totaal" : null);
+  const isStijl = p.onderdeel === "stijl";
+  // Voor stijltrail: geen puntenaftrek regel, voor speed en dressuur: wel
+  totalsBox(doc, afterAlg + 6, isSpeed ? null : maxPoints, isSpeed ? "Tijd / Strafseconden / Totaal" : null, !isStijl);
   signatureLine(doc);
 }
 async function makePdfBlob(protocol, items) {
@@ -671,32 +678,42 @@ export default function ProtocolGenerator() {
     const draggedObstakel = draggedItem.current;
     const fromAvailable = draggedFromAvailable.current;
 
-    // Drop op beschikbare lijst: verwijder uit geselecteerde
+    // Drop op beschikbare lijst: verwijder uit geselecteerde (alleen als van geselecteerde lijst)
     if (isAvailableList && !fromAvailable) {
-      setItems(prev => prev.filter(item => item !== draggedObstakel));
+      // Verwijder het specifieke item (alleen de eerste match om duplicaten mogelijk te maken)
+      const indexToRemove = items.findIndex(item => item === draggedObstakel);
+      if (indexToRemove >= 0) {
+        const newItems = [...items];
+        newItems.splice(indexToRemove, 1);
+        setItems(newItems);
+      }
     }
     // Drop op geselecteerde lijst
     else if (!isAvailableList) {
-      // Van beschikbare → geselecteerde: toevoegen
+      // Van beschikbare → geselecteerde: ALTIJD toevoegen (duplicaten toegestaan)
       if (fromAvailable) {
-        if (!items.includes(draggedObstakel)) {
-          if (targetItem) {
-            // Invoegen voor target
-            const targetIndex = items.indexOf(targetItem);
-            const newItems = [...items];
-            newItems.splice(targetIndex, 0, draggedObstakel);
-            setItems(newItems);
-          } else {
-            // Achteraan toevoegen
-            setItems([...items, draggedObstakel]);
-          }
+        if (targetItem) {
+          // Invoegen voor target
+          const targetIndex = items.indexOf(targetItem);
+          const newItems = [...items];
+          newItems.splice(targetIndex, 0, draggedObstakel);
+          setItems(newItems);
+        } else {
+          // Achteraan toevoegen
+          setItems([...items, draggedObstakel]);
         }
       }
       // Van geselecteerde → geselecteerde: herordenen
       else {
         if (targetItem && draggedObstakel !== targetItem) {
-          const newItems = items.filter(item => item !== draggedObstakel);
+          // Vind de index van het gesleepte item
+          const draggedIndex = items.indexOf(draggedObstakel);
+          const newItems = [...items];
+          // Verwijder van oude positie
+          newItems.splice(draggedIndex, 1);
+          // Vind nieuwe positie (na verwijdering)
           const targetIndex = newItems.indexOf(targetItem);
+          // Invoegen op nieuwe positie
           newItems.splice(targetIndex, 0, draggedObstakel);
           setItems(newItems);
         }
@@ -753,7 +770,6 @@ export default function ProtocolGenerator() {
 
     // Voor stijl/speed: drag-and-drop interface
     if (config.onderdeel === 'stijl' || config.onderdeel === 'speed') {
-      const notSelected = availableObstakels.filter(obstakel => !items.includes(obstakel));
       
       return (
         <div style={{ marginTop: 12 }}>
@@ -773,18 +789,18 @@ export default function ProtocolGenerator() {
               onDrop={(e) => handleDrop(e, null, true)}
               >
                 <div style={{ fontWeight: 600, marginBottom: 8, color: '#6b7280', fontSize: 13 }}>
-                  📋 BESCHIKBAAR ({notSelected.length})
+                  📋 BESCHIKBAAR ({availableObstakels.length})
                 </div>
                 <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 12 }}>
-                  Sleep naar rechts om toe te voegen
+                  Sleep naar rechts om toe te voegen (meerdere keren mogelijk)
                 </div>
-                {notSelected.length === 0 ? (
+                {availableObstakels.length === 0 ? (
                   <div style={{ padding: 20, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-                    Alle obstakels zijn geselecteerd
+                    Geen obstakels beschikbaar voor deze klasse
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {notSelected.map((obstakel, i) => (
+                    {availableObstakels.map((obstakel, i) => (
                       <div
                         key={i}
                         draggable
@@ -807,7 +823,7 @@ export default function ProtocolGenerator() {
                           e.target.style.borderColor = '#e5e7eb';
                           e.target.style.background = 'white';
                         }}
-                        title="Sleep of klik om toe te voegen"
+                        title="Sleep of klik om toe te voegen (meerdere keren mogelijk)"
                       >
                         {obstakel}
                       </div>
@@ -917,7 +933,7 @@ export default function ProtocolGenerator() {
           </div>
 
           <div style={{ marginTop: 12, padding: 12, background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, fontSize: 13 }}>
-            <b>💡 Tip:</b> Sleep obstakels tussen de lijsten, of klik op een beschikbaar obstakel om het toe te voegen.
+            <b>💡 Tip:</b> Elk obstakel kan <b>meerdere keren</b> toegevoegd worden (bijvoorbeeld: Slalom 2x, Brug van beide kanten).
             Sleep binnen de geselecteerde lijst om de volgorde te wijzigen.
           </div>
         </div>
