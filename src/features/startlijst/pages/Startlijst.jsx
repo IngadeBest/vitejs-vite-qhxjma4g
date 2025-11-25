@@ -388,27 +388,82 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdNaam = '') {
+async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInfo = {}) {
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  doc.setFontSize(16);
-  doc.text(wedstrijdNaam || title, 40, 50);
   
-  if (wedstrijdNaam && wedstrijdNaam !== title) {
-    doc.setFontSize(12);
-    doc.text(title, 40, 70);
+  // Working Point huisstijl kleuren
+  const BLUE = [16, 39, 84];        // #102754
+  const LIGHT_HEAD = [240, 243, 249]; // #F0F3F9
+  const BORDER = [223, 227, 235];     // #DFE3EB
+  
+  // Header met Working Point styling
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...BLUE);
+  doc.rect(0, 0, pageWidth, 64, "F");
+  
+  // Titel in header
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text("Working Point \u2022 Startlijst", 40, 35);
+  
+  // Wedstrijd info in header
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  const wedstrijdNaam = wedstrijdInfo.naam || title;
+  doc.text(wedstrijdNaam, 40, 52);
+  
+  // Reset text kleur
+  doc.setTextColor(0, 0, 0);
+  
+  // Info box onder header
+  const infoStartY = 74;
+  const infoData = [];
+  if (wedstrijdInfo.datum) {
+    infoData.push(["Datum", wedstrijdInfo.datum]);
   }
+  if (wedstrijdInfo.klasse) {
+    infoData.push(["Klasse", wedstrijdInfo.klasse]);
+  }
+  if (wedstrijdInfo.rubriek) {
+    infoData.push(["Rubriek", wedstrijdInfo.rubriek]);
+  }
+  
+  if (infoData.length > 0) {
+    autoTable(doc, {
+      startY: infoStartY,
+      head: [],
+      body: infoData,
+      styles: { 
+        fontSize: 10, 
+        cellPadding: 5, 
+        lineColor: BORDER, 
+        lineWidth: 0.2 
+      },
+      theme: "grid",
+      margin: { left: 40, right: 40 },
+      tableWidth: 300,
+      columnStyles: { 
+        0: { cellWidth: 80, fontStyle: "bold" }, 
+        1: { cellWidth: "auto" } 
+      },
+    });
+  }
+  
+  const tableStartY = infoData.length > 0 ? doc.lastAutoTable.finalY + 16 : infoStartY + 16;
 
   const body = rows.map((r, i) => {
     if (r.type === "break") {
+      // Gebruik gewone tekst ipv emoji voor betere PDF compatibiliteit
       return [
         "",
         "",
         "",
         "",
-        `🍕 PAUZE: ${r.label || ""} (${r.duration || 0} min)`,
+        `PAUZE: ${r.label || "Pauze"} (${r.duration || 0} min)`,
         "",
       ];
     }
@@ -426,15 +481,24 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdNaa
   autoTable(doc, {
     head: [["#", "Dressuur", "Trail", "Startnr", "Ruiter", "Paard"]],
     body,
-    startY: wedstrijdNaam && wedstrijdNaam !== title ? 90 : 80,
-    styles: { fontSize: 10 },
-    headStyles: { fillColor: [230, 230, 230] },
+    startY: tableStartY,
+    styles: { 
+      fontSize: 10,
+      lineColor: BORDER,
+      lineWidth: 0.2
+    },
+    headStyles: { 
+      fillColor: LIGHT_HEAD,
+      textColor: 0,
+      fontStyle: "bold"
+    },
     margin: { left: 40, right: 40 },
     didParseCell: (data) => {
       const r = rows[data.row.index];
       if (r?.type === "break") {
         data.cell.styles.fontStyle = "bold";
-        data.cell.styles.fillColor = [255, 243, 224];
+        data.cell.styles.fillColor = [255, 243, 224]; // Licht oranje
+        data.cell.styles.halign = "center";
       }
     },
   });
@@ -454,14 +518,14 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
     
     rows.forEach((r, idx) => {
       if (r.type === 'break') {
-        // Pauze toevoegen
+        // Pauze toevoegen - zonder emoji voor betere compatibiliteit
         grouped.push({
           Volgorde: '',
           Klasse: '',
           Dressuur: '',
           Trail: '',
           Startnummer: '',
-          Ruiter: `🍕 PAUZE: ${r.label || 'Pauze'}`,
+          Ruiter: `PAUZE: ${r.label || 'Pauze'}`,
           Paard: `${r.duration || 0} minuten`,
         });
       } else {
@@ -473,7 +537,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
           currentKlasse = rowKlasse;
           grouped.push({
             Volgorde: '',
-            Klasse: `📋 ${rowKlasse}`,
+            Klasse: `KLASSE: ${rowKlasse}`,
             Dressuur: '',
             Trail: '',
             Startnummer: '',
@@ -502,7 +566,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
     const range = XLSX.utils.decode_range(ws['!ref']);
     for (let R = range.s.r; R <= range.e.r; ++R) {
       const cellAddress = XLSX.utils.encode_cell({ r: R, c: 1 }); // Klasse kolom
-      if (ws[cellAddress] && ws[cellAddress].v && ws[cellAddress].v.startsWith('📋')) {
+      if (ws[cellAddress] && ws[cellAddress].v && ws[cellAddress].v.startsWith('KLASSE:')) {
         ws[cellAddress].s = { font: { bold: true } };
       }
     }
@@ -510,17 +574,20 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Startlijst");
     
-    const wedstrijdNaam = meta.wedstrijdNaam || meta.wedstrijd || "Wedstrijd";
-    const title = `Startlijst_${wedstrijdNaam}_${
-      meta.klasse || ""
-    }_${meta.rubriek || ""}`.replace(/\s+/g, "_");
+    // Verbeterde bestandsnaam met wedstrijdnaam en datum
+    const wedstrijdNaam = meta.wedstrijdNaam || 'Wedstrijd';
+    const datum = meta.datum || new Date().toISOString().split('T')[0];
+    const klasseDeel = meta.klasse ? `_${meta.klasse}` : '';
+    const rubriekDeel = meta.rubriek ? `_${meta.rubriek}` : '';
+    const safeName = (str) => String(str).replace(/[^a-zA-Z0-9-]/g, '_').replace(/_+/g, '_');
+    const filename = `Startlijst_${safeName(wedstrijdNaam)}_${datum}${klasseDeel}${rubriekDeel}.xlsx`;
     
     const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     downloadBlob(
       new Blob([wbout], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
-      `${title}.xlsx`
+      filename
     );
   } catch (e) {
     console.error('Excel export error:', e);
@@ -547,7 +614,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
           '',
           '',
           '',
-          `🍕 PAUZE: ${r.label || 'Pauze'}`,
+          `PAUZE: ${r.label || 'Pauze'}`,
           `${r.duration || 0} minuten`
         ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
       } else {
@@ -558,7 +625,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
           currentKlasse = rowKlasse;
           lines.push([
             '',
-            `📋 ${rowKlasse}`,
+            `KLASSE: ${rowKlasse}`,
             '',
             '',
             '',
@@ -1356,7 +1423,18 @@ Plak je data hieronder:`);
   };
 
   const wedstrijdNaam = wedstrijden?.find(w => w.id === wedstrijd)?.naam || '';
-  const meta = { wedstrijd, wedstrijdNaam, klasse, rubriek, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten };
+  const wedstrijdDatum = wedstrijden?.find(w => w.id === wedstrijd)?.datum || '';
+  const meta = { 
+    wedstrijd, 
+    wedstrijdNaam, 
+    datum: wedstrijdDatum,
+    klasse, 
+    rubriek, 
+    dressuurStarttijd, 
+    trailStarttijd, 
+    tussenPauze, 
+    pauzeMinuten 
+  };
 
   const makeBatchPDF = async () => {
     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
@@ -1364,13 +1442,28 @@ Plak je data hieronder:`);
       ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
       : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
     
+    const wedstrijdInfo = {
+      naam: wedstrijdNaam,
+      datum: wedstrijdDatum,
+      klasse: klasse,
+      rubriek: rubriek
+    };
+    
     const blob = await generateSimplePDF(
       `Startlijst ${klasse || ""} ${rubriek || ""}`.trim(),
       filtered,
       calculatedTimes,
-      wedstrijdNaam
+      wedstrijdInfo
     );
-    downloadBlob(blob, "startlijst.pdf");
+    
+    // Verbeterde bestandsnaam
+    const safeName = (str) => String(str).replace(/[^a-zA-Z0-9-]/g, '_').replace(/_+/g, '_');
+    const datum = wedstrijdDatum || new Date().toISOString().split('T')[0];
+    const klasseDeel = klasse ? `_${klasse}` : '';
+    const rubriekDeel = rubriek ? `_${rubriek}` : '';
+    const filename = `Startlijst_${safeName(wedstrijdNaam)}_${datum}${klasseDeel}${rubriekDeel}.pdf`;
+    
+    downloadBlob(blob, filename);
   };
 
   // Load deelnemers from database
