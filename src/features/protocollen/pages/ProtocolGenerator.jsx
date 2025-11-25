@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 // jsPDF / autoTable are heavy and can execute code on module init in some builds.
 // Load them on-demand in the functions that need them to avoid initialization-order
 // errors in the app bundle (see Startlijst dynamic import approach).
@@ -6,6 +6,7 @@ let autoTable = null;
 import { supabase } from "@/lib/supabaseClient";
 import { padStartnummer, lookupOffset } from '@/lib/startnummer';
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
+import obstakelsData from "@/data/obstakels.json";
 
 /* Klassen & Onderdelen */
 const KLASSEN = [
@@ -277,6 +278,10 @@ export default function ProtocolGenerator() {
   const [selectedRubriek, setSelectedRubriek] = useState('senior');
   const [pdfUrl, setPdfUrl] = useState(null);
   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
+
+  // Drag & drop state voor obstakels (stijl/speed)
+  const draggedItem = useRef(null);
+  const draggedFromAvailable = useRef(false);
 
   // Proefconfig ophalen
   useEffect(() => {
@@ -647,6 +652,293 @@ export default function ProtocolGenerator() {
     </>
   );
 
+  // Drag & drop handlers voor obstakels
+  const handleDragStart = (e, item, fromAvailable) => {
+    draggedItem.current = item;
+    draggedFromAvailable.current = fromAvailable;
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetItem, isAvailableList) => {
+    e.preventDefault();
+    if (!draggedItem.current) return;
+
+    const draggedObstakel = draggedItem.current;
+    const fromAvailable = draggedFromAvailable.current;
+
+    // Drop op beschikbare lijst: verwijder uit geselecteerde
+    if (isAvailableList && !fromAvailable) {
+      setItems(prev => prev.filter(item => item !== draggedObstakel));
+    }
+    // Drop op geselecteerde lijst
+    else if (!isAvailableList) {
+      // Van beschikbare → geselecteerde: toevoegen
+      if (fromAvailable) {
+        if (!items.includes(draggedObstakel)) {
+          if (targetItem) {
+            // Invoegen voor target
+            const targetIndex = items.indexOf(targetItem);
+            const newItems = [...items];
+            newItems.splice(targetIndex, 0, draggedObstakel);
+            setItems(newItems);
+          } else {
+            // Achteraan toevoegen
+            setItems([...items, draggedObstakel]);
+          }
+        }
+      }
+      // Van geselecteerde → geselecteerde: herordenen
+      else {
+        if (targetItem && draggedObstakel !== targetItem) {
+          const newItems = items.filter(item => item !== draggedObstakel);
+          const targetIndex = newItems.indexOf(targetItem);
+          newItems.splice(targetIndex, 0, draggedObstakel);
+          setItems(newItems);
+        }
+      }
+    }
+
+    draggedItem.current = null;
+    draggedFromAvailable.current = false;
+  };
+
+  // Beschikbare obstakels voor huidige klasse
+  const availableObstakels = useMemo(() => {
+    if (!config.klasse || config.onderdeel === 'dressuur') return [];
+    
+    const klasseMap = {
+      'we0': 'WE0',
+      'we1': 'WE1',
+      'we2': 'WE2',
+      'we2p': 'WE2+',
+      'we2+': 'WE2+',
+      'we2plus': 'WE2+',
+      'we3': 'WE3',
+      'we4': 'WE4',
+      'yr': 'YR',
+      'junior': 'JUNIOR',
+      'junioren': 'JUNIOR'
+    };
+    
+    const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
+    return obstakelsData[normalizedKlasse] || [];
+  }, [config.klasse, config.onderdeel]);
+
+  // Render items editor: dressuur = textarea, stijl/speed = drag-and-drop
+  const renderItemsEditor = () => {
+    // Voor dressuur: simpele textarea (items zijn arrays)
+    if (config.onderdeel === 'dressuur') {
+      return (
+        <div style={{ marginTop: 12 }}>
+          <b>Dressuur onderdelen ({items.length})</b>
+          <div style={{ marginTop: 6, padding: 12, background: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+            <p style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>
+              Dressuurprotocol wordt automatisch geladen uit de template voor <b>{config.klasse?.toUpperCase()}</b>.
+              {items.length > 0 && ` (${items.length} onderdelen geladen)`}
+            </p>
+            {items.length === 0 && (
+              <p style={{ fontSize: 13, color: '#999', fontStyle: 'italic' }}>
+                Geen template beschikbaar voor deze klasse. Selecteer een andere klasse of ga terug naar stap 1.
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Voor stijl/speed: drag-and-drop interface
+    if (config.onderdeel === 'stijl' || config.onderdeel === 'speed') {
+      const notSelected = availableObstakels.filter(obstakel => !items.includes(obstakel));
+      
+      return (
+        <div style={{ marginTop: 12 }}>
+          <b>Obstakels voor {config.onderdeel === 'stijl' ? 'Stijltrail' : 'Speedtrail'}</b>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 12 }}>
+            {/* Beschikbare obstakels */}
+            <div>
+              <div style={{ 
+                background: '#f9fafb', 
+                border: '2px dashed #d1d5db', 
+                borderRadius: 8, 
+                padding: 12,
+                minHeight: 200 
+              }}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, null, true)}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 8, color: '#6b7280', fontSize: 13 }}>
+                  📋 BESCHIKBAAR ({notSelected.length})
+                </div>
+                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 12 }}>
+                  Sleep naar rechts om toe te voegen
+                </div>
+                {notSelected.length === 0 ? (
+                  <div style={{ padding: 20, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                    Alle obstakels zijn geselecteerd
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {notSelected.map((obstakel, i) => (
+                      <div
+                        key={i}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, obstakel, true)}
+                        onClick={() => setItems([...items, obstakel])}
+                        style={{
+                          padding: '8px 12px',
+                          background: 'white',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: 6,
+                          cursor: 'grab',
+                          fontSize: 13,
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.borderColor = '#3b82f6';
+                          e.target.style.background = '#eff6ff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.borderColor = '#e5e7eb';
+                          e.target.style.background = 'white';
+                        }}
+                        title="Sleep of klik om toe te voegen"
+                      >
+                        {obstakel}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Geselecteerde obstakels */}
+            <div>
+              <div style={{ 
+                background: '#eff6ff', 
+                border: '2px solid #3b82f6', 
+                borderRadius: 8, 
+                padding: 12,
+                minHeight: 200 
+              }}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, null, false)}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 8, color: '#1e40af', fontSize: 13 }}>
+                  ✅ GESELECTEERD ({items.length})
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
+                  Sleep om volgorde te wijzigen, of naar links om te verwijderen
+                </div>
+                {items.length === 0 ? (
+                  <div style={{ padding: 20, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                    Sleep obstakels hierheen
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {items.map((obstakel, i) => (
+                      <div
+                        key={i}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, obstakel, false)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, obstakel, false)}
+                        style={{
+                          padding: '8px 12px',
+                          background: 'white',
+                          border: '1px solid #93c5fd',
+                          borderRadius: 6,
+                          cursor: 'grab',
+                          fontSize: 13,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#1e40af';
+                          e.currentTarget.style.background = '#dbeafe';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#93c5fd';
+                          e.currentTarget.style.background = 'white';
+                        }}
+                      >
+                        <span style={{ color: '#9ca3af', fontWeight: 600, minWidth: 24 }}>
+                          {i + 1}.
+                        </span>
+                        <span style={{ flex: 1 }}>{obstakel}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setItems(items.filter((_, idx) => idx !== i));
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            fontSize: 16,
+                            lineHeight: 1,
+                          }}
+                          title="Verwijder dit obstakel"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Quick actions */}
+              <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button 
+                  onClick={() => setItems(availableObstakels)}
+                  style={{ fontSize: 12, padding: '6px 12px' }}
+                >
+                  Selecteer alles
+                </button>
+                <button 
+                  onClick={() => setItems([])}
+                  style={{ fontSize: 12, padding: '6px 12px' }}
+                >
+                  Wis selectie
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12, padding: 12, background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, fontSize: 13 }}>
+            <b>💡 Tip:</b> Sleep obstakels tussen de lijsten, of klik op een beschikbaar obstakel om het toe te voegen.
+            Sleep binnen de geselecteerde lijst om de volgorde te wijzigen.
+          </div>
+        </div>
+      );
+    }
+
+    // Fallback: simpele textarea
+    return (
+      <div style={{ marginTop: 12 }}>
+        <b>Items/onderdelen ({items.length})</b>
+        <textarea
+          placeholder={"Zet elk onderdeel op een nieuwe regel"}
+          value={Array.isArray(items) ? items.join("\n") : items}
+          onChange={(e) => setItems(e.target.value.split("\n"))}
+          rows={10}
+          style={{ width: "100%", marginTop: 6 }}
+        />
+      </div>
+    );
+  };
+
   const viewStap2 = (
     <>
       <Header />
@@ -655,16 +947,8 @@ export default function ProtocolGenerator() {
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 420px",gap:24,alignItems:"start"}}>
           <div>
-            <div style={{ marginTop: 12 }}>
-              <b>Items/onderdelen ({items.length})</b>
-              <textarea
-                placeholder={"Zet elk onderdeel op een nieuwe regel. Voor stijl/speed = obstakels. Voor dressuur = onderdelen."}
-                value={items.join("\n")}
-                onChange={(e) => setItems(e.target.value.split("\n"))}
-                rows={10}
-                style={{ width: "100%", marginTop: 6 }}
-              />
-            </div>
+            {renderItemsEditor()}
+            
 
             <div style={{ marginTop: 16 }}>
               <b>Startlijst</b>
