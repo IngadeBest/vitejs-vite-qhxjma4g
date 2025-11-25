@@ -56,6 +56,68 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauze
   return times;
 };
 
+// Per-klasse starttijd berekening
+const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeMinuten) => {
+  const times = {};
+  const klasseTimes = {}; // Track per klasse
+  
+  const addMinutes = (date, minutes) => {
+    return new Date(date.getTime() + minutes * 60000);
+  };
+  
+  const formatTime = (date) => {
+    return date.toTimeString().substring(0, 5);
+  };
+  
+  rows.forEach((row, index) => {
+    const id = row.id || index;
+    
+    if (row.type === 'break') {
+      // Voor pauzes: tel tijd op voor alle klassen
+      Object.keys(klasseTimes).forEach(klasse => {
+        if (klasseTimes[klasse].dressuur) {
+          klasseTimes[klasse].dressuur = addMinutes(klasseTimes[klasse].dressuur, pauzeMinuten);
+        }
+        if (klasseTimes[klasse].trail) {
+          klasseTimes[klasse].trail = addMinutes(klasseTimes[klasse].trail, pauzeMinuten);
+        }
+      });
+      times[id] = {
+        dressuur: '',
+        trail: '',
+        type: 'break'
+      };
+    } else {
+      const klasse = normalizeKlasse(row.klasse) || 'Geen klasse';
+      
+      // Initialiseer klasse tijden als deze nog niet bestaan
+      if (!klasseTimes[klasse]) {
+        const klasseConfig = klasseStartTimes[klasse] || {};
+        klasseTimes[klasse] = {
+          dressuur: klasseConfig.dressuur ? new Date(`1970-01-01T${klasseConfig.dressuur}:00`) : null,
+          trail: klasseConfig.trail ? new Date(`1970-01-01T${klasseConfig.trail}:00`) : null
+        };
+      }
+      
+      times[id] = {
+        dressuur: klasseTimes[klasse].dressuur ? formatTime(klasseTimes[klasse].dressuur) : '',
+        trail: klasseTimes[klasse].trail ? formatTime(klasseTimes[klasse].trail) : '',
+        type: 'entry'
+      };
+      
+      // Voeg interval toe voor volgende deelnemer in deze klasse
+      if (klasseTimes[klasse].dressuur) {
+        klasseTimes[klasse].dressuur = addMinutes(klasseTimes[klasse].dressuur, tussenPauze);
+      }
+      if (klasseTimes[klasse].trail) {
+        klasseTimes[klasse].trail = addMinutes(klasseTimes[klasse].trail, tussenPauze);
+      }
+    }
+  });
+  
+  return times;
+};
+
 // Function to add a new empty row
 const addEmptyRow = (setRows, klasse) => {
   setRows((prev) => [
@@ -309,13 +371,18 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-async function generateSimplePDF(title, rows, classStartTimes = {}) {
+async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdNaam = '') {
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   doc.setFontSize(16);
-  doc.text(title, 40, 50);
+  doc.text(wedstrijdNaam || title, 40, 50);
+  
+  if (wedstrijdNaam && wedstrijdNaam !== title) {
+    doc.setFontSize(12);
+    doc.text(title, 40, 70);
+  }
 
   const body = rows.map((r, i) => {
     if (r.type === "break") {
@@ -323,16 +390,16 @@ async function generateSimplePDF(title, rows, classStartTimes = {}) {
         "",
         "",
         "",
-        `— PAUZE: ${r.label || ""} (${r.duration || 0} min) —`,
+        "",
+        `🍕 PAUZE: ${r.label || ""} (${r.duration || 0} min)`,
         "",
       ];
     }
-    const classTime =
-      r.klasse && classStartTimes[r.klasse] ? classStartTimes[r.klasse] : "";
-    const effectiveTime = r.starttijd || classTime || "";
+    const times = calculatedTimes[r.id || i] || {};
     return [
       String(i + 1),
-      effectiveTime,
+      times.dressuur || "--:--",
+      times.trail || "--:--",
       r.startnummer || "",
       r.ruiter || "",
       r.paard || "",
@@ -340,9 +407,9 @@ async function generateSimplePDF(title, rows, classStartTimes = {}) {
   });
 
   autoTable(doc, {
-    head: [["#", "Tijd", "Startnr", "Ruiter", "Paard / Pauze"]],
+    head: [["#", "Dressuur", "Trail", "Startnr", "Ruiter", "Paard"]],
     body,
-    startY: 80,
+    startY: wedstrijdNaam && wedstrijdNaam !== title ? 90 : 80,
     styles: { fontSize: 10 },
     headStyles: { fillColor: [230, 230, 230] },
     margin: { left: 40, right: 40 },
@@ -350,6 +417,7 @@ async function generateSimplePDF(title, rows, classStartTimes = {}) {
       const r = rows[data.row.index];
       if (r?.type === "break") {
         data.cell.styles.fontStyle = "bold";
+        data.cell.styles.fillColor = [255, 243, 224];
       }
     },
   });
@@ -357,33 +425,77 @@ async function generateSimplePDF(title, rows, classStartTimes = {}) {
   return doc.output("blob");
 }
 
-// Excel export met fallback
-async function exportToExcel(rows, meta = {}, classStartTimes = {}) {
+// Excel export met fallback - VERBETERDE VERSIE met klasse headers en zonder Type kolom
+async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
   try {
     const XLSX = await import("xlsx");
-    const data = rows.map((r, idx) => {
-      const calculatedTimes = calculateStartTimes(rows, meta.dressuurStarttijd || "09:00", meta.trailStarttijd || "13:00", meta.tussenPauze || 5, meta.pauzeMinuten || 15);
-      const times = calculatedTimes[r.id || idx] || {};
-      
-      return {
-        Volgorde: idx + 1,
-        Type: r.type === "break" ? "PAUZE" : "RIT",
-        Dressuur: r.type === "break" ? "" : times.dressuur || "",
-        Trail: r.type === "break" ? "" : times.trail || "",
-        Startnummer: r.type === "break" ? "" : r.startnummer || "",
-        Ruiter: r.type === "break" ? "" : r.ruiter || "",
-        Paard: r.type === "break" ? "" : r.paard || "",
-        Klasse: r.type === "break" ? "" : r.klasse || "",
-        PauzeLabel: r.type === "break" ? r.label || "" : "",
-        PauzeMinuten: r.type === "break" ? r.duration || 0 : "",
-      };
+    
+    // Groepeer rows per klasse
+    const grouped = [];
+    let currentKlasse = null;
+    
+    rows.forEach((r, idx) => {
+      if (r.type === 'break') {
+        // Pauze toevoegen
+        grouped.push({
+          Volgorde: '',
+          Klasse: '',
+          Dressuur: '',
+          Trail: '',
+          Startnummer: '',
+          Ruiter: `🍕 PAUZE: ${r.label || 'Pauze'}`,
+          Paard: `${r.duration || 0} minuten`,
+        });
+      } else {
+        const rowKlasse = normalizeKlasse(r.klasse) || 'Geen klasse';
+        
+        // Voeg klasse header toe als nieuwe klasse
+        if (rowKlasse !== currentKlasse) {
+          currentKlasse = rowKlasse;
+          grouped.push({
+            Volgorde: '',
+            Klasse: `📋 ${rowKlasse}`,
+            Dressuur: '',
+            Trail: '',
+            Startnummer: '',
+            Ruiter: '',
+            Paard: '',
+          });
+        }
+        
+        // Voeg deelnemer toe
+        const times = calculatedTimes[r.id || idx] || {};
+        grouped.push({
+          Volgorde: idx + 1,
+          Klasse: rowKlasse,
+          Dressuur: times.dressuur || "",
+          Trail: times.trail || "",
+          Startnummer: r.startnummer || "",
+          Ruiter: r.ruiter || "",
+          Paard: r.paard || "",
+        });
+      }
     });
-    const ws = XLSX.utils.json_to_sheet(data);
+    
+    const ws = XLSX.utils.json_to_sheet(grouped);
+    
+    // Styling: maak klasse headers bold (dit werkt in sommige Excel versies)
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      const cellAddress = XLSX.utils.encode_cell({ r: R, c: 1 }); // Klasse kolom
+      if (ws[cellAddress] && ws[cellAddress].v && ws[cellAddress].v.startsWith('📋')) {
+        ws[cellAddress].s = { font: { bold: true } };
+      }
+    }
+    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Startlijst");
-    const title = `Startlijst_${meta.wedstrijd || ""}_${
+    
+    const wedstrijdNaam = meta.wedstrijdNaam || meta.wedstrijd || "Wedstrijd";
+    const title = `Startlijst_${wedstrijdNaam}_${
       meta.klasse || ""
     }_${meta.rubriek || ""}`.replace(/\s+/g, "_");
+    
     const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     downloadBlob(
       new Blob([wbout], {
@@ -392,39 +504,61 @@ async function exportToExcel(rows, meta = {}, classStartTimes = {}) {
       `${title}.xlsx`
     );
   } catch (e) {
+    console.error('Excel export error:', e);
     // Fallback CSV
     const header = [
       "Volgorde",
-      "Type",
+      "Klasse",
       "Dressuur",
       "Trail", 
       "Startnummer",
       "Ruiter",
       "Paard",
-      "Klasse",
-      "PauzeLabel",
-      "PauzeMinuten",
     ];
     const lines = [header.join(",")];
+    
+    let currentKlasse = null;
     rows.forEach((r, idx) => {
-      const calculatedTimes = calculateStartTimes(rows, meta.dressuurStarttijd || "09:00", meta.trailStarttijd || "13:00", meta.tussenPauze || 5, meta.pauzeMinuten || 15);
-      const times = calculatedTimes[r.id || idx] || {};
-      
-      const line = [
-        idx + 1,
-        r.type === "break" ? "PAUZE" : "RIT",
-        r.type === "break" ? "" : times.dressuur || "",
-        r.type === "break" ? "" : times.trail || "",
-        r.type === "break" ? "" : r.startnummer || "",
-        r.type === "break" ? "" : r.ruiter || "",
-        r.type === "break" ? "" : r.paard || "",
-        r.type === "break" ? "" : r.klasse || "",
-        r.type === "break" ? r.label || "" : "",
-        r.type === "break" ? r.duration || 0 : "",
-      ]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(",");
-      lines.push(line);
+      if (r.type === 'break') {
+        lines.push([
+          '',
+          '',
+          '',
+          '',
+          '',
+          `🍕 PAUZE: ${r.label || 'Pauze'}`,
+          `${r.duration || 0} minuten`
+        ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+      } else {
+        const rowKlasse = normalizeKlasse(r.klasse) || 'Geen klasse';
+        
+        if (rowKlasse !== currentKlasse) {
+          currentKlasse = rowKlasse;
+          lines.push([
+            '',
+            `📋 ${rowKlasse}`,
+            '',
+            '',
+            '',
+            '',
+            ''
+          ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+        }
+        
+        const times = calculatedTimes[r.id || idx] || {};
+        const line = [
+          idx + 1,
+          rowKlasse,
+          times.dressuur || "",
+          times.trail || "",
+          r.startnummer || "",
+          r.ruiter || "",
+          r.paard || "",
+        ]
+          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .join(",");
+        lines.push(line);
+      }
     });
     const csv = lines.join("\n");
     downloadBlob(
@@ -730,9 +864,12 @@ export default function Startlijst() {
   // Starttijd systeem state
   const [dressuurStarttijd, setDressuurStarttijd] = useState("09:00");
   const [trailStarttijd, setTrailStarttijd] = useState("13:00");
-  const [tussenPauze, setTussenPauze] = useState(5); // minuten tussen deelnemers
+  const [tussenPauze, setTussenPauze] = useState(6); // minuten tussen deelnemers
   const [pauzeMinuten, setPauzeMinuten] = useState(15); // minuten voor een pauze
   const [saving, setSaving] = useState(false);
+  
+  // Per-klasse starttijden state
+  const [klasseStartTimes, setKlasseStartTimes] = useState({});
   
   // Sorteer functie voor klassen 
   const sortRowsByClass = useCallback(() => {
@@ -1143,13 +1280,20 @@ Plak je data hieronder:`);
     }
   };
 
-  const meta = { wedstrijd, klasse, rubriek };
+  const wedstrijdNaam = wedstrijden?.find(w => w.id === wedstrijd)?.naam || '';
+  const meta = { wedstrijd, wedstrijdNaam, klasse, rubriek, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten };
 
   const makeBatchPDF = async () => {
+    const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
+    const calculatedTimes = hasKlasseStartTimes 
+      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten)
+      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+    
     const blob = await generateSimplePDF(
-      `Startlijst ${wedstrijd || ""} ${klasse || ""} ${rubriek || ""}`.trim(),
+      `Startlijst ${klasse || ""} ${rubriek || ""}`.trim(),
       filtered,
-      classStartTimes
+      calculatedTimes,
+      wedstrijdNaam
     );
     downloadBlob(blob, "startlijst.pdf");
   };
@@ -1393,6 +1537,61 @@ Plak je data hieronder:`);
           </div>
         </div>
 
+        {/* Per-klasse starttijden configuratie */}
+        {classOrder.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+            <h3 className="text-md font-semibold text-gray-900 mb-3">Per klasse starttijden (optioneel)</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Vul hier specifieke starttijden in per klasse. Als je dit leeg laat, wordt automatisch doorgenummerd vanaf de algemene starttijden hierboven.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {classOrder.map((klasse) => (
+                <div key={klasse} className="border rounded p-3 bg-gray-50">
+                  <div className="font-medium text-sm mb-2 text-gray-700">{klasse}</div>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex flex-col flex-1">
+                      <label className="text-xs text-gray-600">Dressuur:</label>
+                      <input
+                        type="time"
+                        className="border rounded px-2 py-1 text-xs"
+                        value={klasseStartTimes[klasse]?.dressuur || ''}
+                        onChange={(e) => {
+                          setKlasseStartTimes(prev => ({
+                            ...prev,
+                            [klasse]: {
+                              ...prev[klasse],
+                              dressuur: e.target.value
+                            }
+                          }));
+                        }}
+                        placeholder="Auto"
+                      />
+                    </div>
+                    <div className="flex flex-col flex-1">
+                      <label className="text-xs text-gray-600">Trail:</label>
+                      <input
+                        type="time"
+                        className="border rounded px-2 py-1 text-xs"
+                        value={klasseStartTimes[klasse]?.trail || ''}
+                        onChange={(e) => {
+                          setKlasseStartTimes(prev => ({
+                            ...prev,
+                            [klasse]: {
+                              ...prev[klasse],
+                              trail: e.target.value
+                            }
+                          }));
+                        }}
+                        placeholder="Auto"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Actieknoppen sectie (vereenvoudigd) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex items-center justify-between">
@@ -1581,7 +1780,11 @@ Plak je data hieronder:`);
                         klasseItemNumber++;
                       }
 
-                      const calculatedTimes = calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                      // Gebruik per-klasse starttijden als deze ingesteld zijn, anders gebruik algemene tijden
+                      const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
+                      const calculatedTimes = hasKlasseStartTimes 
+                        ? calculateStartTimesPerClass(rows, klasseStartTimes, tussenPauze, pauzeMinuten)
+                        : calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
                       const times = calculatedTimes[row.id || index] || {};
 
                       return (
@@ -1861,7 +2064,13 @@ Plak je data hieronder:`);
 
                 <button
                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                  onClick={() => exportToExcel(filtered, {...meta, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten}, classStartTimes)}
+                  onClick={() => {
+                    const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
+                    const calculatedTimes = hasKlasseStartTimes 
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten)
+                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                    exportToExcel(filtered, meta, calculatedTimes);
+                  }}
                   disabled={!filtered.length}
                 >
                   📊 Excel Export
@@ -1963,7 +2172,10 @@ Plak je data hieronder:`);
                   onClick={() => {
                     // Open een nieuw venster met de volledige startlijst
                     const printWindow = window.open('', '_blank');
-                    const calculatedTimes = calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
+                    const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
+                    const calculatedTimes = hasKlasseStartTimes 
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten)
+                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten);
                     
                     const htmlContent = `
                       <!DOCTYPE html>
@@ -1976,14 +2188,14 @@ Plak je data hieronder:`);
                           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                           th { background-color: #f2f2f2; font-weight: bold; }
                           .class-header { background-color: #e3f2fd; font-weight: bold; }
-                          .break-row { background-color: #fff3e0; }
+                          .break-row { background-color: #fff3e0; font-weight: bold; }
                           .dressuur { color: #1976d2; }
                           .trail { color: #388e3c; }
                           @media print { body { margin: 0; } }
                         </style>
                       </head>
                       <body>
-                        <h1>Startlijst ${wedstrijden?.find(w => w.id === wedstrijd)?.naam || 'Wedstrijd'}</h1>
+                        <h1>Startlijst ${wedstrijdNaam || 'Wedstrijd'}</h1>
                         <p>Gegenereerd op: ${new Date().toLocaleString()}</p>
                         <p>Dressuur start: ${dressuurStarttijd} | Trail start: ${trailStarttijd} | Interval: ${tussenPauze} min</p>
                         
@@ -1996,20 +2208,15 @@ Plak je data hieronder:`);
                             <th>Startnr</th>
                             <th>Ruiter</th>
                             <th>Paard</th>
-                            <th>Type</th>
                           </tr>
                           ${filtered.map((row, index) => {
                             const times = calculatedTimes[row.id || index] || {};
                             if (row.type === 'break') {
                               return `<tr class="break-row">
                                 <td>${index + 1}</td>
-                                <td>PAUZE</td>
-                                <td>—</td>
-                                <td>—</td>
-                                <td>—</td>
+                                <td colspan="4">🍕 PAUZE</td>
                                 <td>${row.label || 'Pauze'}</td>
                                 <td>${row.duration || 0} minuten</td>
-                                <td>Pauze</td>
                               </tr>`;
                             }
                             return `<tr>
@@ -2020,7 +2227,6 @@ Plak je data hieronder:`);
                               <td>${row.startnummer || ''}</td>
                               <td>${row.ruiter || ''}</td>
                               <td>${row.paard || ''}</td>
-                              <td>Deelnemer</td>
                             </tr>`;
                           }).join('')}
                         </table>
