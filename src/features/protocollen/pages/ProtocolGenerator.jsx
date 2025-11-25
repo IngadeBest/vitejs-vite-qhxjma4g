@@ -256,6 +256,14 @@ export default function ProtocolGenerator() {
     }
   }, [selectedWedstrijd]);
 
+  // Reset onderdeel als incompatibele combinatie geselecteerd
+  useEffect(() => {
+    // Als WE0/WE1 en speedtrail: reset onderdeel
+    if ((config.klasse === 'we0' || config.klasse === 'we1') && config.onderdeel === 'speed') {
+      setConfig(prev => ({ ...prev, onderdeel: '' }));
+    }
+  }, [config.klasse, config.onderdeel]);
+
   // DB-config + items
   const [dbMsg, setDbMsg] = useState("");
   const [dbMax, setDbMax] = useState(null);
@@ -302,7 +310,8 @@ export default function ProtocolGenerator() {
           
           if (template && template.sections && template.sections[0]) {
             const section = template.sections[0];
-            const itemsList = section.rows.map(row => row[0]); // Eerste kolom is de omschrijving
+            // Hele row array bewaren: [Letter, Omschrijving, Beoordeling]
+            const itemsList = section.rows;
             setItems(itemsList);
             setDbMsg(`✅ Dressuurproef geladen: ${section.title} (${itemsList.length} onderdelen)`);
             console.log('Loaded dressuur items:', itemsList.length);
@@ -603,13 +612,21 @@ export default function ProtocolGenerator() {
           <label>Klasse*</label>
           <select value={config.klasse} onChange={(e)=>setConfig(c=>({...c, klasse:e.target.value}))}>
             <option value="">— kies klasse —</option>
-            {KLASSEN.map(k=><option key={k.code} value={k.code}>{k.naam}</option>)}
+            {KLASSEN.filter(k => {
+              // Als speedtrail geselecteerd: WE0 en WE1 niet mogelijk
+              if (config.onderdeel === 'speed' && (k.code === 'we0' || k.code === 'we1')) return false;
+              return true;
+            }).map(k=><option key={k.code} value={k.code}>{k.naam}</option>)}
           </select>
 
           <label>Onderdeel*</label>
           <select value={config.onderdeel} onChange={(e)=>setConfig(c=>({...c, onderdeel:e.target.value}))}>
             <option value="">— kies onderdeel —</option>
-            {ONDERDELEN.map(o=> <option key={o.code} value={o.code}>{o.label}</option>)}
+            {ONDERDELEN.filter(o => {
+              // Als WE0 of WE1 geselecteerd: speedtrail niet mogelijk
+              if ((config.klasse === 'we0' || config.klasse === 'we1') && o.code === 'speed') return false;
+              return true;
+            }).map(o=> <option key={o.code} value={o.code}>{o.label}</option>)}
           </select>
 
           <label>Datum (optioneel)</label>
@@ -617,12 +634,6 @@ export default function ProtocolGenerator() {
 
           <label>Jury (optioneel)</label>
           <input value={config.jury} onChange={(e)=>setConfig(c=>({...c, jury:e.target.value}))}/>
-
-          <label>Rubriek</label>
-          <select value={selectedRubriek} onChange={(e)=>setSelectedRubriek(e.target.value)}>
-            <option value="senior">Senior</option>
-            <option value="jeugd">Jeugd</option>
-          </select>
         </div>
 
         <div style={{ marginTop: 6, fontSize: 12, color: "#555" }}>{dbMsg}</div>
