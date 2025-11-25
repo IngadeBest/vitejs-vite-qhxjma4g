@@ -230,6 +230,16 @@ export default function ProtocolGenerator() {
     [wedstrijden, config.wedstrijd_id]
   );
 
+  // Automatisch datum invullen bij wedstrijd selectie
+  useEffect(() => {
+    if (selectedWedstrijd?.datum) {
+      setConfig(prev => ({
+        ...prev,
+        datum: selectedWedstrijd.datum
+      }));
+    }
+  }, [selectedWedstrijd]);
+
   // DB-config + items
   const [dbMsg, setDbMsg] = useState("");
   const [dbMax, setDbMax] = useState(null);
