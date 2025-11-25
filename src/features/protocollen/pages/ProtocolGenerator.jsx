@@ -984,6 +984,24 @@ export default function ProtocolGenerator() {
                   setTimeout(()=>URL.revokeObjectURL(url), 1000);
                 }}>Download CSV template</button>
                 <button onClick={()=>{
+                  const allDeelnemers = (dbRows && dbRows.length) ? dbRows : csvRows;
+                  if (allDeelnemers.length === 0) {
+                    alert("Geen deelnemers om te exporteren.");
+                    return;
+                  }
+                  const headers = "ruiter,paard,startnummer";
+                  const rows = allDeelnemers.map(d => 
+                    `"${(d.ruiter || '').replace(/"/g, '""')}","${(d.paard || '').replace(/"/g, '""')}","${d.startnummer || ''}"`
+                  );
+                  const csvContent = [headers, ...rows].join("\n");
+                  const blob = new Blob([csvContent], {type:"text/csv;charset=utf-8"});
+                  const url = URL.createObjectURL(blob);
+                  const filename = `deelnemers_${config.klasse || 'export'}_${new Date().toISOString().split('T')[0]}.csv`;
+                  const a=document.createElement("a"); a.href=url; a.download=filename;
+                  document.body.appendChild(a); a.click(); a.remove();
+                  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+                }}>📥 Exporteer huidige deelnemers</button>
+                <button onClick={()=>{
                   try{
                     const csv = localStorage.getItem("wp_startlijst_csv") || "";
                     if (!csv.trim()) { alert("Geen startlijst in opslag."); return; }
