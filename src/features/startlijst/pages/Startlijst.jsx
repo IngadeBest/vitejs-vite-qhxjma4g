@@ -458,7 +458,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   
   const tableStartY = infoData.length > 0 ? doc.lastAutoTable.finalY + 16 : infoStartY + 16;
 
-  // Groepeer per klasse met klasse headers
+  // Groepeer per klasse met klasse headers EN klasse kolom
   const body = [];
   let currentKlasse = null;
   
@@ -466,7 +466,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
     if (r.type === "break") {
       // Pauze regel
       body.push({
-        content: ["", "", "", "", `PAUZE: ${r.label || "Pauze"} (${r.duration || 0} min)`, ""],
+        content: ["", "", "", "", "", `PAUZE: ${r.label || "Pauze"} (${r.duration || 0} min)`, ""],
         styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center" }
       });
     } else {
@@ -475,7 +475,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
       if (rowKlasse !== currentKlasse) {
         currentKlasse = rowKlasse;
         body.push({
-          content: [`KLASSE: ${rowKlasse}`, "", "", "", "", ""],
+          content: [`KLASSE: ${rowKlasse}`, "", "", "", "", "", ""],
           styles: { 
             fontStyle: "bold", 
             fillColor: LIGHT_HEAD,  // Lichtblauw ipv donkerblauw
@@ -486,13 +486,14 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
         });
       }
       
-      // Data regel
+      // Data regel met klasse kolom
       const times = calculatedTimes[r.id || i] || {};
       body.push([
         String(i + 1),
         times.dressuur || "--:--",
         times.trail || "--:--",
         r.startnummer || "",
+        rowKlasse,  // Klasse kolom toegevoegd
         r.ruiter || "",
         r.paard || "",
       ]);
@@ -500,18 +501,28 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   });
 
   autoTable(doc, {
-    head: [["#", "Dressuur", "Trail", "Startnr", "Ruiter", "Paard"]],
+    head: [["#", "Dressuur", "Trail", "Startnr", "Klasse", "Ruiter", "Paard"]],
     body,
     startY: tableStartY,
     styles: { 
-      fontSize: 10,
+      fontSize: 9,  // Iets kleiner font voor extra kolom
       lineColor: BORDER,
       lineWidth: 0.2
     },
     headStyles: { 
       fillColor: LIGHT_HEAD,
       textColor: 0,
-      fontStyle: "bold"
+      fontStyle: "bold",
+      fontSize: 9
+    },
+    columnStyles: {
+      0: { cellWidth: 20 },  // # - smaller
+      1: { cellWidth: 45 },  // Dressuur
+      2: { cellWidth: 45 },  // Trail
+      3: { cellWidth: 40 },  // Startnr
+      4: { cellWidth: 50 },  // Klasse - nieuwe kolom
+      5: { cellWidth: 'auto' },  // Ruiter
+      6: { cellWidth: 'auto' }   // Paard
     },
     margin: { left: 40, right: 40 },
   });
