@@ -688,14 +688,8 @@ export default function Startlijst() {
   }, [rubriek]);
 
   // Lijst (entries + breaks)
-  const [rows, setRows] = useState(() => {
-    try {
-      const cached = localStorage.getItem(LS_KEY);
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Start met lege lijst - data wordt geladen via loadDeelnemersFromDB wanneer wedstrijd geselecteerd is
+  const [rows, setRows] = useState([]);
   const [search, setSearch] = useState("");
   const [loadingFromDB, setLoadingFromDB] = useState(false);
   const [dbMessage, setDbMessage] = useState("");
@@ -1414,9 +1408,9 @@ Plak je data hieronder:`);
       }
       
       // Save to localStorage as backup (after successful database save)
+      // Alleen wedstrijd-specifieke key gebruiken, GEEN algemene cache meer
       const storageKey = `startlijst_${wedstrijd}`;
       localStorage.setItem(storageKey, JSON.stringify(rows));
-      localStorage.setItem(LS_KEY, JSON.stringify(rows));
       
       setDbMessage(`✅ ${entries.length} deelnemers + ${breaks.length} pauzes opgeslagen`);
       
@@ -1528,16 +1522,23 @@ Plak je data hieronder:`);
       }
 
       if (!data || data.length === 0) {
-        // Try localStorage fallback
-        console.log("No database data, trying localStorage");
+        // Try localStorage fallback - ALLEEN voor deze specifieke wedstrijd
+        console.log("No database data, trying localStorage for this wedstrijd only");
         const storageKey = `startlijst_${wedstrijd}`;
-        const stored = localStorage.getItem(storageKey) || localStorage.getItem(LS_KEY);
+        const stored = localStorage.getItem(storageKey); // GEEN fallback naar algemene LS_KEY!
         
         if (stored) {
           const parsed = JSON.parse(stored);
           const filteredRows = klasse ? parsed.filter(r => normalizeKlasse(r.klasse) === klasse) : parsed;
           setRows(filteredRows);
           setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage)`);
+          setLoadingFromDB(false);
+          return;
+        } else {
+          // Geen data voor deze wedstrijd - lege lijst
+          console.log("No data found for this wedstrijd");
+          setRows([]);
+          setDbMessage("ℹ️ Geen deelnemers gevonden voor deze wedstrijd");
           setLoadingFromDB(false);
           return;
         }
@@ -1591,9 +1592,9 @@ Plak je data hieronder:`);
       const errorMsg = e?.message || String(e);
       console.error("Error loading participants, trying localStorage:", e);
       
-      // Fallback to localStorage
+      // Fallback to localStorage - ALLEEN voor deze specifieke wedstrijd
       const storageKey = `startlijst_${wedstrijd}`;
-      const stored = localStorage.getItem(storageKey) || localStorage.getItem(LS_KEY);
+      const stored = localStorage.getItem(storageKey); // GEEN fallback naar algemene LS_KEY!
       
       if (stored) {
         try {
@@ -1603,9 +1604,11 @@ Plak je data hieronder:`);
           setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage - database niet beschikbaar)`);
         } catch (parseErr) {
           setDbMessage(`❌ Fout bij laden: ${errorMsg}`);
+          setRows([]); // Lege lijst bij parse error
         }
       } else {
-        setDbMessage(`⚠️ Geen opgeslagen data gevonden (database niet beschikbaar)`);
+        setDbMessage(`⚠️ Geen opgeslagen data gevonden voor deze wedstrijd (database niet beschikbaar)`);
+        setRows([]); // Lege lijst als er geen data is
       }
     } finally {
       setLoadingFromDB(false);
