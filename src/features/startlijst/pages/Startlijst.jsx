@@ -1514,7 +1514,13 @@ Plak je data hieronder:`);
       }
 
       const { data, error } = await query;
-      console.log("Database query result:", { dataLength: data?.length, error, wedstrijd_id: wedstrijd });
+      console.log("🔍 DATABASE QUERY RESULT:", { 
+        wedstrijd_id: wedstrijd, 
+        klasse_filter: klasse,
+        dataLength: data?.length, 
+        error,
+        firstRows: data?.slice(0, 3).map(d => ({ ruiter: d.ruiter, wedstrijd_id: d.wedstrijd_id }))
+      });
       
       if (error) {
         console.warn("Database error, trying localStorage:", error);
@@ -1615,6 +1621,12 @@ Plak je data hieronder:`);
     }
   }, [wedstrijd, klasse]);
 
+  // Wis rows ONMIDDELLIJK wanneer wedstrijd verandert (voordat nieuwe data wordt geladen)
+  useEffect(() => {
+    setRows([]);
+    setDbMessage(""); // Wis ook oude berichten
+  }, [wedstrijd]);
+
   useEffect(() => {
     if (wedstrijd) {
       loadDeelnemersFromDB();
@@ -1713,6 +1725,26 @@ Plak je data hieronder:`);
             </div>
           </div>
         </div>
+
+        {/* DEBUG INFO - Actieve filters */}
+        {wedstrijd && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
+            <div className="flex items-center gap-4 text-sm">
+              <span className="font-semibold text-yellow-900">🔍 Actief:</span>
+              <span className="text-yellow-800">
+                Wedstrijd: <strong>{wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd.slice(0, 8)}</strong>
+              </span>
+              {klasse && (
+                <span className="text-yellow-800">
+                  | Klasse filter: <strong>{klasse}</strong>
+                </span>
+              )}
+              <span className="text-yellow-800">
+                | Geladen: <strong>{rows.length} items</strong> ({rows.filter(r => r.type === 'entry').length} deelnemers)
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Startnummer Configuratie (vereenvoudigd) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
@@ -1873,6 +1905,30 @@ Plak je data hieronder:`);
                 disabled={!wedstrijd || loadingFromDB}
               >
                 {loadingFromDB ? "⏳ Laden..." : "🔄 DB Laden"}
+              </button>
+              
+              <button
+                className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                onClick={() => {
+                  // Toon alle startlijst-gerelateerde localStorage keys
+                  const keys = Object.keys(localStorage).filter(k => k.includes('startlijst') || k.includes('wp_'));
+                  console.log('LocalStorage keys gevonden:', keys);
+                  
+                  if (keys.length === 0) {
+                    alert('Geen startlijst cache gevonden');
+                    return;
+                  }
+                  
+                  const msg = `Gevonden cache keys:\n${keys.join('\n')}\n\nAlles wissen?`;
+                  if (confirm(msg)) {
+                    keys.forEach(k => localStorage.removeItem(k));
+                    setRows([]);
+                    setDbMessage('🗑️ Cache gewist - klik "DB Laden" om opnieuw te laden');
+                  }
+                }}
+                title="Debug: wis alle lokale cache"
+              >
+                🗑️ Cache Wissen
               </button>
             </div>
           </div>
