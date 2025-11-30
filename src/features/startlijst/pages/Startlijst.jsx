@@ -2273,8 +2273,11 @@ Plak je data hieronder:`);
               </div>
             </div>
           </div>
-
-                {(() => {
+        </div>
+      </div>
+    </Container>
+  );
+}
                   const klassen = {};
                   filtered.filter(r => r.type === 'entry').forEach(r => {
                     const kl = normalizeKlasse(r.klasse) || 'Geen klasse';
