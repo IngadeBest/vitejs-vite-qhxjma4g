@@ -1979,7 +1979,7 @@ Plak je data hieronder:`);
                         <React.Fragment key={`${row.id || index}-${rowKlasse}`}>
                           {showClassHeader && (
                             <tr style={{ backgroundColor: row.type !== 'break' ? '#EFF6FF' : '#FFFBEB' }}>
-                              <td colSpan="8" style={{ padding: \"8px\", fontSize: \"14px\", fontWeight: 600, color: \"#1E40AF\" }}>
+                              <td colSpan="8" style={{ padding: "8px", fontSize: "14px", fontWeight: 600, color: "#1E40AF" }}>
                                 <div className="flex items-center justify-between">
                                   <div>
                                     {row.type === 'break' ? 
@@ -2028,20 +2028,20 @@ Plak je data hieronder:`);
                             onDrop={(e) => handleDrop(e, row)}
                             title="Sleep om rij te verplaatsen"
                           >
-                            <td style={{ padding: \"8px\" }}>
+                            <td style={{ padding: "8px" }}>
                               <div className="flex items-center gap-1">
                                 <span style={{ cursor: 'move', color: '#9CA3AF' }} title="Sleep hier">
                                   ⋮⋮
                                 </span>
-                                <span style={{ fontSize: \"13px\", color: \"#6B7280\" }}>
+                                <span style={{ fontSize: "13px", color: "#6B7280" }}>
                                   {row.type === 'break' ? '—' : klasseItemNumber}
                                 </span>
                               </div>
                             </td>
-                            <td style={{ padding: \"8px\" }}>
+                            <td style={{ padding: "8px" }}>
                               {row.type === 'break' ? (
                                 <span style={{ 
-                                  padding: \"2px 8px\", 
+                                  padding: "2px 8px", 
                                   backgroundColor: '#FEF3C7', 
                                   color: '#92400E', 
                                   borderRadius: '4px', 
@@ -2078,7 +2078,7 @@ Plak je data hieronder:`);
                                 </select>
                               )}
                             </td>
-                            <td style={{ padding: \"8px\", fontFamily: 'monospace', fontSize: '13px', color: '#2563EB' }}>
+                            <td style={{ padding: "8px", fontFamily: 'monospace', fontSize: '13px', color: '#2563EB' }}>
                               {row.type === 'break' ? '—' : (times.dressuur || '--:--')}
                               </div>
                             </td>
