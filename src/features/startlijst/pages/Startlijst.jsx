@@ -1569,20 +1569,18 @@ Plak je data hieronder:`);
     <Container>
       <div style={{ maxWidth: 1200, margin: "24px auto" }}>
         {/* Header sectie */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Startlijst</h2>
-            <Link
-              to="/deelnemers"
-              className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium"
-            >
-              👥 Naar Deelnemers
-            </Link>
-          </div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-bold text-gray-900">Startlijst</h2>
+          <Link
+            to="/deelnemers"
+            className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            👥 Deelnemers
+          </Link>
         </div>
 
       {/* Filters sectie */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", alignItems: "end" }}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Wedstrijd</label>
@@ -1642,82 +1640,61 @@ Plak je data hieronder:`);
         )}
 
         {/* Starttijden Configuratie */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-semibold text-gray-900">Starttijden & Intervallen</h3>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px" }}>
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Dressuur start</label>
-              <input
-                type="time"
-                className="w-full border rounded px-2 py-1 text-sm"
-                value={dressuurStarttijd}
-                onChange={(e) => setDressuurStarttijd(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Trail start</label>
-              <input
-                type="time"
-                className="w-full border rounded px-2 py-1 text-sm"
-                value={trailStarttijd}
-                onChange={(e) => setTrailStarttijd(e.target.value)}
-              />
-                <label className="text-gray-600 ml-3">Interval:</label>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-4">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">🏇 Dressuur</label>
                 <input
-                  type="number"
-                  min="1"
-                  max="15"
-                  className="border rounded px-1 py-1 w-12 text-sm"
-                  value={tussenPauze}
-                  onChange={(e) => setTussenPauze(Number(e.target.value))}
+                  type="time"
+                  className="border rounded px-2 py-1 text-sm w-24"
+                  value={dressuurStarttijd}
+                  onChange={(e) => setDressuurStarttijd(e.target.value)}
                 />
-                <span className="text-gray-600 text-sm">min</span>
               </div>
-            </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">🌲 Trail</label>
+                <input
+                  type="time"
+                  className="border rounded px-2 py-1 text-sm w-24"
+                  value={trailStarttijd}
+                  onChange={(e) => setTrailStarttijd(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">⏱️ Interval</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="1"
+                    max="15"
+                    className="border rounded px-2 py-1 w-16 text-sm"
+                    value={tussenPauze}
+                    onChange={(e) => setTussenPauze(Number(e.target.value))}
+                  />
+                  <span className="text-xs text-gray-600">min</span>
+                </div>
+              </div>
             <div className="flex gap-2">
               <button
-                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
                 onClick={() => {
                   const updatedRows = autoAssignStartnumbers(rows);
                   setRows(updatedRows);
                 }}
                 disabled={!rows.filter(r => r.type === 'entry').length}
               >
-                🔢 Auto Nummers
+                🔢 Nummers
               </button>
               
               <button
-                className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                className="px-3 py-1.5 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
                 onClick={sortRowsByClass}
                 disabled={!rows.filter(r => r.type === 'entry').length}
-                title="Sorteer alle klassen op volgorde: WE0, WE1, WE2, WE3, WE4, Junioren, Young Riders, WE2+"
+                title="Sorteer klassen: WE0, WE1, WE2, WE3, WE4, Junioren, Young Riders, WE2+"
               >
-                📋 Sorteer Klassen
+                📋 Sorteer
               </button>
-            </div>
-          </div>
-          
-          {/* Trail ombouwtijd */}
-          <div className="border-t pt-3">
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-700">🔧 Trail ombouwtijd:</label>
-              <input
-                type="number"
-                min="0"
-                max="15"
-                className="border rounded px-2 py-1 w-16 text-sm"
-                value={trailOmbouwtijd}
-                onChange={(e) => setTrailOmbouwtijd(Number(e.target.value))}
-              />
-              <span className="text-sm text-gray-600">minuten extra (0-15)</span>
-              <span className="text-xs text-gray-500 ml-2">
-                {trailOmbouwtijd > 0 
-                  ? `Trail interval wordt ${tussenPauze + trailOmbouwtijd} min (${tussenPauze} + ${trailOmbouwtijd})`
-                  : 'Trail gebruikt zelfde interval als dressuur'
-                }
-              </span>
             </div>
           </div>
         </div>
@@ -1763,17 +1740,13 @@ Plak je data hieronder:`);
                         className="border rounded px-2 py-1 text-xs"
                         value={klasseStartTimes[klasse]?.trail || ''}
                         onChange={(e) => {
-                          setKlasseStartTimes(prev => ({
-                            ...prev,
-                            [klasse]: {
-                              ...prev[klasse],
-                              trail: e.target.value
-                            }
-                          }));
-                        }}
-                        placeholder="Auto"
-                      />
-                    </div>
+        {/* Per-klasse starttijden configuratie */}
+        {classOrder.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Per klasse starttijden (optioneel)</h3>
+            <p className="text-xs text-gray-600 mb-2">
+              ⏱️ Vul een starttijd in voor de eerste klasse. Volgende klassen nummeren automatisch door.
+            </p>    </div>
                   </div>
                 </div>
               ))}
@@ -1784,11 +1757,11 @@ Plak je data hieronder:`);
         {/* Actieknoppen sectie (vereenvoudigd) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Data laden</h2>
+            <h3 className="text-sm font-semibold text-gray-700">Data laden</h3>
             
-            <div className="flex items-center gap-3">
-              <label className="cursor-pointer px-3 py-2 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors text-sm">
-                📁 CSV Upload
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer px-3 py-1.5 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors text-sm">
+                📁 CSV
                 <input
                   type="file"
                   accept=".csv,text/csv"
@@ -1798,15 +1771,15 @@ Plak je data hieronder:`);
               </label>
 
               <button
-                className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
+                className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
                 onClick={loadDeelnemersFromDB}
                 disabled={!wedstrijd || loadingFromDB}
               >
-                {loadingFromDB ? "⏳ Laden..." : "🔄 DB Laden"}
+                {loadingFromDB ? "⏳ Laden..." : "🔄 DB"}
               </button>
               
               <button
-                className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                className="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
                 onClick={() => {
                   // Toon alle startlijst-gerelateerde localStorage keys
                   const keys = Object.keys(localStorage).filter(k => k.includes('startlijst') || k.includes('wp_'));
@@ -1822,29 +1795,29 @@ Plak je data hieronder:`);
                     keys.forEach(k => localStorage.removeItem(k));
                     setRows([]);
                     setDbMessage('🗑️ Cache gewist - klik "DB Laden" om opnieuw te laden');
-                  }
-                }}
-                title="Debug: wis alle lokale cache"
-              >
-                🗑️ Cache Wissen
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Actieknoppen sectie (vereenvoudigd) */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">Data laden</h3>
+            
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer px-3 py-1.5 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors text-sm">
+                📁 CSV
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={onCSV}
+                />
+              </label>
 
-          {dbMessage && (
-            <div className="mb-6">
-              <div
-                className={`p-4 rounded-lg border ${
-                  dbMessage.includes("Fout")
-                    ? "bg-red-50 border-red-200 text-red-800"
-                    : dbMessage.includes("✅")
-                    ? "bg-green-50 border-green-200 text-green-800"
-                    : "bg-blue-50 border-blue-200 text-blue-800"
-                }`}
+              <button
+                className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
+                onClick={loadDeelnemersFromDB}
+                disabled={!wedstrijd || loadingFromDB}
               >
-                <p className="font-medium">{dbMessage}</p>
-              </div>
+                {loadingFromDB ? "⏳ Laden..." : "🔄 DB"}
+              </button>
             </div>
           )}
 
@@ -1878,8 +1851,8 @@ Plak je data hieronder:`);
           )}
 
           {/* Acties: deelnemer en pauze toevoegen */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
-            <div className="flex items-end gap-3 flex-wrap">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
+            <div className="flex items-end gap-2 flex-wrap">
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Pauze label</label>
                 <input
@@ -1903,13 +1876,13 @@ Plak je data hieronder:`);
                 className="px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm"
                 onClick={addPauseAtEnd}
               >
-                ☕ Pauze toevoegen
+                ☕ Pauze
               </button>
               <button
                 className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
                 onClick={addEmptyRow}
               >
-                ➕ Deelnemer toevoegen
+                ➕ Deelnemer
               </button>
             </div>
           </div>
