@@ -1583,9 +1583,9 @@ Plak je data hieronder:`);
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", alignItems: "end" }}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Wedstrijd</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Wedstrijd</label>
             <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm truncate"
               value={wedstrijd}
               onChange={(e) => setWedstrijd(e.target.value)}
             >
@@ -1593,15 +1593,15 @@ Plak je data hieronder:`);
                 {loadingWed ? "Laden..." : "— kies wedstrijd —"}
               </option>
               {(wedstrijden || []).map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.naam} {w.datum ? `(${w.datum})` : ""}
+                <option key={w.id} value={w.id} title={`${w.naam} ${w.datum ? `(${w.datum})` : ""}`}>
+                  {w.naam.length > 40 ? w.naam.substring(0, 40) + '...' : w.naam} {w.datum ? `(${w.datum})` : ""}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Klasse</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Klasse</label>
             <input
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
               placeholder="Bijv. WE2"
@@ -1611,7 +1611,7 @@ Plak je data hieronder:`);
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Rubriek</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Rubriek</label>
             <input
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
               placeholder="Optioneel"
@@ -1621,7 +1621,7 @@ Plak je data hieronder:`);
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Zoeken</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Zoeken</label>
             <input
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
               placeholder="Naam, paard, nr..."
@@ -1644,7 +1644,7 @@ Plak je data hieronder:`);
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-1">🏇 Dressuur</label>
+                <label className="block text-xs text-gray-600 mb-1">Dressuur</label>
                 <input
                   type="time"
                   className="border rounded px-2 py-1 text-sm w-24"
@@ -1653,7 +1653,7 @@ Plak je data hieronder:`);
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">🌲 Trail</label>
+                <label className="block text-xs text-gray-600 mb-1">Trail</label>
                 <input
                   type="time"
                   className="border rounded px-2 py-1 text-sm w-24"
@@ -1662,7 +1662,7 @@ Plak je data hieronder:`);
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">⏱️ Interval</label>
+                <label className="block text-xs text-gray-600 mb-1">Interval</label>
                 <div className="flex items-center gap-1">
                   <input
                     type="number"
@@ -1702,15 +1702,12 @@ Plak je data hieronder:`);
         {/* Per-klasse starttijden configuratie */}
         {classOrder.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Per klasse starttijden (optioneel)</h3>
-            <p className="text-xs text-gray-600 mb-2">
-              ⏱️ Vul een starttijd in voor de eerste klasse. Volgende klassen nummeren automatisch door.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Per klasse starttijden (optioneel - eerste invullen, rest auto)</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
               {classOrder.map((klasse) => (
-                <div key={klasse} className="border rounded p-3 bg-gray-50">
-                  <div className="font-medium text-sm mb-2 text-gray-700">{klasse}</div>
-                  <div className="flex gap-2 items-center">
+                <div key={klasse} className="border rounded p-2 bg-gray-50">
+                  <div className="font-medium text-xs mb-1 text-gray-700">{klasse}</div>
+                  <div className="flex gap-1 items-center">
                     <div className="flex flex-col flex-1">
                       <label className="text-xs text-gray-600">Dressuur:</label>
                       <input
