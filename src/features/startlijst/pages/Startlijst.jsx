@@ -1703,16 +1703,16 @@ Plak je data hieronder:`);
         {classOrder.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Per klasse starttijden (optioneel - eerste invullen, rest auto)</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
               {classOrder.map((klasse) => (
                 <div key={klasse} className="border rounded p-2 bg-gray-50">
                   <div className="font-medium text-xs mb-1 text-gray-700">{klasse}</div>
-                  <div className="flex gap-1 items-center">
-                    <div className="flex flex-col flex-1">
-                      <label className="text-xs text-gray-600">Dressuur:</label>
+                  <div className="space-y-1">
+                    <div>
+                      <label className="text-[10px] text-gray-500">Dr:</label>
                       <input
                         type="time"
-                        className="border rounded px-2 py-1 text-xs"
+                        className="border rounded px-1 py-0.5 text-xs w-full"
                         value={klasseStartTimes[klasse]?.dressuur || ''}
                         onChange={(e) => {
                           setKlasseStartTimes(prev => ({
@@ -1726,11 +1726,11 @@ Plak je data hieronder:`);
                         placeholder="Auto"
                       />
                     </div>
-                    <div className="flex flex-col flex-1">
-                      <label className="text-xs text-gray-600">Trail:</label>
+                    <div>
+                      <label className="text-[10px] text-gray-500">Tr:</label>
                       <input
                         type="time"
-                        className="border rounded px-2 py-1 text-xs"
+                        className="border rounded px-1 py-0.5 text-xs w-full"
                         value={klasseStartTimes[klasse]?.trail || ''}
                         onChange={(e) => {
                           setKlasseStartTimes(prev => ({
