@@ -2276,7 +2276,6 @@ Plak je data hieronder:`);
     </Container>
   );
 }
-                  filtered.filter(r => r.type === 'entry').forEach(r => {
                     const kl = normalizeKlasse(r.klasse) || 'Geen klasse';
                     klassen[kl] = (klassen[kl] || 0) + 1;
                   });
