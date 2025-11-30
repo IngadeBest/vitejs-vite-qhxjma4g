@@ -475,6 +475,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
       const rowKlasse = r.klasse || "Onbekend";
       if (rowKlasse !== currentKlasse) {
         currentKlasse = rowKlasse;
+        console.log('Adding class header:', rowKlasse);
         body.push({
           content: [`Klasse: ${rowKlasse}`, "", "", "", "", ""],
           styles: { 
@@ -499,6 +500,8 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
       ]);
     }
   });
+
+  console.log('Total body rows including headers:', body.length);
 
   autoTable(doc, {
     head: [["#", "Dressuur", "Trail", "Startnr", "Ruiter", "Paard"]],
