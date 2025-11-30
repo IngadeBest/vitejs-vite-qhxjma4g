@@ -1469,6 +1469,7 @@ Plak je data hieronder:`);
       };
       
       console.log('Generating PDF...', { wedstrijdInfo, rowCount: filtered.length });
+      console.log('First 3 rows:', filtered.slice(0, 3).map(r => ({ klasse: r.klasse, ruiter: r.ruiter, type: r.type })));
       const blob = await generateSimplePDF(
         `Startlijst ${klasse || ""} ${rubriek || ""}`.trim(),
         filtered,
