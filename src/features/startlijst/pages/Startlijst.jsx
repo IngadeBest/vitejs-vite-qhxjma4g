@@ -467,7 +467,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
     if (r.type === "break") {
       // Pauze regel - gebruik array syntax met colspan via styles
       body.push([
-        { content: `⏸️  PAUZE: ${r.label || "Pauze"} (${r.duration || 0} min)`, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
+        { content: `Pauze: ${r.duration || 0} minuten`, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
       ]);
     } else {
       // Voeg klasse header toe als nieuwe klasse
@@ -1208,7 +1208,7 @@ Plak je data hieronder:`);
           wedstrijd_id: "6837ee22-6992-4cee-a23f-f8bbae8b4f42", // Restore to original wedstrijd
           ruiter: row.ruiter.trim(),
           paard: row.paard ? row.paard.trim() : null,
-          startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
+          startnummer: row.startnummer || null,
           klasse: normalizeKlasse(row.klasse),
           rubriek: 'WE0', // Assume WE0 for recovered data
         }));
@@ -1395,7 +1395,7 @@ Plak je data hieronder:`);
         wedstrijd_id: wedstrijd,
         ruiter: row.ruiter.trim(),
         paard: row.paard ? row.paard.trim() : null,
-        startnummer: row.startnummer ? parseInt(row.startnummer) || null : null,
+        startnummer: row.startnummer || null,
         klasse: normalizeKlasse(row.klasse),
         rubriek: rubriek || 'Algemeen',
         volgorde: rows.indexOf(row) // bewaar originele positie
