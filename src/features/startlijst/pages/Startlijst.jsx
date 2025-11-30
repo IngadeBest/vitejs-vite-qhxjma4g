@@ -1456,33 +1456,42 @@ Plak je data hieronder:`);
   };
 
   const makeBatchPDF = async () => {
-    const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
-    const calculatedTimes = hasKlasseStartTimes 
-      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
-      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
-    
-    const wedstrijdInfo = {
-      naam: wedstrijdNaam,
-      datum: wedstrijdDatum,
-      klasse: klasse,
-      rubriek: rubriek
-    };
-    
-    const blob = await generateSimplePDF(
-      `Startlijst ${klasse || ""} ${rubriek || ""}`.trim(),
-      filtered,
-      calculatedTimes,
-      wedstrijdInfo
-    );
-    
-    // Verbeterde bestandsnaam
-    const safeName = (str) => String(str).replace(/[^a-zA-Z0-9-]/g, '_').replace(/_+/g, '_');
-    const datum = wedstrijdDatum || new Date().toISOString().split('T')[0];
-    const klasseDeel = klasse ? `_${klasse}` : '';
-    const rubriekDeel = rubriek ? `_${rubriek}` : '';
-    const filename = `Startlijst_${safeName(wedstrijdNaam)}_${datum}${klasseDeel}${rubriekDeel}.pdf`;
-    
-    downloadBlob(blob, filename);
+    try {
+      console.log('Starting PDF generation...');
+      const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
+      const calculatedTimes = hasKlasseStartTimes 
+        ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+        : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
+      
+      const wedstrijdInfo = {
+        naam: wedstrijdNaam,
+        datum: wedstrijdDatum,
+        klasse: klasse,
+        rubriek: rubriek
+      };
+      
+      console.log('Generating PDF...', { wedstrijdInfo, rowCount: filtered.length });
+      const blob = await generateSimplePDF(
+        `Startlijst ${klasse || ""} ${rubriek || ""}`.trim(),
+        filtered,
+        calculatedTimes,
+        wedstrijdInfo
+      );
+      
+      // Verbeterde bestandsnaam
+      const safeName = (str) => String(str).replace(/[^a-zA-Z0-9-]/g, '_').replace(/_+/g, '_');
+      const datum = wedstrijdDatum || new Date().toISOString().split('T')[0];
+      const klasseDeel = klasse ? `_${klasse}` : '';
+      const rubriekDeel = rubriek ? `_${rubriek}` : '';
+      const filename = `Startlijst_${safeName(wedstrijdNaam)}_${datum}${klasseDeel}${rubriekDeel}.pdf`;
+      
+      console.log('Downloading PDF...', filename);
+      downloadBlob(blob, filename);
+      console.log('PDF download complete');
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      alert('Er is een fout opgetreden bij het genereren van de PDF: ' + error.message);
+    }
   };
 
   // Load deelnemers from database
