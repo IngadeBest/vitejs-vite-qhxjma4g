@@ -239,46 +239,6 @@ const autoAssignStartnumbers = (rows) => {
   });
 };
 
-// TEMP RENAMED TO AVOID CONFLICT
-const normalizeKlasse_OLD = (input) => {
-  if (!input || typeof input !== 'string') return '';
-  
-  const clean = input.trim().toLowerCase();
-  
-  // Map common variations to standard names
-  const klasseMap = {
-    'we0': 'WE0',
-    'we 0': 'WE0', 
-    'we-0': 'WE0',
-    'introductieklasse': 'WE0',
-    'we1': 'WE1',
-    'we 1': 'WE1',
-    'we-1': 'WE1', 
-    'we2': 'WE2',
-    'we 2': 'WE2',
-    'we-2': 'WE2',
-    'we2+': 'WE2+',
-    'we 2+': 'WE2+',
-    'we-2+': 'WE2+',
-    'we2plus': 'WE2+',
-    'we3': 'WE3',
-    'we 3': 'WE3',
-    'we-3': 'WE3',
-    'we4': 'WE4',
-    'we 4': 'WE4', 
-    'we-4': 'WE4',
-    'junior': 'Junioren',
-    'junioren': 'Junioren',
-    'juniors': 'Junioren',
-    'young rider': 'Young Riders',
-    'young riders': 'Young Riders',
-    'yr': 'Young Riders',
-    'y.r.': 'Young Riders'
-  };
-  
-  return klasseMap[clean] || input.trim();
-};
-
 // Startnummer mapping per klasse
 const getStartnummerBase = (klasse) => {
   const normalizedKlasse = normalizeKlasse(klasse);
@@ -293,49 +253,6 @@ const getStartnummerBase = (klasse) => {
     case 'we2+': return 701;
     default: return 1; // fallback
   }
-};
-
-// TEMP RENAMED TO AVOID CONFLICT
-const groupRowsByClass_OLD = (rows) => {
-  const entries = rows.filter(r => r.type === 'entry');
-  const breaks = rows.filter(r => r.type === 'break');
-  
-  // Groepeer entries per klasse
-  const classGroups = {};
-  entries.forEach(entry => {
-    const klasse = normalizeKlasse(entry.klasse || '');
-    if (!classGroups[klasse]) {
-      classGroups[klasse] = [];
-    }
-    classGroups[klasse].push(entry);
-  });
-  
-  return { classGroups, breaks };
-};
-
-// TEMP RENAMED TO AVOID CONFLICT  
-const autoAssignStartnumbers_OLD2 = (rows) => {
-  const classCounts = {};
-  
-  return rows.map(row => {
-    if (row.type === 'break') return row;
-    
-    const klasse = normalizeKlasse(row.klasse || '');
-    if (!klasse) return row;
-    
-    if (!classCounts[klasse]) {
-      classCounts[klasse] = 0;
-    }
-    classCounts[klasse]++;
-    
-    const base = getStartnummerBase(klasse);
-    const nummer = base + classCounts[klasse] - 1;
-    
-    return {
-      ...row,
-      startnummer: nummer.toString().padStart(3, '0')
-    };
-  });
 };
 
 function parseCSV(text) {
