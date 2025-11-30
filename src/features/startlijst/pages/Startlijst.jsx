@@ -459,7 +459,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   
   const tableStartY = infoData.length > 0 ? doc.lastAutoTable.finalY + 16 : infoStartY + 16;
 
-  // Groepeer per klasse met klasse headers EN klasse kolom
+  // Groepeer per klasse met alleen klasse headers (geen klasse kolom in tabel)
   const body = [];
   let currentKlasse = null;
   
@@ -467,7 +467,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
     if (r.type === "break") {
       // Pauze regel
       body.push({
-        content: ["", "", "", "", "", `PAUZE: ${r.label || "Pauze"} (${r.duration || 0} min)`, ""],
+        content: ["", "", "", "", `PAUZE: ${r.label || "Pauze"} (${r.duration || 0} min)`, ""],
         styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center" }
       });
     } else {
@@ -476,25 +476,24 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
       if (rowKlasse !== currentKlasse) {
         currentKlasse = rowKlasse;
         body.push({
-          content: [`KLASSE: ${rowKlasse}`, "", "", "", "", "", ""],
+          content: [`Klasse: ${rowKlasse}`, "", "", "", "", ""],
           styles: { 
             fontStyle: "bold", 
-            fillColor: LIGHT_HEAD,  // Lichtblauw ipv donkerblauw
-            textColor: BLUE,        // Donkerblauw tekst ipv wit
+            fillColor: LIGHT_HEAD,
+            textColor: BLUE,
             halign: "left",
             fontSize: 11
           }
         });
       }
       
-      // Data regel met klasse kolom
+      // Data regel ZONDER klasse kolom
       const times = calculatedTimes[r.id || i] || {};
       body.push([
         String(i + 1),
         times.dressuur || "--:--",
         times.trail || "--:--",
         r.startnummer || "",
-        rowKlasse,  // Klasse kolom toegevoegd
         r.ruiter || "",
         r.paard || "",
       ]);
@@ -502,11 +501,11 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   });
 
   autoTable(doc, {
-    head: [["#", "Dressuur", "Trail", "Startnr", "Klasse", "Ruiter", "Paard"]],
+    head: [["#", "Dressuur", "Trail", "Startnr", "Ruiter", "Paard"]],
     body,
     startY: tableStartY,
     styles: { 
-      fontSize: 9,  // Iets kleiner font voor extra kolom
+      fontSize: 9,
       lineColor: BORDER,
       lineWidth: 0.2
     },
@@ -517,13 +516,12 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
       fontSize: 9
     },
     columnStyles: {
-      0: { cellWidth: 20 },  // # - smaller
-      1: { cellWidth: 45 },  // Dressuur
-      2: { cellWidth: 45 },  // Trail
-      3: { cellWidth: 40 },  // Startnr
-      4: { cellWidth: 50 },  // Klasse - nieuwe kolom
-      5: { cellWidth: 'auto' },  // Ruiter
-      6: { cellWidth: 'auto' }   // Paard
+      0: { cellWidth: 25 },        // #
+      1: { cellWidth: 55 },        // Dressuur - breder voor volledige tekst
+      2: { cellWidth: 55 },        // Trail - breder voor volledige tekst
+      3: { cellWidth: 45 },        // Startnr
+      4: { cellWidth: 'auto' },    // Ruiter
+      5: { cellWidth: 'auto' }     // Paard
     },
     margin: { left: 40, right: 40 },
   });
