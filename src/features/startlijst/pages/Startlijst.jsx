@@ -343,6 +343,7 @@ function parseCSV(text) {
   if (!lines.length) return [];
   const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
   const idx = {
+    klasse: header.indexOf("klasse"),
     ruiter: header.indexOf("ruiter"),
     paard: header.indexOf("paard"),
     startnummer: header.indexOf("startnummer"),
@@ -353,12 +354,12 @@ function parseCSV(text) {
     return {
       id: `row_${Date.now()}_${i}`,
       type: "entry",
-      ruiter: idx.ruiter >= 0 ? cols[idx.ruiter] : cols[0] || "",
-      paard: idx.paard >= 0 ? cols[idx.paard] : cols[1] || "",
+      ruiter: idx.ruiter >= 0 ? cols[idx.ruiter] : cols[idx.klasse >= 0 ? 1 : 0] || "",
+      paard: idx.paard >= 0 ? cols[idx.paard] : cols[idx.klasse >= 0 ? 2 : 1] || "",
       startnummer:
-        idx.startnummer >= 0 ? cols[idx.startnummer] : cols[2] || "",
+        idx.startnummer >= 0 ? cols[idx.startnummer] : cols[idx.klasse >= 0 ? 3 : 2] || "",
       starttijd: idx.tijd >= 0 ? cols[idx.tijd] : "",
-      klasse: "",
+      klasse: idx.klasse >= 0 ? cols[idx.klasse] : "",
     };
   });
 }
