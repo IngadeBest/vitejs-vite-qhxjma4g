@@ -1701,14 +1701,10 @@ Plak je data hieronder:`);
 
         {/* Per-klasse starttijden configuratie */}
         {classOrder.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-            <h3 className="text-md font-semibold text-gray-900 mb-3">Per klasse starttijden (optioneel)</h3>
-            <p className="text-sm text-gray-600 mb-3">
-              ⏱️ <strong>Automatisch doornummeren:</strong> Vul een starttijd in voor de eerste klasse. Alle klassen erna nummeren automatisch door, 
-              tenzij je voor een volgende klasse een nieuwe starttijd invult - dan begint vanaf daar weer een nieuwe reeks.
-            </p>
-            <p className="text-sm text-gray-500 mb-3">
-              Voorbeeld: WE0 start om 09:00, WE1 start automatisch door (bijv. 09:30), maar WE2 kun je instellen op 13:00 (na pauze).
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Per klasse starttijden (optioneel)</h3>
+            <p className="text-xs text-gray-600 mb-2">
+              ⏱️ Vul een starttijd in voor de eerste klasse. Volgende klassen nummeren automatisch door.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {classOrder.map((klasse) => (
@@ -1740,13 +1736,17 @@ Plak je data hieronder:`);
                         className="border rounded px-2 py-1 text-xs"
                         value={klasseStartTimes[klasse]?.trail || ''}
                         onChange={(e) => {
-        {/* Per-klasse starttijden configuratie */}
-        {classOrder.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Per klasse starttijden (optioneel)</h3>
-            <p className="text-xs text-gray-600 mb-2">
-              ⏱️ Vul een starttijd in voor de eerste klasse. Volgende klassen nummeren automatisch door.
-            </p>    </div>
+                          setKlasseStartTimes(prev => ({
+                            ...prev,
+                            [klasse]: {
+                              ...prev[klasse],
+                              trail: e.target.value
+                            }
+                          }));
+                        }}
+                        placeholder="Auto"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
