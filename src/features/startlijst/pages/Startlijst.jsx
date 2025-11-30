@@ -2106,7 +2106,6 @@ Plak je data hieronder:`);
                                 />
                               )}
                             </td>
-                            <td className="px-4 py-3">
                             <td style={{ padding: "8px" }}>
                               {row.type === 'break' ? (
                                 <input
