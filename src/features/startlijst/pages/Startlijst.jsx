@@ -696,6 +696,7 @@ export default function Startlijst() {
   const [search, setSearch] = useState("");
   const [loadingFromDB, setLoadingFromDB] = useState(false);
   const [dbMessage, setDbMessage] = useState("");
+  const [activeTab, setActiveTab] = useState("startlijst"); // "startlijst" of "deelnemers"
 
   // Volgorde van klassen + starttijden per klasse
   const [classOrder, setClassOrder] = useState([]);
