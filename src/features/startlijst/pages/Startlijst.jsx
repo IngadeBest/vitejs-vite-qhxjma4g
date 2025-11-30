@@ -1567,137 +1567,103 @@ Plak je data hieronder:`);
 
   return (
     <Container>
-      <div className="max-w-7xl mx-auto py-6">
+      <div style={{ maxWidth: 1200, margin: "24px auto" }}>
         {/* Header sectie */}
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Startlijst Management</h1>
-              <p className="text-gray-600 mt-2">
-                Beheer startlijsten, startnummers en deelnemer volgorde
-              </p>
-            </div>
-            
-            {/* Navigation links */}
-            <div className="flex gap-2">
-              <Link
-                to="/deelnemers"
-                className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm font-medium"
-              >
-                👥 Naar Deelnemers
-              </Link>
-            </div>
+            <h2 className="text-2xl font-bold text-gray-900">Startlijst</h2>
+            <Link
+              to="/deelnemers"
+              className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              👥 Naar Deelnemers
+            </Link>
           </div>
         </div>
 
-      {/* Flex layout - links bewerkingstabel, rechts preview */}
-      <div className="flex gap-6 items-start">
-        {/* Main editing area (links) - nu 65% van de ruimte */}
-        <div className="flex-1 max-w-4xl">
-        {/* Filters sectie */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters & Zoekopdrachten</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Wedstrijd:
-              </label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={wedstrijd}
-                onChange={(e) => setWedstrijd(e.target.value)}
-              >
-                <option value="">
-                  {loadingWed ? "Laden..." : "— kies wedstrijd —"}
+      {/* Filters sectie */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", alignItems: "end" }}>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Wedstrijd</label>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              value={wedstrijd}
+              onChange={(e) => setWedstrijd(e.target.value)}
+            >
+              <option value="">
+                {loadingWed ? "Laden..." : "— kies wedstrijd —"}
+              </option>
+              {(wedstrijden || []).map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.naam} {w.datum ? `(${w.datum})` : ""}
                 </option>
-                {(wedstrijden || []).map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.naam}
-                    {w.datum ? ` (${w.datum})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+              ))}
+            </select>
+          </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Klasse:
-              </label>
-              <input
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Klasse (WE0–WE4)"
-                value={klasse}
-                onChange={(e) => setKlasse(e.target.value)}
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Klasse</label>
+            <input
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              placeholder="Bijv. WE2"
+              value={klasse}
+              onChange={(e) => setKlasse(e.target.value)}
+            />
+          </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Rubriek:
-              </label>
-              <input
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Rubriek"
-                value={rubriek}
-                onChange={(e) => setRubriek(e.target.value)}
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Rubriek</label>
+            <input
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              placeholder="Optioneel"
+              value={rubriek}
+              onChange={(e) => setRubriek(e.target.value)}
+            />
+          </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Zoeken:
-              </label>
-              <input
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="ruiter/paard/startnr/tijd/pauze"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Zoeken</label>
+            <input
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              placeholder="Naam, paard, nr..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </div>
+      </div>
 
-        {/* DEBUG INFO - Actieve filters */}
-        {wedstrijd && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
-            <div className="flex items-center gap-4 text-sm">
-              <span className="font-semibold text-yellow-900">🔍 Actief:</span>
-              <span className="text-yellow-800">
-                Wedstrijd: <strong>{wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd.slice(0, 8)}</strong>
-              </span>
-              {klasse && (
-                <span className="text-yellow-800">
-                  | Klasse filter: <strong>{klasse}</strong>
-                </span>
-              )}
-              <span className="text-yellow-800">
-                | Geladen: <strong>{rows.length} items</strong> ({rows.filter(r => r.type === 'entry').length} deelnemers)
-              </span>
-            </div>
+        {/* Status bericht */}
+        {dbMessage && (
+          <div style={{ marginTop: 8, marginBottom: 8, color: "#666", fontSize: "14px" }}>
+            {dbMessage}
           </div>
         )}
 
-        {/* Startnummer Configuratie (vereenvoudigd) */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        {/* Starttijden Configuratie */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-4 flex-wrap">
-              <h2 className="text-lg font-semibold text-gray-900">Starttijden</h2>
-              <div className="flex items-center gap-2 text-sm">
-                <label className="text-gray-600">Dressuur:</label>
-                <input
-                  type="time"
-                  className="border rounded px-2 py-1 text-sm"
-                  value={dressuurStarttijd}
-                  onChange={(e) => setDressuurStarttijd(e.target.value)}
-                />
-                <label className="text-gray-600 ml-3">Trail:</label>
-                <input
-                  type="time"
-                  className="border rounded px-2 py-1 text-sm"
-                  value={trailStarttijd}
-                  onChange={(e) => setTrailStarttijd(e.target.value)}
-                />
+            <h3 className="text-base font-semibold text-gray-900">Starttijden & Intervallen</h3>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px" }}>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Dressuur start</label>
+              <input
+                type="time"
+                className="w-full border rounded px-2 py-1 text-sm"
+                value={dressuurStarttijd}
+                onChange={(e) => setDressuurStarttijd(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Trail start</label>
+              <input
+                type="time"
+                className="w-full border rounded px-2 py-1 text-sm"
+                value={trailStarttijd}
+                onChange={(e) => setTrailStarttijd(e.target.value)}
+              />
                 <label className="text-gray-600 ml-3">Interval:</label>
                 <input
                   type="number"
@@ -1884,125 +1850,97 @@ Plak je data hieronder:`);
 
           {/* Geen deelnemers gevonden helper */}
           {wedstrijd && rows.length === 0 && (
-            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <span className="text-blue-600 text-lg">ℹ️</span>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium text-blue-900 mb-2">
-                    Geen deelnemers gevonden
-                  </h3>
-                  <p className="text-blue-700 mb-4">
-                    Er zijn geen deelnemers gevonden voor deze wedstrijd. Je kunt:
-                  </p>
-                  <div className="flex gap-3 flex-wrap">
-                    <button
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                      onClick={copyFromOtherWedstrijd}
-                    >
-                      📋 Kopieer van andere wedstrijd
-                    </button>
-                    <button
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                      onClick={addEmptyRow}
-                    >
-                      ➕ Nieuwe deelnemer
-                    </button>
-                    <button
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-                      onClick={showManualRecoveryForm}
-                    >
-                      📝 Bulk import
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Migration helper when no data found */}
-          {wedstrijd && rows.length === 0 && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-              <p className="text-sm text-yellow-800 mb-2">
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+              <p className="text-sm text-blue-800 mb-2">
                 Geen deelnemers gevonden voor deze wedstrijd.
               </p>
               <div className="flex gap-2">
                 <button
-                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                   onClick={copyFromOtherWedstrijd}
                 >
-                  Kopieer van andere wedstrijd
+                  📋 Kopieer van andere wedstrijd
                 </button>
                 <button
-                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                  className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
                   onClick={addEmptyRow}
                 >
-                  Voeg handmatig toe
+                  ➕ Voeg handmatig toe
+                </button>
+                <button
+                  className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                  onClick={showManualRecoveryForm}
+                >
+                  📝 Bulk import
                 </button>
               </div>
             </div>
           )}
 
-          <div className="flex items-end gap-2 mb-4">
-            <div className="flex flex-col">
-              <label className="text-sm text-gray-600">Pauze titel</label>
-              <input
-                className="border rounded px-2 py-1"
-                placeholder="Bijv. Koffiepauze"
-                value={pauseLabel}
-                onChange={(e) => setPauseLabel(e.target.value)}
-              />
+          {/* Acties: deelnemer en pauze toevoegen */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Pauze label</label>
+                <input
+                  className="border rounded px-2 py-1 text-sm w-32"
+                  placeholder="Koffiepauze"
+                  value={pauseLabel}
+                  onChange={(e) => setPauseLabel(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Minuten</label>
+                <input
+                  className="border rounded px-2 py-1 text-sm w-20"
+                  type="number"
+                  min={1}
+                  value={pauseMin}
+                  onChange={(e) => setPauseMin(e.target.value)}
+                />
+              </div>
+              <button
+                className="px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm"
+                onClick={addPauseAtEnd}
+              >
+                ☕ Pauze toevoegen
+              </button>
+              <button
+                className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                onClick={addEmptyRow}
+              >
+                ➕ Deelnemer toevoegen
+              </button>
             </div>
-            <div className="flex flex-col">
-              <label className="text-sm text-gray-600">Minuten</label>
-              <input
-                className="border rounded px-2 py-1 w-24"
-                type="number"
-                min={1}
-                value={pauseMin}
-                onChange={(e) => setPauseMin(e.target.value)}
-              />
-            </div>
-            <button
-              className="px-3 py-2 border rounded"
-              onClick={addPauseAtEnd}
-            >
-              + Pauze toevoegen
-            </button>
           </div>
 
-          {/* Eenvoudige bewerkingstabel - alle deelnemers op volgorde */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Startlijst Bewerken</h2>
-                  <p className="text-xs text-gray-500 mt-1">💡 Sleep rijen (inclusief pauzes) om volgorde aan te passen</p>
-                </div>
-                <div className="text-sm text-gray-600">
-                  {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
-                </div>
+          {/* Startlijst tabel */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Deelnemers</h3>
+                <p className="text-xs text-gray-500 mt-0.5">💡 Sleep rijen om volgorde aan te passen</p>
+              </div>
+              <div className="text-sm text-gray-600">
+                {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50">
+              <table className="wp-table w-full">
+                <thead>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Klasse</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dressuur</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trail</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Startnr</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ruiter</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paard</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acties</th>
+                    <th style={{ padding: "8px", textAlign: "left" }}>#</th>
+                    <th style={{ padding: "8px", textAlign: "left" }}>Klasse</th>
+                    <th style={{ padding: "8px", textAlign: "left" }}>Dressuur</th>
+                    <th style={{ padding: "8px", textAlign: "left" }}>Trail</th>
+                    <th style={{ padding: "8px", textAlign: "left" }}>Nr</th>
+                    <th style={{ padding: "8px", textAlign: "left" }}>Ruiter</th>
+                    <th style={{ padding: "8px", textAlign: "left" }}>Paard</th>
+                    <th style={{ padding: "8px", textAlign: "center" }}>Acties</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody>
                   {(() => {
                     // Gebruik filtered rows in huidige volgorde (geen extra sorting)
                     // De volgorde wordt nu bepaald door moveClassUp/Down functies
@@ -2040,20 +1978,20 @@ Plak je data hieronder:`);
                       return (
                         <React.Fragment key={`${row.id || index}-${rowKlasse}`}>
                           {showClassHeader && (
-                            <tr className={`${row.type !== 'break' ? 'bg-blue-50' : 'bg-yellow-50'} transition-colors`}>
-                              <td colSpan="8" className="px-4 py-2 text-sm font-semibold text-blue-800 border-b border-blue-200">
+                            <tr style={{ backgroundColor: row.type !== 'break' ? '#EFF6FF' : '#FFFBEB' }}>
+                              <td colSpan="8" style={{ padding: \"8px\", fontSize: \"14px\", fontWeight: 600, color: \"#1E40AF\" }}>
                                 <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
+                                  <div>
                                     {row.type === 'break' ? 
-                                      '🍕 Pauzes' : 
-                                      `📋 Klasse ${rowKlasse} ${row.type !== 'break' ? `(startnrs vanaf ${getStartnummerBase(rowKlasse).toString().padStart(3, '0')})` : ''}`
+                                      '☕ Pauzes' : 
+                                      `${rowKlasse} ${row.type !== 'break' ? `(nr vanaf ${getStartnummerBase(rowKlasse).toString().padStart(3, '0')})` : ''}`
                                     }
                                   </div>
                                   {row.type !== 'break' && isFirstHeaderForClass && (
                                     <div className="flex gap-1">
                                       <button
                                         onClick={() => moveClassUp(rowKlasse)}
-                                        className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                                        className="px-2 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
                                         title="Verplaats klasse naar boven"
                                       >
                                         ▲
@@ -2070,8 +2008,12 @@ Plak je data hieronder:`);
                                 </div>
                               </td>
                             </tr>
-                          )}                          <tr 
-                            className={`hover:bg-gray-50 ${row.type === 'break' ? 'bg-yellow-50' : ''} cursor-move transition-colors`}
+                          )}
+                          <tr 
+                            style={{ 
+                              cursor: 'move',
+                              backgroundColor: row.type === 'break' ? '#FFFBEB' : 'white'
+                            }}
                             draggable={true}
                             onDragStart={(e) => {
                               console.log('Drag start on element:', e.target.tagName);
@@ -2079,29 +2021,38 @@ Plak je data hieronder:`);
                             }}
                             onDragEnd={handleDragEnd}
                             onDragOver={(e) => {
-                              e.preventDefault(); // Critical for drop to work
+                              e.preventDefault();
                               handleDragOver(e);
                             }}
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, row)}
                             title="Sleep om rij te verplaatsen"
                           >
-                            <td className="px-4 py-3 text-sm text-gray-600">
-                              <div className="flex items-center gap-2">
-                                <span className="cursor-move text-gray-400 hover:text-gray-600" title="Sleep hier om rij te verplaatsen">
+                            <td style={{ padding: \"8px\" }}>
+                              <div className="flex items-center gap-1">
+                                <span style={{ cursor: 'move', color: '#9CA3AF' }} title="Sleep hier">
                                   ⋮⋮
                                 </span>
-                                {row.type === 'break' ? '—' : klasseItemNumber}
+                                <span style={{ fontSize: \"13px\", color: \"#6B7280\" }}>
+                                  {row.type === 'break' ? '—' : klasseItemNumber}
+                                </span>
                               </div>
                             </td>
-                            <td className="px-4 py-3">
+                            <td style={{ padding: \"8px\" }}>
                               {row.type === 'break' ? (
-                                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
+                                <span style={{ 
+                                  padding: \"2px 8px\", 
+                                  backgroundColor: '#FEF3C7', 
+                                  color: '#92400E', 
+                                  borderRadius: '4px', 
+                                  fontSize: '12px',
+                                  fontWeight: 500
+                                }}>
                                   PAUZE
                                 </span>
                               ) : (
                                 <select
-                                  className="border rounded px-2 py-1 text-sm bg-white"
+                                  className="border rounded px-2 py-1 text-sm"
                                   value={normalizeKlasse(row.klasse) || ""}
                                   onChange={(e) => {
                                     const newKlasse = e.target.value;
@@ -2115,7 +2066,7 @@ Plak je data hieronder:`);
                                     });
                                   }}
                                 >
-                                  <option value="">Kies klasse...</option>
+                                  <option value="">Kies...</option>
                                   <option value="WE0">WE0</option>
                                   <option value="WE1">WE1</option>
                                   <option value="WE2">WE2</option>
@@ -2127,9 +2078,8 @@ Plak je data hieronder:`);
                                 </select>
                               )}
                             </td>
-                            <td className="px-4 py-3">
-                              <div className="text-sm font-mono text-blue-600">
-                                {row.type === 'break' ? '—' : (times.dressuur || '--:--')}
+                            <td style={{ padding: \"8px\", fontFamily: 'monospace', fontSize: '13px', color: '#2563EB' }}>
+                              {row.type === 'break' ? '—' : (times.dressuur || '--:--')}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -2160,11 +2110,12 @@ Plak je data hieronder:`);
                               )}
                             </td>
                             <td className="px-4 py-3">
+                            <td style={{ padding: "8px" }}>
                               {row.type === 'break' ? (
                                 <input
                                   className="border rounded px-2 py-1 text-sm font-medium"
                                   value={row.label || ""}
-                                  placeholder="Pauze naam"
+                                  placeholder="Pauze label"
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setRows((prev) => {
@@ -2181,7 +2132,7 @@ Plak je data hieronder:`);
                                 <input
                                   className="border rounded px-2 py-1 text-sm"
                                   value={row.ruiter || ""}
-                                  placeholder="Ruiter naam"
+                                  placeholder="Ruiter"
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setRows((prev) => {
@@ -2196,11 +2147,12 @@ Plak je data hieronder:`);
                                 />
                               )}
                             </td>
-                            <td className="px-4 py-3">
+                            <td style={{ padding: "8px" }}>
                               {row.type === 'break' ? (
-                                <div className="flex items-center space-x-1">
+                                <div className="flex items-center gap-1">
                                   <input
-                                    className="border rounded px-1 py-1 w-12 text-xs"
+                                    className="border rounded px-1 py-1 text-xs"
+                                    style={{ width: '48px' }}
                                     type="number"
                                     value={row.duration || ""}
                                     placeholder="15"
@@ -2222,7 +2174,7 @@ Plak je data hieronder:`);
                                 <input
                                   className="border rounded px-2 py-1 text-sm"
                                   value={row.paard || ""}
-                                  placeholder="Paard naam"
+                                  placeholder="Paard"
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setRows((prev) => {
@@ -2237,16 +2189,15 @@ Plak je data hieronder:`);
                                 />
                               )}
                             </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center space-x-1">
-                                <button
-                                  className="px-2 py-1 text-xs border rounded hover:bg-red-50 text-red-600"
-                                  onClick={() => {
-                                    const realIndex = rows.indexOf(row);
-                                    if (realIndex >= 0) {
-                                      setRows((prev) => prev.filter((_, i) => i !== realIndex));
-                                    }
-                                  }}
+                            <td style={{ padding: "8px", textAlign: "center" }}>
+                              <button
+                                className="px-2 py-1 text-xs border rounded hover:bg-red-50 text-red-600"
+                                onClick={() => {
+                                  const realIndex = rows.indexOf(row);
+                                  if (realIndex >= 0) {
+                                    setRows((prev) => prev.filter((_, i) => i !== realIndex));
+                                  }
+                                }}
                                   title="Verwijderen"
                                 >
                                   🗑️
@@ -2275,25 +2226,19 @@ Plak je data hieronder:`);
             )}
           </div>
 
-          <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-3">
+          {/* Acties onder tabel */}
+          <div className="mt-4 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex gap-2">
                 <button
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors font-medium"
-                  onClick={() => addEmptyRow(setRows, klasse)}
+                  className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                  onClick={loadDeelnemersFromDB}
+                  disabled={!wedstrijd || loadingFromDB}
                 >
-                  + Nieuwe deelnemer
+                  {loadingFromDB ? "⏳ Laden..." : "🔄 Herladen"}
                 </button>
-                
-                <button
-                  className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
-                  onClick={() => addBreak(setRows)}
-                >
-                  🍕 + Pauze
-                </button>
-
-                <label className="cursor-pointer px-4 py-2 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                  📁 CSV Upload
+                <label className="cursor-pointer px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-50 text-sm">
+                  📁 CSV
                   <input
                     type="file"
                     accept=".csv,text/csv"
@@ -2303,17 +2248,9 @@ Plak je data hieronder:`);
                 </label>
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
-                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                  onClick={loadDeelnemersFromDB}
-                  disabled={!wedstrijd || loadingFromDB}
-                >
-                  {loadingFromDB ? "⏳ Laden..." : "🔄 DB Laden"}
-                </button>
-
-                <button
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
                   onClick={() => {
                     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                     const calculatedTimes = hasKlasseStartTimes 
@@ -2323,44 +2260,20 @@ Plak je data hieronder:`);
                   }}
                   disabled={!filtered.length}
                 >
-                  📊 Excel Export
+                  📊 Excel
                 </button>
                 
                 <button
-                  className={`px-4 py-2 rounded text-white font-medium ${saving ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+                  className={`px-4 py-1.5 rounded text-white font-medium text-sm ${saving ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
                   onClick={saveList}
                   disabled={saving || !wedstrijd}
                   title={!wedstrijd ? "Selecteer eerst een wedstrijd" : "Sla wijzigingen op naar database"}
                 >
-                  {saving ? 'Bezig...' : 'Opslaan'}
+                  {saving ? 'Bezig...' : '💾 Opslaan'}
                 </button>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Simpele samenvatting sidebar (rechts) */}
-        <div className="w-80 flex-shrink-0">
-          <div className="sticky top-4 space-y-4">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                📊 Overzicht
-              </h3>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded">
-                  <span className="text-sm text-blue-700">Totaal deelnemers:</span>
-                  <span className="font-bold text-blue-800">
-                    {filtered.filter(r => r.type === 'entry').length}
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center p-3 bg-yellow-50 rounded">
-                  <span className="text-sm text-yellow-700">Pauzes:</span>
-                  <span className="font-bold text-yellow-800">
-                    {filtered.filter(r => r.type === 'break').length}
-                  </span>
-                </div>
 
                 {(() => {
                   const klassen = {};
