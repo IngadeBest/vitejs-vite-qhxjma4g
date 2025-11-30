@@ -1581,7 +1581,7 @@ Plak je data hieronder:`);
 
       {/* Filters sectie */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", alignItems: "end" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "12px", alignItems: "end" }}>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Wedstrijd</label>
             <select
@@ -1607,16 +1607,6 @@ Plak je data hieronder:`);
               placeholder="Bijv. WE2"
               value={klasse}
               onChange={(e) => setKlasse(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Rubriek</label>
-            <input
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              placeholder="Optioneel"
-              value={rubriek}
-              onChange={(e) => setRubriek(e.target.value)}
             />
           </div>
 
@@ -1703,7 +1693,7 @@ Plak je data hieronder:`);
         {classOrder.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Per klasse starttijden (optioneel - eerste invullen, rest auto)</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
               {classOrder.map((klasse) => (
                 <div key={klasse} className="border rounded p-2 bg-gray-50">
                   <div className="font-medium text-xs mb-1 text-gray-700">{klasse}</div>
