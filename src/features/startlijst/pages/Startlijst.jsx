@@ -1755,7 +1755,7 @@ Plak je data hieronder:`);
         )}
 
         {/* Actieknoppen sectie (vereenvoudigd) */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-700">Data laden</h3>
             
@@ -1781,45 +1781,41 @@ Plak je data hieronder:`);
               <button
                 className="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
                 onClick={() => {
-                  // Toon alle startlijst-gerelateerde localStorage keys
                   const keys = Object.keys(localStorage).filter(k => k.includes('startlijst') || k.includes('wp_'));
-                  console.log('LocalStorage keys gevonden:', keys);
-                  
                   if (keys.length === 0) {
                     alert('Geen startlijst cache gevonden');
                     return;
                   }
-                  
-                  const msg = `Gevonden cache keys:\n${keys.join('\n')}\n\nAlles wissen?`;
-                  if (confirm(msg)) {
+                  if (confirm('Alle cache wissen?')) {
                     keys.forEach(k => localStorage.removeItem(k));
                     setRows([]);
                     setDbMessage('🗑️ Cache gewist - klik "DB Laden" om opnieuw te laden');
-        {/* Actieknoppen sectie (vereenvoudigd) */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">Data laden</h3>
-            
-            <div className="flex items-center gap-2">
-              <label className="cursor-pointer px-3 py-1.5 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors text-sm">
-                📁 CSV
-                <input
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="hidden"
-                  onChange={onCSV}
-                />
-              </label>
-
-              <button
-                className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
-                onClick={loadDeelnemersFromDB}
-                disabled={!wedstrijd || loadingFromDB}
+                  }
+                }}
+                title="Wis lokale cache"
               >
-                {loadingFromDB ? "⏳ Laden..." : "🔄 DB"}
+                🗑️
               </button>
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* DB Message */}
+        {dbMessage && (
+          <div className="mb-3">
+            <div
+              className={`p-3 rounded-lg border text-sm ${
+                dbMessage.includes("Fout")
+                  ? "bg-red-50 border-red-200 text-red-800"
+                  : dbMessage.includes("✅")
+                  ? "bg-green-50 border-green-200 text-green-800"
+                  : "bg-blue-50 border-blue-200 text-blue-800"
+              }`}
+            >
+              {dbMessage}
+            </div>
+          </div>
+        )}
 
           {/* Geen deelnemers gevonden helper */}
           {wedstrijd && rows.length === 0 && (
