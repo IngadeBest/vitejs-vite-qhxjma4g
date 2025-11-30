@@ -2276,7 +2276,6 @@ Plak je data hieronder:`);
     </Container>
   );
 }
-                    klassen[kl] = (klassen[kl] || 0) + 1;
                   });
                   
                   return Object.keys(klassen).length > 0 && (
