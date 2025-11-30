@@ -1473,6 +1473,7 @@ Plak je data hieronder:`);
       
       console.log('Generating PDF...', { wedstrijdInfo, rowCount: filtered.length });
       console.log('First 3 rows:', filtered.slice(0, 3).map(r => ({ klasse: r.klasse, ruiter: r.ruiter, type: r.type })));
+      console.log('Breaks in filtered:', filtered.filter(r => r.type === 'break').map(r => ({ type: r.type, label: r.label, duration: r.duration })));
       const blob = await generateSimplePDF(
         `Startlijst ${klasse || ""} ${rubriek || ""}`.trim(),
         filtered,
