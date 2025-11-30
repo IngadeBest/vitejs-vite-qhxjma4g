@@ -2080,12 +2080,9 @@ Plak je data hieronder:`);
                             </td>
                             <td style={{ padding: "8px", fontFamily: 'monospace', fontSize: '13px', color: '#2563EB' }}>
                               {row.type === 'break' ? '—' : (times.dressuur || '--:--')}
-                              </div>
                             </td>
-                            <td className="px-4 py-3">
-                              <div className="text-sm font-mono text-green-600">
-                                {row.type === 'break' ? '—' : (times.trail || '--:--')}
-                              </div>
+                            <td style={{ padding: "8px", fontFamily: 'monospace', fontSize: '13px', color: '#059669' }}>
+                              {row.type === 'break' ? '—' : (times.trail || '--:--')}
                             </td>
                             <td className="px-4 py-3">
                               {row.type === 'break' ? (
