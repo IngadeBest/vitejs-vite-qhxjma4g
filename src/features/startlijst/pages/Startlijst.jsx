@@ -2310,30 +2310,36 @@ Plak je data hieronder:`);
                                     />
                                     <span>T</span>
                                   </label>
-                                  <label className="flex items-center gap-0.5 cursor-pointer" title="Speed Trail">
-                                    <input
-                                      type="checkbox"
-                                      checked={row.onderdelen?.speed !== false}
-                                      onChange={(e) => {
-                                        setRows((prev) => {
-                                          const next = prev.slice();
-                                          const realIndex = rows.indexOf(row);
-                                          if (realIndex >= 0) {
-                                            next[realIndex] = { 
-                                              ...next[realIndex], 
-                                              onderdelen: {
-                                                ...next[realIndex].onderdelen,
-                                                speed: e.target.checked
+                                  {(() => {
+                                    const rowKlasse = normalizeKlasse(row.klasse);
+                                    const hasSpeed = ['WE2', 'WE2+', 'WE3', 'WE4', 'Young Riders', 'Junioren'].includes(rowKlasse);
+                                    return hasSpeed ? (
+                                      <label className="flex items-center gap-0.5 cursor-pointer" title="Speed Trail">
+                                        <input
+                                          type="checkbox"
+                                          checked={row.onderdelen?.speed !== false}
+                                          onChange={(e) => {
+                                            setRows((prev) => {
+                                              const next = prev.slice();
+                                              const realIndex = rows.indexOf(row);
+                                              if (realIndex >= 0) {
+                                                next[realIndex] = { 
+                                                  ...next[realIndex], 
+                                                  onderdelen: {
+                                                    ...next[realIndex].onderdelen,
+                                                    speed: e.target.checked
+                                                  }
+                                                };
                                               }
-                                            };
-                                          }
-                                          return next;
-                                        });
-                                      }}
-                                      className="w-3 h-3"
-                                    />
-                                    <span>S</span>
-                                  </label>
+                                              return next;
+                                            });
+                                          }}
+                                          className="w-3 h-3"
+                                        />
+                                        <span>S</span>
+                                      </label>
+                                    ) : null;
+                                  })()}
                                 </div>
                               )}
                             </td>
