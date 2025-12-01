@@ -1765,6 +1765,7 @@ Plak je data hieronder:`);
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
               {classOrder.map((klasse) => {
                 const isHighLevel = ['WE3', 'WE4', 'Young Riders'].includes(klasse);
+                const hasSpeed = ['WE2', 'WE2+', 'WE3', 'WE4', 'Young Riders', 'Junioren'].includes(klasse);
                 return (
                   <div key={klasse} className="border rounded p-2 bg-gray-50">
                     <div className="font-medium text-xs mb-1 text-gray-700">{klasse}</div>
@@ -1805,6 +1806,26 @@ Plak je data hieronder:`);
                           placeholder="Auto"
                         />
                       </div>
+                      {hasSpeed && (
+                        <div>
+                          <label className="text-[10px] text-gray-500">Sp:</label>
+                          <input
+                            type="time"
+                            className="border rounded px-1 py-0.5 text-xs w-full"
+                            value={klasseStartTimes[klasse]?.speedTrail || ''}
+                            onChange={(e) => {
+                              setKlasseStartTimes(prev => ({
+                                ...prev,
+                                [klasse]: {
+                                  ...prev[klasse],
+                                  speedTrail: e.target.value
+                                }
+                              }));
+                            }}
+                            placeholder="Auto"
+                          />
+                        </div>
+                      )}
                       {isHighLevel && (
                         <div>
                           <label className="text-[10px] text-gray-500">Int:</label>
