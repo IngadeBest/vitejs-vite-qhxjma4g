@@ -2156,7 +2156,12 @@ Plak je data hieronder:`);
                               {row.type === 'break' ? '—' : (times.trail || '--:--')}
                             </td>
                             <td style={{ padding: "8px", fontFamily: 'monospace', fontSize: '13px', color: '#DC2626' }}>
-                              {row.type === 'break' ? '—' : (times.speedTrail || '--:--')}
+                              {(() => {
+                                if (row.type === 'break') return '—';
+                                const rowKlasse = normalizeKlasse(row.klasse);
+                                const hasSpeed = ['WE2', 'WE2+', 'WE3', 'WE4', 'Young Riders', 'Junioren'].includes(rowKlasse);
+                                return hasSpeed ? (times.speedTrail || '--:--') : '—';
+                              })()}
                             </td>
                             <td className="px-4 py-3">
                               {row.type === 'break' ? (
