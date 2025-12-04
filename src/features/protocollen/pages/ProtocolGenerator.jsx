@@ -42,8 +42,8 @@ const ALG_PUNTEN_WE2PLUS = [
 
 /* PDF helpers */
 const BLUE = [16, 39, 84];
-const LIGHT_HEAD = [240, 243, 249];
-const BORDER = [223, 227, 235];
+const LIGHT_HEAD = [200, 210, 230];  // Donkerder voor betere printbaarheid
+const BORDER = [100, 100, 100];      // Veel donkerder grijs voor zichtbare borders
 const MARGIN = { left: 40, right: 40 };
 const COL_NUM  = 26;
 const COL_NAME = 260;
@@ -75,7 +75,7 @@ function infoBoxesSideBySide(doc, info) {
       ["Klasse", info.klasse_naam || info.klasse || ""],
       ["Onderdeel", info.onderdeel_label || info.onderdeel || ""],
     ],
-    styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.2 },
+    styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left, right: 0 },
     tableWidth: 300,
@@ -90,7 +90,7 @@ function infoBoxesSideBySide(doc, info) {
       ["Paard", info.paard || ""],
       ["Startnummer", info.startnummer || ""],
     ],
-    styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.2 },
+    styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left + 320, right: 0 },
     tableWidth: 220,
@@ -104,7 +104,7 @@ function obstaclesTable(doc, items, startY) {
     startY,
     head: [["#", "Onderdeel / obstakel", "Heel", "Half", "Opmerking"]],
     body: items.map((o, i) => [i + 1, o, "", "", ""]),
-    styles: { fontSize: 10, cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, lineColor: BORDER, lineWidth: 0.2, valign: "top" },
+    styles: { fontSize: 10, cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, lineColor: BORDER, lineWidth: 0.5, valign: "top" },
     headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold" },
     theme: "grid",
     margin: MARGIN,
@@ -123,7 +123,7 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
     startY,
     head: [["#", "Algemene punten", "Heel", "Half", "Opmerking"]],
     body: punten.map((naam, i) => [startIndex + i, naam, "", "", ""]),
-    styles: { fontSize: 10, cellPadding: { top: 5, right: 5, bottom: 12, left: 5 }, lineColor: BORDER, lineWidth: 0.2 },
+    styles: { fontSize: 10, cellPadding: { top: 5, right: 5, bottom: 12, left: 5 }, lineColor: BORDER, lineWidth: 0.5 },
     headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold" },
     theme: "grid",
     margin: MARGIN,
@@ -151,7 +151,7 @@ function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntena
   autoTable(doc, {
     startY, head: [],
     body: bodyRows,
-    styles: { fontSize: 10, cellPadding: 6, lineColor: BORDER, lineWidth: 0.2 },
+    styles: { fontSize: 10, cellPadding: 6, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid", margin: MARGIN, columnStyles: { 0: { cellWidth: 220, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
   });
   return doc.lastAutoTable.finalY;
@@ -194,7 +194,7 @@ function protocolToDoc(doc, p, items) {
         fontSize: 10, 
         cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, 
         lineColor: BORDER, 
-        lineWidth: 0.2,
+        lineWidth: 0.5,
         valign: "top"
       },
       headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold" },
