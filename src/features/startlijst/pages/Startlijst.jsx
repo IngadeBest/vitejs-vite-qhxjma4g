@@ -14,7 +14,7 @@ import Container from "@/ui/Container";
 const LS_KEY = "wp_startlijst_cache_v1";
 
 // Helper functie voor automatische starttijd berekening
-const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0, klasseIntervals = {}) => {
+const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0, klasseIntervals = {}, speedInterval = 4) => {
   const times = {};
   let currentDressuurTime = new Date(`1970-01-01T${dressuurStart}:00`);
   let currentTrailTime = new Date(`1970-01-01T${trailStart}:00`);
@@ -84,7 +84,9 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, t
         currentTrailTime = addMinutes(currentTrailTime, klasseInterval + trailOmbouwtijd);
       }
       if (doSpeed) {
-        currentSpeedTime = addMinutes(currentSpeedTime, klasseInterval);
+        // Speed gebruikt eigen interval (vaak korter, bijv. 4 min)
+        const speedKlasseInterval = klasseIntervals[rowKlasse] || speedInterval;
+        currentSpeedTime = addMinutes(currentSpeedTime, speedKlasseInterval);
       }
     }
   });
@@ -93,7 +95,7 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, t
 };
 
 // Per-klasse starttijd berekening - automatisch doornummeren
-const calculateStartTimesPerClass = (rows, klasseStartTimes, speedTrailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0, klasseIntervals = {}) => {
+const calculateStartTimesPerClass = (rows, klasseStartTimes, speedTrailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0, klasseIntervals = {}, speedInterval = 4) => {
   const times = {};
   let currentDressuurTime = null;
   let currentTrailTime = null;
@@ -187,7 +189,9 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, speedTrailStart, tu
         currentTrailTime = addMinutes(currentTrailTime, klasseInterval + trailOmbouwtijd);
       }
       if (doSpeed && currentSpeedTime) {
-        currentSpeedTime = addMinutes(currentSpeedTime, klasseInterval);
+        // Speed gebruikt eigen interval
+        const speedKlasseInterval = klasseIntervals[klasse] || speedInterval;
+        currentSpeedTime = addMinutes(currentSpeedTime, speedKlasseInterval);
       }
     }
   });
@@ -942,7 +946,8 @@ export default function Startlijst() {
   const [dressuurStarttijd, setDressuurStarttijd] = useState("09:00");
   const [trailStarttijd, setTrailStarttijd] = useState("13:00");
   const [speedTrailStarttijd, setSpeedTrailStarttijd] = useState("15:00");
-  const [tussenPauze, setTussenPauze] = useState(6); // minuten tussen deelnemers
+  const [tussenPauze, setTussenPauze] = useState(6); // minuten tussen deelnemers (dressuur/trail)
+  const [speedInterval, setSpeedInterval] = useState(4); // minuten tussen deelnemers speed (vaak korter)
   const [trailOmbouwtijd, setTrailOmbouwtijd] = useState(0); // extra tijd voor ombouwen trail (0-15 min)
   const [pauzeMinuten, setPauzeMinuten] = useState(15); // minuten voor een pauze
   const [saving, setSaving] = useState(false);
@@ -1343,6 +1348,7 @@ Plak je data hieronder:`);
         dressuurStart: dressuurStarttijd,
         trailStart: trailStarttijd,
         interval: tussenPauze,
+        speedInterval: speedInterval, // apart interval voor speed
         trailOmbouwtijd: trailOmbouwtijd,
         pauzeMinuten: pauzeMinuten,
         pauses: breaks,
@@ -1442,8 +1448,8 @@ Plak je data hieronder:`);
       console.log('Starting PDF generation...');
       const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
       const calculatedTimes = hasKlasseStartTimes 
-        ? calculateStartTimesPerClass(filtered, klasseStartTimes, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals)
-        : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals);
+        ? calculateStartTimesPerClass(filtered, klasseStartTimes, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
+        : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval);
       
       const wedstrijdInfo = {
         naam: wedstrijdNaam,
@@ -1504,6 +1510,7 @@ Plak je data hieronder:`);
       if (config.dressuurStart) setDressuurStarttijd(config.dressuurStart);
       if (config.trailStart) setTrailStarttijd(config.trailStart);
       if (config.interval) setTussenPauze(config.interval);
+      if (config.speedInterval !== undefined) setSpeedInterval(config.speedInterval);
       if (config.trailOmbouwtijd !== undefined) setTrailOmbouwtijd(config.trailOmbouwtijd);
       if (config.pauzeMinuten) setPauzeMinuten(config.pauzeMinuten);
       if (config.klasseStartTimes) setKlasseStartTimes(config.klasseStartTimes);
@@ -1750,7 +1757,7 @@ Plak je data hieronder:`);
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Interval</label>
+                <label className="block text-xs text-gray-600 mb-1">Interval Dr/Tr</label>
                 <div className="flex items-center gap-1">
                   <input
                     type="number"
@@ -1759,6 +1766,20 @@ Plak je data hieronder:`);
                     className="border rounded px-2 py-1 w-16 text-sm"
                     value={tussenPauze}
                     onChange={(e) => setTussenPauze(Number(e.target.value))}
+                  />
+                  <span className="text-xs text-gray-600">min</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Interval Speed</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    className="border rounded px-2 py-1 w-16 text-sm"
+                    value={speedInterval}
+                    onChange={(e) => setSpeedInterval(Number(e.target.value))}
                   />
                   <span className="text-xs text-gray-600">min</span>
                 </div>
@@ -2071,9 +2092,9 @@ Plak je data hieronder:`);
 
                       // Gebruik per-klasse starttijden als deze ingesteld zijn, anders gebruik algemene tijden
                       const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
-                      const calculatedTimes = hasKlasseStartTimes 
-                        ? calculateStartTimesPerClass(rows, klasseStartTimes, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals)
-                        : calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals);
+                      const calculatedTimes = hasKlasseStartTimes
+                        ? calculateStartTimesPerClass(rows, klasseStartTimes, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
+                        : calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval);
                       const times = calculatedTimes[row.id || index] || {};
 
                       return (
@@ -2442,8 +2463,8 @@ Plak je data hieronder:`);
                   onClick={() => {
                     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                     const calculatedTimes = hasKlasseStartTimes 
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals)
-                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals);
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
+                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval);
                     exportToExcel(filtered, meta, calculatedTimes);
                   }}
                   disabled={!filtered.length}
