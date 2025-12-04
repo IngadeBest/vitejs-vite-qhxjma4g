@@ -42,8 +42,8 @@ const ALG_PUNTEN_WE2PLUS = [
 
 /* PDF helpers */
 const BLUE = [16, 39, 84];
-const LIGHT_HEAD = [200, 210, 230];  // Donkerder voor betere printbaarheid
-const BORDER = [100, 100, 100];      // Veel donkerder grijs voor zichtbare borders
+const LIGHT_HEAD = [220, 230, 245];  // Subtiel maar goed zichtbaar bij printen
+const BORDER = [160, 160, 160];      // Donkerder grijs, goed zichtbaar maar niet hard
 const MARGIN = { left: 40, right: 40 };
 const COL_NUM  = 26;
 const COL_NAME = 260;
@@ -77,8 +77,8 @@ function infoBoxesSideBySide(doc, info) {
     ],
     styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
-    margin: { left: MARGIN.left, right: 0 },
-    tableWidth: 300,
+    margin: { left: MARGIN.left, right: 280 },
+    tableWidth: "auto",
     columnStyles: { 0: { cellWidth: 100, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
   });
   const leftY = doc.lastAutoTable.finalY;
@@ -92,8 +92,8 @@ function infoBoxesSideBySide(doc, info) {
     ],
     styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
-    margin: { left: MARGIN.left + 320, right: 0 },
-    tableWidth: 220,
+    margin: { left: MARGIN.left + 280, right: MARGIN.right },
+    tableWidth: "auto",
     columnStyles: { 0: { cellWidth: 90, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
   });
   const rightY = doc.lastAutoTable.finalY;
