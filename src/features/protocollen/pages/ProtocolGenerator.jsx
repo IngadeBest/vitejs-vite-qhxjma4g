@@ -561,41 +561,61 @@ export default function ProtocolGenerator() {
 
   // PDF actions
   const previewPdf = async () => {
-    if (!protocollen.length) return;
-    const p = protocollen[selectIndex] || protocollen[0];
-    const blob = await makePdfBlob(p, items);
-    const url = URL.createObjectURL(blob);
-    setPdfUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
+    try {
+      if (!protocollen.length) return;
+      const p = protocollen[selectIndex] || protocollen[0];
+      const blob = await makePdfBlob(p, items);
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(prev => { if (prev) URL.revokeObjectURL(prev); return url; });
+    } catch (error) {
+      console.error('Preview PDF error:', error);
+      alert('Fout bij genereren PDF preview: ' + error.message);
+    }
   };
   const openNewTab = async () => {
-    if (!protocollen.length) return;
-    const p = protocollen[selectIndex] || protocollen[0];
-    const blob = await makePdfBlob(p, items);
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank", "noopener,noreferrer");
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    try {
+      if (!protocollen.length) return;
+      const p = protocollen[selectIndex] || protocollen[0];
+      const blob = await makePdfBlob(p, items);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      console.error('Open new tab error:', error);
+      alert('Fout bij openen PDF: ' + error.message);
+    }
   };
   const downloadSingle = async () => {
-    if (!protocollen.length) return;
-    const p = protocollen[selectIndex] || protocollen[0];
-    const blob = await makePdfBlob(p, items);
-    const a = document.createElement("a");
-    const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_").slice(0, 40);
-    a.href = URL.createObjectURL(blob);
-    const sn = padStartnummer(p.startnummer);
-    a.download = `${safe(p.onderdeel)}-${safe(sn)}-${safe(p.ruiter)}-${safe(p.paard)}.pdf`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    try {
+      if (!protocollen.length) return;
+      const p = protocollen[selectIndex] || protocollen[0];
+      const blob = await makePdfBlob(p, items);
+      const a = document.createElement("a");
+      const safe = (s) => String(s || "").replace(/[^\w\-]+/g, "_").slice(0, 40);
+      a.href = URL.createObjectURL(blob);
+      const sn = padStartnummer(p.startnummer);
+      a.download = `${safe(p.onderdeel)}-${safe(sn)}-${safe(p.ruiter)}-${safe(p.paard)}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (error) {
+      console.error('Download single error:', error);
+      alert('Fout bij downloaden PDF: ' + error.message);
+    }
   };
   const downloadBatch = async () => {
-    if (!protocollen.length) return;
-    const mod = await import('jspdf');
-    const modAuto = await import('jspdf-autotable');
-    const jsPDFLib = (mod && (mod.default || mod.jsPDF)) || mod;
-    autoTable = (modAuto && (modAuto.default || modAuto)) || modAuto;
-    const doc = new (jsPDFLib.default || jsPDFLib)({ unit: "pt", format: "A4" });
-    protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items); });
-    doc.save(`protocollen_${config.onderdeel}.pdf`);
+    try {
+      if (!protocollen.length) return;
+      const mod = await import('jspdf');
+      const modAuto = await import('jspdf-autotable');
+      const jsPDFLib = (mod && (mod.default || mod.jsPDF)) || mod;
+      autoTable = (modAuto && (modAuto.default || modAuto)) || modAuto;
+      const doc = new (jsPDFLib.default || jsPDFLib)({ unit: "pt", format: "A4" });
+      protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items); });
+      doc.save(`protocollen_${config.onderdeel}.pdf`);
+    } catch (error) {
+      console.error('Download batch error:', error);
+      alert('Fout bij downloaden batch PDF: ' + error.message);
+    }
   };
 
   const Header = () => (
