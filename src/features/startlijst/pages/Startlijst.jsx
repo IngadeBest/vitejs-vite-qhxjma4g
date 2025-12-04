@@ -103,9 +103,8 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, t
       if (doSpeed) {
         // Markeer dat speed is begonnen
         speedStarted = true;
-        // Speed gebruikt eigen interval (vaak korter, bijv. 4 min)
-        const speedKlasseInterval = klasseIntervals[rowKlasse] || speedInterval;
-        currentSpeedTime = addMinutes(currentSpeedTime, speedKlasseInterval);
+        // Speed gebruikt ALTIJD de globale speedInterval, NIET de per-klasse interval
+        currentSpeedTime = addMinutes(currentSpeedTime, speedInterval);
       }
     }
   });
@@ -209,9 +208,8 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, dressuurStart, trai
       if (doSpeed && currentSpeedTime) {
         // Markeer dat speed is begonnen
         speedStarted = true;
-        // Speed gebruikt eigen interval
-        const speedKlasseInterval = klasseIntervals[klasse] || speedInterval;
-        currentSpeedTime = addMinutes(currentSpeedTime, speedKlasseInterval);
+        // Speed gebruikt ALTIJD de globale speedInterval, NIET de per-klasse interval
+        currentSpeedTime = addMinutes(currentSpeedTime, speedInterval);
       }
     }
   });
