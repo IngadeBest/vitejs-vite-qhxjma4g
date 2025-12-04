@@ -99,33 +99,11 @@ function infoBoxesSideBySide(doc, info) {
   const rightY = doc.lastAutoTable.finalY;
   return Math.max(leftY, rightY);
 }
-function obstaclesTable(doc, items, startY, garrochaLijn = false, groepering = "apart") {
-  let bodyRows = [];
-  
-  if (groepering === "abc") {
-    // ABC groepering: elke 3 obstakels worden 1A/B/C, 2A/B/C, etc.
-    for (let i = 0; i < items.length; i += 3) {
-      const groupNum = Math.floor(i / 3) + 1;
-      const subItems = items.slice(i, i + 3);
-      subItems.forEach((item, subIdx) => {
-        const letter = ['A', 'B', 'C'][subIdx];
-        bodyRows.push([`${groupNum}${letter}`, item, "", "", ""]);
-      });
-    }
-  } else {
-    // Apart: elk obstakel eigen nummer
-    bodyRows = items.map((o, i) => [i + 1, o, "", "", ""]);
-  }
-  
-  // Voeg garrocha-lijn toe als optie aanstaat
-  if (garrochaLijn) {
-    bodyRows.push(["G", "Garrocha-lijn", "", "", ""]);
-  }
-  
+function obstaclesTable(doc, items, startY) {
   autoTable(doc, {
     startY,
     head: [["#", "Onderdeel / obstakel", "Heel", "Half", "Opmerking"]],
-    body: bodyRows,
+    body: items.map((o, i) => [i + 1, o, "", "", ""]),
     styles: { fontSize: 10, cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, lineColor: BORDER, lineWidth: 0.2, valign: "top" },
     headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold" },
     theme: "grid",
@@ -138,7 +116,7 @@ function obstaclesTable(doc, items, startY, garrochaLijn = false, groepering = "
       4: { cellWidth: "auto" },
     },
   });
-  return { finalY: doc.lastAutoTable.finalY, rowCount: bodyRows.length };
+  return doc.lastAutoTable.finalY;
 }
 function generalPointsTable(doc, punten, startY, startIndex = 1) {
   autoTable(doc, {
@@ -237,14 +215,12 @@ function protocolToDoc(doc, p, items) {
   
   // Voor stijl/speed: oude layout
   titleBar(doc, title, `${p.klasse_naam || p.klasse}`);
-  const afterItemsResult = obstaclesTable(doc, items, infoY + 16, p.garrochaLijn, p.groepering);
-  const afterItems = afterItemsResult.finalY;
-  const obstacleCount = afterItemsResult.rowCount;
+  const afterItems = obstaclesTable(doc, items, infoY + 16);
   let afterAlg = afterItems;
   if (p.onderdeel === "stijl") {
     // WE0 en WE1 krijgen basis algemene punten, rest (WE2, WE2+, WE3, WE4, YR, JR) krijgt uitgebreide punten
     const punten = (p.klasse === "we0" || p.klasse === "we1") ? ALG_PUNTEN_WE0_WE1 : ALG_PUNTEN_WE2PLUS;
-    afterAlg = generalPointsTable(doc, punten, afterItems + 12, obstacleCount + 1);
+    afterAlg = generalPointsTable(doc, punten, afterItems + 12, items.length + 1);
   }
   const maxPoints = p.max_score ? Number(p.max_score) : null;
   const isSpeed = p.onderdeel === "speed";
@@ -271,9 +247,7 @@ export default function ProtocolGenerator() {
     klasse: "",
     onderdeel: "",  // No default - user must choose
     datum: new Date().toISOString().split("T")[0],
-    jury: "",
-    garrochaLijn: false,  // Voeg garrocha-lijn toe
-    groepering: "apart"   // "apart" of "abc" (ABC grouping)
+    jury: ""
   });
   const selectedWedstrijd = useMemo(
     () => wedstrijden.find(w => w.id === config.wedstrijd_id) || null,
@@ -575,8 +549,6 @@ export default function ProtocolGenerator() {
       wedstrijd_naam: selectedWedstrijd?.naam || "",
       datum: config.datum || "",
       jury: config.jury || "",
-      garrochaLijn: config.garrochaLijn,
-      groepering: config.groepering,
       rubriek: d.rubriek || selectedRubriek || 'senior',
   // use provided startnummer or default to class-offset + index; pad to 3 digits
   startnummer: padStartnummer(d.startnummer || String( (dbRows && dbRows.length) ? (Number(d.startnummer) || String( lookupOffset(config.klasse, d.rubriek || selectedRubriek || 'senior', selectedWedstrijd?.startlijst_config) + idx )) : String(idx + 1) )),
@@ -674,26 +646,6 @@ export default function ProtocolGenerator() {
 
           <label>Jury (optioneel)</label>
           <input value={config.jury} onChange={(e)=>setConfig(c=>({...c, jury:e.target.value}))}/>
-          
-          {/* Stijltrail extra opties */}
-          {config.onderdeel === 'stijl' && (
-            <>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 12 }}>
-                <input 
-                  type="checkbox" 
-                  checked={config.garrochaLijn}
-                  onChange={(e) => setConfig(c => ({...c, garrochaLijn: e.target.checked}))}
-                />
-                <span>Garrocha-lijn toevoegen</span>
-              </label>
-              
-              <label>Groepering obstakels</label>
-              <select value={config.groepering} onChange={(e) => setConfig(c => ({...c, groepering: e.target.value}))}>
-                <option value="apart">Elk obstakel apart (1, 2, 3, ...)</option>
-                <option value="abc">ABC groepen (1A/B/C, 2A/B/C, ...)</option>
-              </select>
-            </>
-          )}
         </div>
 
         <div style={{ marginTop: 6, fontSize: 12, color: "#555" }}>{dbMsg}</div>
