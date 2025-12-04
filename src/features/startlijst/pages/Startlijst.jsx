@@ -13,6 +13,13 @@ import Container from "@/ui/Container";
 // ======= Helpers =======
 const LS_KEY = "wp_startlijst_cache_v1";
 
+// Check of een klasse speed trail heeft
+const klasseHasSpeed = (klasse) => {
+  const normalized = normalizeKlasse(klasse);
+  // WE0 en WE1 hebben geen speed, vanaf WE2 wel
+  return ['WE2', 'WE2+', 'WE3', 'WE4', 'Young Riders', 'Junioren'].includes(normalized);
+};
+
 // Helper functie voor automatische starttijd berekening
 const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0, klasseIntervals = {}, speedInterval = 4) => {
   const times = {};
@@ -25,7 +32,9 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, t
   };
   
   const formatTime = (date) => {
-    return date.toTimeString().substring(0, 5);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
   };
   
   const normalizeKlasse = (klasse) => {
@@ -63,10 +72,15 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, t
         type: 'break'
       };
     } else {
+      // Bepaal klasse voor speed check
+      const rowKlasse = normalizeKlasse(row.klasse) || 'Geen klasse';
+      const klasseInterval = klasseIntervals[rowKlasse] || tussenPauze;
+      
       // Controleer welke onderdelen de deelnemer rijdt
       const doDressuur = row.onderdelen?.dressuur !== false;
       const doTrail = row.onderdelen?.trail !== false;
-      const doSpeed = row.onderdelen?.speed !== false;
+      // Speed: check of klasse speed heeft EN of checkbox aan staat
+      const doSpeed = klasseHasSpeed(rowKlasse) && (row.onderdelen?.speed !== false);
       
       // Voor deelnemers: bereken tijden (alleen voor onderdelen die gereden worden)
       times[id] = {
@@ -107,7 +121,9 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, speedTrailStart, tu
   };
   
   const formatTime = (date) => {
-    return date.toTimeString().substring(0, 5);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
   };
   
   rows.forEach((row, index) => {
@@ -171,7 +187,8 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, speedTrailStart, tu
       // Controleer welke onderdelen de deelnemer rijdt
       const doDressuur = row.onderdelen?.dressuur !== false;
       const doTrail = row.onderdelen?.trail !== false;
-      const doSpeed = row.onderdelen?.speed !== false;
+      // Speed: check of klasse speed heeft EN of checkbox aan staat
+      const doSpeed = klasseHasSpeed(klasse) && (row.onderdelen?.speed !== false);
       
       times[id] = {
         dressuur: (doDressuur && currentDressuurTime) ? formatTime(currentDressuurTime) : '--:--',
@@ -448,7 +465,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
     if (r.type === "break") {
       // Pauze regel - gebruik array syntax met colspan via styles
       body.push([
-        { content: `Pauze: ${r.duration || 0} minuten`, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
+        { content: `Pauze: ${r.duration || 0} minuten`, colSpan: 6, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
       ]);
     } else {
       // Voeg klasse header toe als nieuwe klasse
@@ -457,15 +474,16 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
         currentKlasse = rowKlasse;
         console.log('Adding class header:', rowKlasse);
         body.push([
-          { content: `Klasse: ${rowKlasse}`, colSpan: 5, styles: { fontStyle: "bold", fillColor: LIGHT_HEAD, textColor: BLUE, halign: "left", fontSize: 11 } }
+          { content: `Klasse: ${rowKlasse}`, colSpan: 6, styles: { fontStyle: "bold", fillColor: LIGHT_HEAD, textColor: BLUE, halign: "left", fontSize: 11 } }
         ]);
       }
       
-      // Data regel ZONDER # kolom
+      // Data regel - inclusief Speed
       const times = calculatedTimes[r.id || i] || {};
       body.push([
         times.dressuur || "--:--",
         times.trail || "--:--",
+        times.speedTrail || "--:--",
         r.startnummer || "",
         r.ruiter || "",
         r.paard || "",
@@ -476,7 +494,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   console.log('Total body rows including headers:', body.length);
 
   autoTable(doc, {
-    head: [["Dressuur", "Trail", "Startnr", "Ruiter", "Paard"]],
+    head: [["Dressuur", "Trail", "Speed", "Startnr", "Ruiter", "Paard"]],
     body,
     startY: tableStartY,
     styles: { 
@@ -491,11 +509,12 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
       fontSize: 9
     },
     columnStyles: {
-      0: { cellWidth: 60 },        // Dressuur
-      1: { cellWidth: 60 },        // Trail
-      2: { cellWidth: 50 },        // Startnr
-      3: { cellWidth: 'auto' },    // Ruiter
-      4: { cellWidth: 'auto' }     // Paard
+      0: { cellWidth: 50 },        // Dressuur
+      1: { cellWidth: 50 },        // Trail
+      2: { cellWidth: 50 },        // Speed
+      3: { cellWidth: 45 },        // Startnr
+      4: { cellWidth: 'auto' },    // Ruiter
+      5: { cellWidth: 'auto' }     // Paard
     },
     margin: { left: 40, right: 40 },
   });
@@ -550,6 +569,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
           Klasse: rowKlasse,
           Dressuur: times.dressuur || "",
           Trail: times.trail || "",
+          Speed: times.speedTrail || "",
           Startnummer: r.startnummer || "",
           Ruiter: r.ruiter || "",
           Paard: r.paard || "",
@@ -593,7 +613,8 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
       "Volgorde",
       "Klasse",
       "Dressuur",
-      "Trail", 
+      "Trail",
+      "Speed",
       "Startnummer",
       "Ruiter",
       "Paard",
