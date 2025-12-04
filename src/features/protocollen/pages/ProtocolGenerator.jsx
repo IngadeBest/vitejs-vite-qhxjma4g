@@ -383,6 +383,24 @@ export default function ProtocolGenerator() {
           .from("proeven_items").select("nr, omschrijving").eq("proef_id", proef.id).order("nr", { ascending: true });
         if (e2) throw e2;
         if (!alive) return;
+        
+        // Probeer eerst opgeslagen configuratie te laden
+        const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          try {
+            const parsedItems = JSON.parse(saved);
+            setItems(parsedItems);
+            setDbMax(proef.max_score || null);
+            setDbMsg(`✅ Opgeslagen configuratie geladen: ${parsedItems.length} items (proef: ${proef.naam})`);
+            console.log('Loaded saved configuration from localStorage');
+            return;
+          } catch (e) {
+            console.error('Error loading saved config:', e);
+          }
+        }
+        
+        // Fallback: gebruik database items
         setItems((its || []).map(it => it.omschrijving));
         setDbMax(proef.max_score || null);
         setDbMsg(`Proef geladen: ${proef.naam} (${(its||[]).length} onderdelen)`);
