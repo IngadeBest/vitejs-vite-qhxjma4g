@@ -1344,6 +1344,7 @@ Plak je data hieronder:`);
         pauzeMinuten: pauzeMinuten,
         pauses: breaks,
         klasseStartTimes: klasseStartTimes,
+        klasseIntervals: klasseIntervals, // bewaar per-klasse intervals (WE3+)
         rowOrder: rows.map(r => ({ id: r.id, type: r.type })) // bewaar volgorde
       };
       
@@ -1368,7 +1369,7 @@ Plak je data hieronder:`);
         throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
       }
 
-      // Stap 3: Voeg alle huidige entries toe MET volgorde
+      // Stap 3: Voeg alle huidige entries toe MET volgorde EN onderdelen
       const entriesToInsert = entries.map((row, idx) => ({
         wedstrijd_id: wedstrijd,
         ruiter: row.ruiter.trim(),
@@ -1376,6 +1377,7 @@ Plak je data hieronder:`);
         startnummer: row.startnummer || null,
         klasse: normalizeKlasse(row.klasse),
         rubriek: rubriek || 'Algemeen',
+        onderdelen: row.onderdelen || { dressuur: true, trail: true, speed: true }, // bewaar welke onderdelen gereden worden
         volgorde: rows.indexOf(row) // bewaar originele positie
       }));
 
@@ -1494,6 +1496,7 @@ Plak je data hieronder:`);
       if (config.trailOmbouwtijd !== undefined) setTrailOmbouwtijd(config.trailOmbouwtijd);
       if (config.pauzeMinuten) setPauzeMinuten(config.pauzeMinuten);
       if (config.klasseStartTimes) setKlasseStartTimes(config.klasseStartTimes);
+      if (config.klasseIntervals) setKlasseIntervals(config.klasseIntervals);
       
       // Stap 2: Laad deelnemers (sorteer op volgorde veld indien aanwezig)
       let query = supabase
@@ -2419,6 +2422,14 @@ Plak je data hieronder:`);
                   disabled={!filtered.length}
                 >
                   📊 Excel
+                </button>
+                
+                <button
+                  className="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                  onClick={makeBatchPDF}
+                  disabled={!filtered.length}
+                >
+                  📄 PDF
                 </button>
                 
                 <button
