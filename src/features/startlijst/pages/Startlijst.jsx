@@ -26,6 +26,7 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, t
   let currentDressuurTime = new Date(`1970-01-01T${dressuurStart}:00`);
   let currentTrailTime = new Date(`1970-01-01T${trailStart}:00`);
   let currentSpeedTime = new Date(`1970-01-01T${speedTrailStart}:00`);
+  let speedStarted = false; // Track of we al speed deelnemers hebben gehad
   
   const addMinutes = (date, minutes) => {
     return new Date(date.getTime() + minutes * 60000);
@@ -61,10 +62,12 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, t
     const klasseInterval = klasseIntervals[rowKlasse] || tussenPauze;
     
     if (row.type === 'break') {
-      // Voor pauzes: voeg pauzetijd toe aan alle tijden
+      // Voor pauzes: voeg pauzetijd toe aan tijdlijnen (speed alleen als al gestart)
       currentDressuurTime = addMinutes(currentDressuurTime, pauzeMinuten);
       currentTrailTime = addMinutes(currentTrailTime, pauzeMinuten);
-      currentSpeedTime = addMinutes(currentSpeedTime, pauzeMinuten);
+      if (speedStarted) {
+        currentSpeedTime = addMinutes(currentSpeedTime, pauzeMinuten);
+      }
       times[id] = {
         dressuur: '',
         trail: '',
@@ -98,6 +101,8 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, t
         currentTrailTime = addMinutes(currentTrailTime, klasseInterval + trailOmbouwtijd);
       }
       if (doSpeed) {
+        // Markeer dat speed is begonnen
+        speedStarted = true;
         // Speed gebruikt eigen interval (vaak korter, bijv. 4 min)
         const speedKlasseInterval = klasseIntervals[rowKlasse] || speedInterval;
         currentSpeedTime = addMinutes(currentSpeedTime, speedKlasseInterval);
@@ -109,12 +114,13 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, t
 };
 
 // Per-klasse starttijd berekening - automatisch doornummeren
-const calculateStartTimesPerClass = (rows, klasseStartTimes, speedTrailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0, klasseIntervals = {}, speedInterval = 4) => {
+const calculateStartTimesPerClass = (rows, klasseStartTimes, dressuurStart, trailStart, speedTrailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0, klasseIntervals = {}, speedInterval = 4) => {
   const times = {};
-  let currentDressuurTime = null;
-  let currentTrailTime = null;
+  let currentDressuurTime = new Date(`1970-01-01T${dressuurStart}:00`);
+  let currentTrailTime = new Date(`1970-01-01T${trailStart}:00`);
   let currentSpeedTime = new Date(`1970-01-01T${speedTrailStart}:00`);
   let lastKlasse = null;
+  let speedStarted = false; // Track of we al speed deelnemers hebben gehad
   
   const addMinutes = (date, minutes) => {
     return new Date(date.getTime() + minutes * 60000);
@@ -130,14 +136,14 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, speedTrailStart, tu
     const id = row.id || index;
     
     if (row.type === 'break') {
-      // Voor pauzes: voeg pauzetijd toe aan lopende tijden
+      // Voor pauzes: voeg pauzetijd toe aan lopende tijden (speed alleen als al gestart)
       if (currentDressuurTime) {
         currentDressuurTime = addMinutes(currentDressuurTime, pauzeMinuten);
       }
       if (currentTrailTime) {
         currentTrailTime = addMinutes(currentTrailTime, pauzeMinuten);
       }
-      if (currentSpeedTime) {
+      if (currentSpeedTime && speedStarted) {
         currentSpeedTime = addMinutes(currentSpeedTime, pauzeMinuten);
       }
       times[id] = {
@@ -160,18 +166,13 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, speedTrailStart, tu
         // Anders blijf doornummeren vanaf vorige tijd
         if (klasseConfig.dressuur) {
           currentDressuurTime = new Date(`1970-01-01T${klasseConfig.dressuur}:00`);
-        } else if (!currentDressuurTime) {
-          // Geen tijd ingesteld en geen lopende tijd: laat leeg
-          currentDressuurTime = null;
         }
-        // Anders: blijf doornummeren (currentDressuurTime blijft behouden)
+        // Anders: blijf doornummeren (currentDressuurTime begint met globale tijd)
         
         if (klasseConfig.trail) {
           currentTrailTime = new Date(`1970-01-01T${klasseConfig.trail}:00`);
-        } else if (!currentTrailTime) {
-          currentTrailTime = null;
         }
-        // Anders: blijf doornummeren
+        // Anders: blijf doornummeren (currentTrailTime begint met globale tijd)
         
         if (klasseConfig.speedTrail) {
           currentSpeedTime = new Date(`1970-01-01T${klasseConfig.speedTrail}:00`);
@@ -206,6 +207,8 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, speedTrailStart, tu
         currentTrailTime = addMinutes(currentTrailTime, klasseInterval + trailOmbouwtijd);
       }
       if (doSpeed && currentSpeedTime) {
+        // Markeer dat speed is begonnen
+        speedStarted = true;
         // Speed gebruikt eigen interval
         const speedKlasseInterval = klasseIntervals[klasse] || speedInterval;
         currentSpeedTime = addMinutes(currentSpeedTime, speedKlasseInterval);
@@ -1469,7 +1472,7 @@ Plak je data hieronder:`);
       console.log('Starting PDF generation...');
       const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
       const calculatedTimes = hasKlasseStartTimes 
-        ? calculateStartTimesPerClass(filtered, klasseStartTimes, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
+        ? calculateStartTimesPerClass(filtered, klasseStartTimes, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
         : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval);
       
       const wedstrijdInfo = {
@@ -2114,7 +2117,7 @@ Plak je data hieronder:`);
                       // Gebruik per-klasse starttijden als deze ingesteld zijn, anders gebruik algemene tijden
                       const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                       const calculatedTimes = hasKlasseStartTimes
-                        ? calculateStartTimesPerClass(rows, klasseStartTimes, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
+                        ? calculateStartTimesPerClass(rows, klasseStartTimes, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
                         : calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval);
                       const times = calculatedTimes[row.id || index] || {};
 
@@ -2484,7 +2487,7 @@ Plak je data hieronder:`);
                   onClick={() => {
                     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                     const calculatedTimes = hasKlasseStartTimes 
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
                       : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval);
                     exportToExcel(filtered, meta, calculatedTimes);
                   }}
