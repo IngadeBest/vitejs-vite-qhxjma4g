@@ -1369,17 +1369,25 @@ Plak je data hieronder:`);
         throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
       }
 
-      // Stap 3: Voeg alle huidige entries toe MET volgorde EN onderdelen
-      const entriesToInsert = entries.map((row, idx) => ({
-        wedstrijd_id: wedstrijd,
-        ruiter: row.ruiter.trim(),
-        paard: row.paard ? row.paard.trim() : null,
-        startnummer: row.startnummer || null,
-        klasse: normalizeKlasse(row.klasse),
-        rubriek: rubriek || 'Algemeen',
-        onderdelen: row.onderdelen || { dressuur: true, trail: true, speed: true }, // bewaar welke onderdelen gereden worden
-        volgorde: rows.indexOf(row) // bewaar originele positie
-      }));
+      // Stap 3: Voeg alle huidige entries toe MET volgorde (onderdelen alleen als kolom bestaat)
+      const entriesToInsert = entries.map((row, idx) => {
+        const entry = {
+          wedstrijd_id: wedstrijd,
+          ruiter: row.ruiter.trim(),
+          paard: row.paard ? row.paard.trim() : null,
+          startnummer: row.startnummer || null,
+          klasse: normalizeKlasse(row.klasse),
+          rubriek: rubriek || 'Algemeen',
+          volgorde: rows.indexOf(row) // bewaar originele positie
+        };
+        
+        // Voeg onderdelen toe als de row die data heeft (wordt genegeerd als kolom niet bestaat)
+        if (row.onderdelen) {
+          entry.onderdelen = row.onderdelen;
+        }
+        
+        return entry;
+      });
 
       const { error: insertError } = await supabase
         .from('inschrijvingen')
@@ -1499,9 +1507,10 @@ Plak je data hieronder:`);
       if (config.klasseIntervals) setKlasseIntervals(config.klasseIntervals);
       
       // Stap 2: Laad deelnemers (sorteer op volgorde veld indien aanwezig)
+      // NOTE: 'onderdelen' kolom kan ontbreken in oude database schema - wordt later toegevoegd
       let query = supabase
         .from("inschrijvingen")
-        .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde,onderdelen")
+        .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde")
         .eq("wedstrijd_id", wedstrijd);
 
       if (klasse) {
@@ -1553,17 +1562,31 @@ Plak je data hieronder:`);
         return 0; // behoud huidige volgorde
       });
 
-      const loadedRows = sortedData.map((r, i) => ({
-        id: r.id || `db_${Date.now()}_${i}`,
-        type: "entry",
-        ruiter: r.ruiter || "",
-        paard: r.paard || "",
-        startnummer: (r.startnummer || "").toString(),
-        klasse: normalizeKlasse(r.klasse) || "",
-        starttijd: "",
-        dbId: r.id,
-        fromDB: true,
-      }));
+      const loadedRows = sortedData.map((r, i) => {
+        // Format startnummer with leading zeros (001, 002, etc)
+        let formattedStartnummer = '';
+        if (r.startnummer) {
+          const num = typeof r.startnummer === 'number' ? r.startnummer : parseInt(r.startnummer, 10);
+          if (!isNaN(num)) {
+            formattedStartnummer = num.toString().padStart(3, '0');
+          } else {
+            formattedStartnummer = r.startnummer.toString();
+          }
+        }
+        
+        return {
+          id: r.id || `db_${Date.now()}_${i}`,
+          type: "entry",
+          ruiter: r.ruiter || "",
+          paard: r.paard || "",
+          startnummer: formattedStartnummer,
+          klasse: normalizeKlasse(r.klasse) || "",
+          onderdelen: r.onderdelen || { dressuur: true, trail: true, speed: true }, // fallback als niet in DB
+          starttijd: "",
+          dbId: r.id,
+          fromDB: true,
+        };
+      });
 
       // Stap 3: Voeg pauzes weer toe op juiste positie
       const pauses = config.pauses || [];
