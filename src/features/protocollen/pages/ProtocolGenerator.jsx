@@ -290,6 +290,35 @@ export default function ProtocolGenerator() {
   const draggedItem = useRef(null);
   const draggedFromAvailable = useRef(false);
 
+  // Opslaan en laden van items configuratie
+  const saveItemsConfig = () => {
+    const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
+    localStorage.setItem(key, JSON.stringify(items));
+    alert(`✅ Configuratie opgeslagen voor ${config.klasse} ${config.onderdeel}`);
+  };
+
+  const loadItemsConfig = () => {
+    const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setItems(parsed);
+        setDbMsg(`✅ Configuratie geladen: ${parsed.length} items`);
+        return true;
+      } catch (e) {
+        console.error('Error loading config:', e);
+      }
+    }
+    return false;
+  };
+
+  const clearItemsConfig = () => {
+    const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
+    localStorage.removeItem(key);
+    alert('🗑️ Opgeslagen configuratie verwijderd');
+  };
+
   // Proefconfig ophalen
   useEffect(() => {
     let alive = true;
@@ -985,6 +1014,36 @@ export default function ProtocolGenerator() {
           <div>
             {renderItemsEditor()}
             
+            {/* Configuratie opslaan/laden knoppen */}
+            {(config.onderdeel === 'stijl' || config.onderdeel === 'speed') && items.length > 0 && (
+              <div style={{ marginTop: 12, display: 'flex', gap: 8, padding: 12, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+                <button 
+                  onClick={saveItemsConfig}
+                  style={{ flex: 1, background: '#0ea5e9', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 500 }}
+                >
+                  💾 Opslaan configuratie
+                </button>
+                <button 
+                  onClick={() => {
+                    if (loadItemsConfig()) {
+                      // Success message already shown in loadItemsConfig
+                    } else {
+                      alert('⚠️ Geen opgeslagen configuratie gevonden voor deze combinatie');
+                    }
+                  }}
+                  style={{ flex: 1, background: '#06b6d4', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 500 }}
+                >
+                  📥 Laden configuratie
+                </button>
+                <button 
+                  onClick={clearItemsConfig}
+                  style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 500 }}
+                  title="Verwijder opgeslagen configuratie"
+                >
+                  🗑️
+                </button>
+              </div>
+            )}
 
             <div style={{ marginTop: 16 }}>
               <b>Startlijst</b>
