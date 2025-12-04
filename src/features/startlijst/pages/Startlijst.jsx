@@ -157,8 +157,11 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, speedTrailStart, tu
         
         if (klasseConfig.speedTrail) {
           currentSpeedTime = new Date(`1970-01-01T${klasseConfig.speedTrail}:00`);
+        } else if (!currentSpeedTime && speedTrailStart) {
+          // Eerste klasse zonder specifieke speed tijd: gebruik globale speedTrailStart
+          currentSpeedTime = new Date(`1970-01-01T${speedTrailStart}:00`);
         }
-        // Speed blijft altijd doornummeren als er geen specifieke tijd is
+        // Anders: blijf doornummeren vanaf vorige klasse
         
         lastKlasse = klasse;
       }
