@@ -1501,7 +1501,7 @@ Plak je data hieronder:`);
       // Stap 2: Laad deelnemers (sorteer op volgorde veld indien aanwezig)
       let query = supabase
         .from("inschrijvingen")
-        .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde")
+        .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde,onderdelen")
         .eq("wedstrijd_id", wedstrijd);
 
       if (klasse) {
@@ -1837,11 +1837,12 @@ Plak je data hieronder:`);
                             min="6"
                             max="15"
                             className="border rounded px-1 py-0.5 text-xs w-full"
-                            value={klasseIntervals[klasse] || ''}
+                            value={klasseIntervals[klasse] !== undefined ? klasseIntervals[klasse] : ''}
                             onChange={(e) => {
+                              const val = e.target.value;
                               setKlasseIntervals(prev => ({
                                 ...prev,
-                                [klasse]: Number(e.target.value)
+                                [klasse]: val === '' ? undefined : Number(val)
                               }));
                             }}
                             placeholder={tussenPauze.toString()}
