@@ -1790,7 +1790,7 @@ Plak je data hieronder:`);
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Per klasse config (optioneel - starttijden auto, interval voor WE3+ aanpassen)</h3>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
               {classOrder.map((klasse) => {
-                const isHighLevel = ['WE3', 'WE4', 'Young Riders'].includes(klasse);
+                const isHighLevel = ['WE3', 'WE4', 'Young Riders', 'Junioren'].includes(klasse);
                 const hasSpeed = ['WE2', 'WE2+', 'WE3', 'WE4', 'Young Riders', 'Junioren'].includes(klasse);
                 return (
                   <div key={klasse} className="border rounded p-2 bg-gray-50">
