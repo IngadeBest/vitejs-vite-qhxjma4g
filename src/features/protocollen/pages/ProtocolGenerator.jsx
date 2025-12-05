@@ -45,19 +45,29 @@ const ALG_PUNTEN_WE2PLUS = [
 const BLUE = [16, 39, 84];
 const MARGIN = { left: 40, right: 40 };
 
-/* NIEUWE CONSTANTEN */
+/* NIEUWE CONSTANTEN MET VASTE BREEDTES */
 const BORDER_COLOR = [160, 160, 160];
 const HEADER_COLOR = [220, 230, 245];
 
-// VOEG DEZE REGEL TOE OM DE FOUT TE HERSTELLEN:
+// Zorg dat BORDER gedefinieerd is voor backward compatibility
 const BORDER = BORDER_COLOR; 
 
 const COL_WIDTHS = {
   NUM: 25,
-  LETTER: 55,
+  LETTER: 50,       // Iets smaller (was 55)
+  EXERCISE: 185,    // NIEUW: Vaste breedte voor oefening (was auto)
   HEEL: 35,
   HALF: 35,
-  NOTE: 130
+  NOTE: 185         // Veel breder voor schrijfruimte (was 130)
+};
+
+/* SPEEDTRAIL Specifieke breedtes */
+const COL_WIDTHS_SPEED = {
+  NUM: 25,
+  OBSTACLE: "auto", 
+  RULE: 110,
+  SCORE: 50,
+  NOTE: 100
 };
 function titleBar(doc, title, subtitle) {
   const W = doc.internal.pageSize.getWidth();
@@ -164,17 +174,24 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
     body: punten.map((naam, i) => [startIndex + i, naam, "", "", ""]),
     styles: { 
       fontSize: 10, 
-      cellPadding: { top: 6, right: 5, bottom: 6, left: 5 }, 
+      cellPadding: { top: 8, right: 5, bottom: 8, left: 5 }, 
       lineColor: BORDER_COLOR, 
       lineWidth: 0.5,
-      valign: "middle"
+      valign: "middle",
+      minCellHeight: 35 // Algemene punten mogen iets compacter, of zet ook op 50+
     },
-    headStyles: { fillColor: HEADER_COLOR, textColor: 0, fontStyle: "bold", halign: "left" },
+    headStyles: { 
+      fillColor: HEADER_COLOR, 
+      textColor: 0, 
+      fontStyle: "bold", 
+      halign: "left" 
+    },
     theme: "grid",
     margin: MARGIN,
     columnStyles: {
       0: { cellWidth: COL_WIDTHS.NUM,  halign: "center" },
-      1: { cellWidth: "auto" },
+      // Hier tellen we Letter + Oefening breedte bij elkaar op voor 1 kolom
+      1: { cellWidth: COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE }, 
       2: { cellWidth: COL_WIDTHS.HEEL,    halign: "center" },
       3: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
       4: { cellWidth: COL_WIDTHS.NOTE },
@@ -182,29 +199,67 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
   });
   return doc.lastAutoTable.finalY;
 }
-function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true, isDressuur = false) {
-  const totalLabel = maxPoints ? `Totaal (${maxPoints} max. punten)` : "Totaal";
-  const bodyRows = [["Subtotaal", "", "", ""]]; // Let op: 4 items in array voor 4 kolommen
-  
-  if (showPuntenaftrek) {
-    bodyRows.push(["Puntenaftrek en reden", "", "", ""]);
+function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true, isDressuur = false, isSpeed = false) {
+  let bodyRows = [];
+  let colStyles = {};
+
+  if (isSpeed) {
+    // ... (Speedtrail logica blijft hetzelfde als vorige keer) ...
+    bodyRows = [
+      ["Totaal straftijd", "", ""],
+      ["Gereden tijd", "", ""],
+      ["Totaal tijd", "", ""]
+    ];
+    colStyles = {
+      0: { cellWidth: "auto", halign: "left", fontStyle: "bold" }, 
+      1: { cellWidth: COL_WIDTHS_SPEED.SCORE, halign: "center" },
+      2: { cellWidth: COL_WIDTHS_SPEED.NOTE }
+    };
+
+  } else {
+    // Dressuur & Stijl Totalen
+    const totalLabel = maxPoints ? `Totaal (max. ${maxPoints})` : "Totaal";
+    
+    // We maken 4 kolommen: 
+    // 1. Label (breedte = Num + Letter + Oefening)
+    // 2. Heel
+    // 3. Half
+    // 4. Opmerking
+    
+    bodyRows.push(["Subtotaal", "", "", ""]);
+    if (showPuntenaftrek) {
+      bodyRows.push(["Puntenaftrek en reden", "", "", ""]);
+    }
+    bodyRows.push([extraLabel || totalLabel, "", "", ""]);
+
+    // Bereken de breedte van de eerste kolom (Label)
+    // Zodat deze strak aansluit op de kolom 'Heel'
+    const labelWidth = isDressuur 
+      ? (COL_WIDTHS.NUM + COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE)
+      : (COL_WIDTHS.NUM + 260); // Fallback voor stijltrail als die geen vaste widths gebruikt
+
+    colStyles = { 
+      0: { cellWidth: labelWidth, halign: "left" },
+      1: { cellWidth: COL_WIDTHS.HEEL, halign: "center" },
+      2: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
+      3: { cellWidth: COL_WIDTHS.NOTE }
+    };
   }
   
-  bodyRows.push([extraLabel || totalLabel, "", "", ""]);
-  
   autoTable(doc, {
-    startY, head: [],
+    startY, 
+    head: [],
     body: bodyRows,
-    styles: { fontSize: 10, cellPadding: 6, lineColor: BORDER_COLOR, lineWidth: 0.5, fontStyle: "bold" },
+    styles: { 
+      fontSize: 10, 
+      cellPadding: 8, // Iets ruimer
+      lineColor: BORDER_COLOR, 
+      lineWidth: 0.5, 
+      fontStyle: "bold" 
+    },
     theme: "grid", 
     margin: MARGIN, 
-    columnStyles: {
-      // We gebruiken nu voor ALLES dezelfde indeling, dat is het mooist:
-      0: { cellWidth: "auto", halign: "left" },            // Label
-      1: { cellWidth: COL_WIDTHS.HEEL, halign: "center" }, // Heel
-      2: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, // Half
-      3: { cellWidth: COL_WIDTHS.NOTE }                    // Lege cel voor opmerking
-    },
+    columnStyles: colStyles
   });
   return doc.lastAutoTable.finalY;
 }
@@ -306,34 +361,33 @@ autoTable(doc, {
       head: [["#", "Letter", "Oefening", "Heel", "Half", "Beoordeling/Opmerkingen"]],
       body: formattedData,
       styles: { 
-        fontSize: 10,                 // Iets groter lettertype voor leesbaarheid
-        cellPadding: { top: 6, right: 5, bottom: 6, left: 5 }, 
-        lineColor: BORDER, 
+        fontSize: 10, 
+        cellPadding: { top: 8, right: 5, bottom: 8, left: 5 }, // Iets meer padding
+        lineColor: BORDER_COLOR, 
         lineWidth: 0.5,
-        valign: "top",                // Zorgt dat Figuurnummer altijd bovenaan staat naast de eerste regel
-        overflow: 'linebreak'
+        valign: "top",
+        overflow: 'linebreak',
+        minCellHeight: 70  // <--- HIERMEE MAAK JE RUIMTE OM TE SCHRIJVEN
       },
       headStyles: { 
         fillColor: HEADER_COLOR, 
         textColor: 0, 
         fontStyle: "bold", 
         fontSize: 10,
-        halign: "left"                // Koppen links uitlijnen oogt vaak rustiger
+        halign: "left"
       },
       theme: "grid",
       margin: MARGIN,
-      // ... binnen protocolToDoc ...
       columnStyles: {
-        0: { cellWidth: COL_WIDTHS.NUM, halign: "center" }, // #
-        1: { cellWidth: COL_WIDTHS.LETTER, halign: "left" }, // Letter
-        2: { cellWidth: "auto" },                           // Oefening
-        3: { cellWidth: COL_WIDTHS.HEEL, halign: "center" }, // Heel
-        4: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, // Half
-        5: { cellWidth: COL_WIDTHS.NOTE }                   // Opmerkingen
+        0: { cellWidth: COL_WIDTHS.NUM, halign: "center" }, 
+        1: { cellWidth: COL_WIDTHS.LETTER, halign: "left" }, 
+        2: { cellWidth: COL_WIDTHS.EXERCISE, halign: "left" }, // Nu vaste breedte
+        3: { cellWidth: COL_WIDTHS.HEEL, halign: "center" }, 
+        4: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, 
+        5: { cellWidth: COL_WIDTHS.NOTE } 
       }
-// ...
     });
-    const afterOefeningen = doc.lastAutoTable.finalY;
+        const afterOefeningen = doc.lastAutoTable.finalY;
     
     // Algemene punten tabel (zelfde stijl als stijltrail)
     let afterAlg = afterOefeningen;
