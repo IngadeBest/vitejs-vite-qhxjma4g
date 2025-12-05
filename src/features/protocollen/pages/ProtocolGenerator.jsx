@@ -982,6 +982,7 @@ export default function ProtocolGenerator() {
     </>
   );
 
+  
   if (stap === 1) return viewStap1;
   if (stap === 2) return viewStap2;
   if (stap === 3) return viewStap3;
