@@ -45,19 +45,20 @@ const ALG_PUNTEN_WE2PLUS = [
 const BLUE = [16, 39, 84];
 const MARGIN = { left: 40, right: 40 };
 
-/* NIEUWE CONSTANTEN: Alles in één object voor gelijke uitlijning */
+/* NIEUWE CONSTANTEN */
 const BORDER_COLOR = [160, 160, 160];
 const HEADER_COLOR = [220, 230, 245];
 
-const COL_WIDTHS = {
-  NUM: 25,       // Vervangt het oude COL_NUM
-  LETTER: 55,    // Nieuw: voor de letters A-X etc.
-  HEEL: 35,      // Vervangt COL_H (iets smaller voor strakkere look)
-  HALF: 35,      // Vervangt COL_HALF
-  NOTE: 130      // Vaste breedte voor opmerkingen zodat de tabel rechts uitlijnt
-  // De 'Omschrijving' kolom krijgt straks 'auto' en vult de rest
-};
+// VOEG DEZE REGEL TOE OM DE FOUT TE HERSTELLEN:
+const BORDER = BORDER_COLOR; 
 
+const COL_WIDTHS = {
+  NUM: 25,
+  LETTER: 55,
+  HEEL: 35,
+  HALF: 35,
+  NOTE: 130
+};
 function titleBar(doc, title, subtitle) {
   const W = doc.internal.pageSize.getWidth();
   doc.setFillColor(...BLUE);
