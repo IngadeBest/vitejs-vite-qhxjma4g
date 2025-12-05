@@ -49,19 +49,20 @@ const HEADER_COLOR = [220, 230, 245];
 const BORDER = BORDER_COLOR; 
 
 // DRESSUUR & STIJL INDELING (Totaal ca. 515pt)
+// Aangepast: Iets meer ruimte voor Oefening, iets minder voor Letter/#
 const COL_WIDTHS = {
-  NUM: 25,
-  LETTER: 40,       // Smal, net genoeg voor A-X
-  EXERCISE: 130,    // Smaller gemaakt ten gunste van opmerkingen
+  NUM: 22,          // Was 25
+  LETTER: 38,       // Was 40 (Letters als A-X passen hier makkelijk in)
+  EXERCISE: 145,    // Was 130 -> Meer ruimte voor tekst om afkapping te voorkomen
   HEEL: 35,
   HALF: 35,
-  NOTE: 250         // Veel schrijfruimte
+  NOTE: 240         // Was 250 -> Iets ingeleverd t.b.v. oefening, nog steeds ruim
 };
 
 // SPEEDTRAIL INDELING (Totaal ca. 515pt)
 const COL_WIDTHS_SPEED = {
-  NUM: 25,
-  OBSTACLE: 135,    
+  NUM: 22,
+  OBSTACLE: 138,    
   RULE: 105,        
   SCORE: 40,        // Smal scorevakje
   NOTE: 210         // Veel schrijfruimte
@@ -93,7 +94,7 @@ function infoBoxesSideBySide(doc, info) {
       ["Klasse", info.klasse_naam || info.klasse || ""],
       ["Onderdeel", info.onderdeel_label || info.onderdeel || ""],
     ],
-    styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.5 },
+    styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left, right: 280 },
     tableWidth: "auto",
@@ -108,7 +109,7 @@ function infoBoxesSideBySide(doc, info) {
       ["Paard", info.paard || ""],
       ["Startnummer", info.startnummer || ""],
     ],
-    styles: { fontSize: 10, cellPadding: 5, lineColor: BORDER, lineWidth: 0.5 },
+    styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left + 280, right: MARGIN.right },
     tableWidth: "auto",
@@ -152,19 +153,19 @@ function obstaclesTable(doc, items, startY) {
     head: head,
     body: body,
     styles: { 
-      fontSize: 10, 
-      cellPadding: { top: 8, right: 5, bottom: 8, left: 5 }, 
+      fontSize: 9, // Kleiner font voorkomt afkapping
+      cellPadding: { top: 8, right: 3, bottom: 8, left: 3 }, // Minder padding opzij = meer ruimte voor tekst
       lineColor: BORDER_COLOR, 
       lineWidth: 0.5, 
       valign: "middle",
-      minCellHeight: 40 // Voldoende hoogte, maar compacter dan dressuur
+      minCellHeight: 40 // Voldoende hoogte
     },
     headStyles: { 
       fillColor: HEADER_COLOR, 
       textColor: 0, 
       fontStyle: "bold", 
-      fontSize: 9,
-      cellPadding: 4, // Slankere header
+      fontSize: 8,    // Kleinere header
+      cellPadding: 3, // Slankere header balk
       halign: "left" 
     },
     theme: "grid",
@@ -180,8 +181,8 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
     head: [["#", "Algemene punten", "Heel", "Half", "Opmerking"]],
     body: punten.map((naam, i) => [startIndex + i, naam, "", "", ""]),
     styles: { 
-      fontSize: 10, 
-      cellPadding: { top: 8, right: 5, bottom: 8, left: 5 }, 
+      fontSize: 9, 
+      cellPadding: { top: 8, right: 3, bottom: 8, left: 3 }, 
       lineColor: BORDER_COLOR, 
       lineWidth: 0.5,
       valign: "middle",
@@ -191,8 +192,8 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
       fillColor: HEADER_COLOR, 
       textColor: 0, 
       fontStyle: "bold", 
-      fontSize: 9,
-      cellPadding: 4, // Slankere header
+      fontSize: 8,
+      cellPadding: 3,
       halign: "left" 
     },
     theme: "grid",
@@ -240,7 +241,6 @@ function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntena
     bodyRows.push([extraLabel || totalLabel, "", "", ""]);
 
     // BEREKENING: Breedte 1e kolom = Som van eerste 3 kolommen tabel erboven
-    // Dit zorgt voor perfecte verticale lijnen
     const labelWidth = COL_WIDTHS.NUM + COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE;
 
     colStyles = { 
@@ -256,8 +256,8 @@ function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntena
     head: [],
     body: bodyRows,
     styles: { 
-      fontSize: 10, 
-      cellPadding: 6, // Iets compacter dan schrijfblokken
+      fontSize: 9, 
+      cellPadding: 5, 
       lineColor: BORDER_COLOR, 
       lineWidth: 0.5, 
       fontStyle: "bold" 
@@ -365,8 +365,8 @@ function protocolToDoc(doc, p, items) {
       head: [["#", "Letter", "Oefening", "Heel", "Half", "Beoordeling/Opmerkingen"]],
       body: formattedData,
       styles: { 
-        fontSize: 10, 
-        cellPadding: { top: 8, right: 5, bottom: 8, left: 5 }, 
+        fontSize: 9, // Font iets kleiner voor betere fit
+        cellPadding: { top: 8, right: 3, bottom: 8, left: 3 }, // Weinig side-padding
         lineColor: BORDER_COLOR, 
         lineWidth: 0.5,
         valign: "top",
@@ -377,8 +377,8 @@ function protocolToDoc(doc, p, items) {
         fillColor: HEADER_COLOR, 
         textColor: 0, 
         fontStyle: "bold", 
-        fontSize: 9,
-        cellPadding: 4, // Slanke header
+        fontSize: 8, // Header font klein
+        cellPadding: 3, // Header compact
         halign: "left",
         valign: "middle"
       },
@@ -407,7 +407,6 @@ function protocolToDoc(doc, p, items) {
   }
   
   // STIJL & SPEED LOGICA
-  // obstaclesTable handelt nu zowel Speed (array items) als Stijl (string items) af met de juiste kolommen
   const afterItems = obstaclesTable(doc, items, infoY + 16);
   let afterAlg = afterItems;
   const isSpeed = p.onderdeel === "speed";
@@ -418,7 +417,7 @@ function protocolToDoc(doc, p, items) {
     afterAlg = generalPointsTable(doc, punten, afterItems + 12, items.length + 1);
   }
 
-  // Totaalblok aanroepen met juiste vlaggen voor uitlijning
+  // Totaalblok aanroepen
   totalsBox(
     doc, 
     afterAlg + 6, 
