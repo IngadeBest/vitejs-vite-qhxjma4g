@@ -262,7 +262,8 @@
           ]
         }
       ]
-    },
+    }
+  },
   "speed": {
     "WE2": { "sections": [{ "title": "Speedtrail – Protocol per combinatie", "columns": ["Hindernis", "Strafbepaling", "Straf", "Opmerking"], "rows": [
       ["3 tonnen", "+5 sec per ton", "", ""],
