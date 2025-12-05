@@ -200,34 +200,22 @@ function protocolToDoc(doc, p, items) {
       body: tableData,
       styles: { 
         fontSize: 9, 
-        cellPadding: { top: 8, right: 4, bottom: 8, left: 4 }, 
+        cellPadding: { top: 6, right: 4, bottom: 6, left: 4 }, 
         lineColor: BORDER, 
         lineWidth: 0.5,
         valign: "top",
-        minCellHeight: 28  // ~1cm extra ruimte voor handmatig schrijven
+        minCellHeight: 40,  // ~1.4cm ruimte voor handmatig schrijven
+        cellWidth: "wrap"
       },
       headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold", fontSize: 9 },
       theme: "grid",
       margin: MARGIN,
       columnStyles: {
-        0: { cellWidth: 25, halign: "center" },   // #
-        1: { cellWidth: 55 },   // Letter
-        2: { cellWidth: 200 },  // Oefening
-        3: { cellWidth: 45, halign: "center" },  // Punten
-        4: { cellWidth: "auto" }  // Beoordeling
-      },
-      didParseCell: function(data) {
-        // Voor letter en oefening kolommen: splits tekst op meerdere regels indien nodig
-        if (data.section === 'body' && (data.column.index === 1 || data.column.index === 2)) {
-          const text = data.cell.text[0];
-          if (text && text.length > 0) {
-            // Split op komma, puntkomma, of lange teksten
-            const maxCharsPerLine = data.column.index === 1 ? 15 : 50;
-            if (text.length > maxCharsPerLine && text.includes(',')) {
-              data.cell.text = text.split(',').map(s => s.trim());
-            }
-          }
-        }
+        0: { cellWidth: 20, halign: "center" },   // #
+        1: { cellWidth: 50 },   // Letter
+        2: { cellWidth: 160 },  // Oefening
+        3: { cellWidth: 35, halign: "center" },  // Punten
+        4: { cellWidth: "auto", minCellWidth: 120 }  // Beoordeling - veel meer ruimte
       }
     });
     const afterTable = doc.lastAutoTable.finalY;
