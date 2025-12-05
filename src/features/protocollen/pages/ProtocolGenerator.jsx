@@ -900,8 +900,8 @@ export default function ProtocolGenerator() {
       'we3': 'WE3',
       'we4': 'WE4',
       'yr': 'YR',
-      'junior': 'JUNIOR',
-      'junioren': 'JUNIOR'
+      'junior': 'JR',
+      'junioren': 'JR'
     };
     
     const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
