@@ -33,11 +33,11 @@ const ALG_PUNTEN_WE0_WE1 = [
   "Zit en rijwijze van de ruiter",
 ];
 const ALG_PUNTEN_WE2PLUS = [
-  "Stap/galop/stap overgangen / Canter/walk transitions",
-  "Zuiverheid van de gangen en regelmatigheid van de bewegingen van het paard / Purity of the gait and regularity of the movements of the horse",
-  "Schwung, dynamiek, elasticiteit van de overgangen, losheid van de rugspieren / Panache, dynamics, elasticity of the transitions, looseness of the back muscles",
-  "Gehoorzaamheid, reactie op de hulpen, oplettendheid richting ruiter en vertrouwen in de ruiter / Obedience, reaction to aids, thoughtfulness towards the rider and confidence in the rider",
-  "Zit en rijwijze van de ruiter, effectiviteit van de hulpen / Position and seat of the rider. Correct use and effectiveness of the aids.",
+  "Stap/galop/stap overgangen",
+  "Zuiverheid van de gangen en regelmatigheid van de bewegingen van het paard",
+  "Schwung, dynamiek, elasticiteit van de overgangen, losheid van de rugspieren",
+  "Gehoorzaamheid, reactie op de hulpen, oplettendheid richting ruiter en vertrouwen in de ruiter",
+  "Zit en rijwijze van de ruiter, effectiviteit van de hulpen",
 ];
 
 /* PDF helpers */
@@ -137,7 +137,7 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
   });
   return doc.lastAutoTable.finalY;
 }
-function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true) {
+function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true, isDressuur = false) {
   const totalLabel = maxPoints ? `Totaal (${maxPoints} max. punten)` : "Totaal";
   const bodyRows = [["Subtotaal", "", ""]];
   
@@ -154,11 +154,14 @@ function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntena
     styles: { fontSize: 10, cellPadding: 6, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid", 
     margin: MARGIN, 
-    columnStyles: { 
-      0: { cellWidth: 203, fontStyle: "bold" },  // # + Letter + Oefening (18+45+140)
+    columnStyles: isDressuur ? { 
+      0: { cellWidth: 203, fontStyle: "bold" },  // # + Letter + Oefening (18+45+140) voor dressuur
       1: { cellWidth: 25, halign: "center" },     // Heel
       2: { cellWidth: 25, halign: "center" }      // Half
-      // Beoordeling kolom wordt auto (rest van de breedte)
+    } : {
+      0: { cellWidth: COL_NUM + COL_NAME, fontStyle: "bold" },  // # + Naam (26+260=286) voor stijl/speed
+      1: { cellWidth: COL_H, halign: "center" },     // Heel
+      2: { cellWidth: COL_HALF, halign: "center" }   // Half
     },
   });
   return doc.lastAutoTable.finalY;
@@ -180,10 +183,10 @@ function protocolToDoc(doc, p, items) {
   // Voor dressuur: gebruik 4-kolommen format met nummering en gegroepeerde rijen
   if (p.onderdeel === "dressuur") {
     const tableData = [];
+    const algemenePuntenData = [];
     let currentGroup = null;
     let groupNumber = 0;
     let inAlgemenePunten = false;
-    let algemenePuntenNumber = 0;
     
     items.forEach((item, index) => {
       if (Array.isArray(item) && item.length >= 2) {
@@ -194,20 +197,15 @@ function protocolToDoc(doc, p, items) {
         // Check of dit het begin van algemene punten is
         if (!letter && !beoordeling && oefening.toLowerCase().includes("algemene punten")) {
           inAlgemenePunten = true;
-          algemenePuntenNumber = groupNumber; // Start nummering vanaf laatste onderdeel
-          // Voeg "Algemene punten" header toe
-          tableData.push({
-            nummer: "",
-            letters: [""],
-            oefeningen: [oefening],
-            beoordeling: "",
-            puntenHeel: "",
-            puntenHalf: "",
-            isHeader: true
-          });
-          return;
+          currentGroup = null;
+          return; // Skip de header
         }
         
+        if (inAlgemenePunten) {
+          // Voeg toe aan algemene punten array
+          algemenePuntenData.push(oefening);
+          return;
+        }
         // Check of dit het begin van een nieuwe groep is (heeft letter en beoordeling)
         const isNewGroup = letter && beoordeling;
         
@@ -224,11 +222,11 @@ function protocolToDoc(doc, p, items) {
             isHeader: false
           };
           tableData.push(currentGroup);
-        } else if (currentGroup && letter && !inAlgemenePunten) {
+        } else if (currentGroup && letter) {
           // Voeg toe aan huidige groep (ongeacht beoordeling) - volgende stappen van een figuur
           currentGroup.letters.push(letter);
           currentGroup.oefeningen.push(oefening);
-        } else if (letter && !beoordeling && !inAlgemenePunten) {
+        } else if (letter && !beoordeling) {
           // Losse rij ZONDER beoordeling EN geen actieve groep (WE1 style) - wordt NIET gegroepeerd
           groupNumber++;
           tableData.push({
@@ -241,29 +239,6 @@ function protocolToDoc(doc, p, items) {
             isHeader: false
           });
           currentGroup = null; // Reset groep zodat volgende rij niet wordt toegevoegd
-        } else if (!letter && !beoordeling && inAlgemenePunten) {
-          // Algemene punten item
-          algemenePuntenNumber++;
-          tableData.push({
-            nummer: algemenePuntenNumber.toString(),
-            letters: [""],
-            oefeningen: [oefening],
-            beoordeling: "",
-            puntenHeel: "",
-            puntenHalf: "",
-            isHeader: false
-          });
-        } else if (!letter && !beoordeling) {
-          // Algemene punten sectie voor "Algemene punten" header (oude format)
-          tableData.push({
-            nummer: "",
-            letters: [""],
-            oefeningen: [oefening],
-            beoordeling: "",
-            puntenHeel: "",
-            puntenHalf: "",
-            isHeader: false
-          });
         }
       }
     });
@@ -301,20 +276,17 @@ function protocolToDoc(doc, p, items) {
         3: { cellWidth: 25, halign: "center" },
         4: { cellWidth: 25, halign: "center" },
         5: { cellWidth: "auto", minCellWidth: 110 }
-      },
-      didParseCell: function(data) {
-        // Maak "Algemene punten" header bold
-        if (data.section === 'body' && data.column.index === 2) {
-          const text = data.cell.text[0];
-          if (text && text.toLowerCase().includes("algemene punten")) {
-            data.cell.styles.fontStyle = "bold";
-            data.cell.styles.fillColor = [245, 245, 245];
-          }
-        }
       }
     });
-    const afterTable = doc.lastAutoTable.finalY;
-    totalsBox(doc, afterTable + 6, p.max_score ? Number(p.max_score) : null, null);
+    const afterOefeningen = doc.lastAutoTable.finalY;
+    
+    // Algemene punten tabel (zelfde stijl als stijltrail)
+    let afterAlg = afterOefeningen;
+    if (algemenePuntenData.length > 0) {
+      afterAlg = generalPointsTable(doc, algemenePuntenData, afterOefeningen + 12, groupNumber + 1);
+    }
+    
+    totalsBox(doc, afterAlg + 6, p.max_score ? Number(p.max_score) : null, null, true, true);
     signatureLine(doc);
     return;
   }
@@ -332,7 +304,7 @@ function protocolToDoc(doc, p, items) {
   const isSpeed = p.onderdeel === "speed";
   const isStijl = p.onderdeel === "stijl";
   // Voor stijltrail: geen puntenaftrek regel, voor speed en dressuur: wel
-  totalsBox(doc, afterAlg + 6, isSpeed ? null : maxPoints, isSpeed ? "Tijd / Strafseconden / Totaal" : null, !isStijl);
+  totalsBox(doc, afterAlg + 6, isSpeed ? null : maxPoints, isSpeed ? "Tijd / Strafseconden / Totaal" : null, !isStijl, false);
   signatureLine(doc);
 }
 async function makePdfBlob(protocol, items) {
