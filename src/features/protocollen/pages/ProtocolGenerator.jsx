@@ -139,20 +139,27 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
 }
 function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true) {
   const totalLabel = maxPoints ? `Totaal (${maxPoints} max. punten)` : "Totaal";
-  const bodyRows = [["Subtotaal", ""]];
+  const bodyRows = [["Subtotaal", "", ""]];
   
   // Alleen "Puntenaftrek en reden" toevoegen als showPuntenaftrek true is
   if (showPuntenaftrek) {
-    bodyRows.push(["Puntenaftrek en reden", ""]);
+    bodyRows.push(["Puntenaftrek en reden", "", ""]);
   }
   
-  bodyRows.push([extraLabel || totalLabel, ""]);
+  bodyRows.push([extraLabel || totalLabel, "", ""]);
   
   autoTable(doc, {
     startY, head: [],
     body: bodyRows,
     styles: { fontSize: 10, cellPadding: 6, lineColor: BORDER, lineWidth: 0.5 },
-    theme: "grid", margin: MARGIN, columnStyles: { 0: { cellWidth: 220, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+    theme: "grid", 
+    margin: MARGIN, 
+    columnStyles: { 
+      0: { cellWidth: 203, fontStyle: "bold" },  // # + Letter + Oefening (18+45+140)
+      1: { cellWidth: 25, halign: "center" },     // Heel
+      2: { cellWidth: 25, halign: "center" }      // Half
+      // Beoordeling kolom wordt auto (rest van de breedte)
+    },
   });
   return doc.lastAutoTable.finalY;
 }
@@ -187,7 +194,7 @@ function protocolToDoc(doc, p, items) {
         // Check of dit het begin van algemene punten is
         if (!letter && !beoordeling && oefening.toLowerCase().includes("algemene punten")) {
           inAlgemenePunten = true;
-          algemenePuntenNumber = 0;
+          algemenePuntenNumber = groupNumber; // Start nummering vanaf laatste onderdeel
           // Voeg "Algemene punten" header toe
           tableData.push({
             nummer: "",
@@ -225,7 +232,7 @@ function protocolToDoc(doc, p, items) {
           // Algemene punten item
           algemenePuntenNumber++;
           tableData.push({
-            nummer: groupNumber + algemenePuntenNumber,
+            nummer: algemenePuntenNumber.toString(),
             letters: [""],
             oefeningen: [oefening],
             beoordeling: "",
@@ -278,8 +285,8 @@ function protocolToDoc(doc, p, items) {
         0: { cellWidth: 18, halign: "center" },
         1: { cellWidth: 45 },
         2: { cellWidth: 140 },
-        3: { cellWidth: 20, halign: "center" },
-        4: { cellWidth: 20, halign: "center" },
+        3: { cellWidth: 25, halign: "center" },
+        4: { cellWidth: 25, halign: "center" },
         5: { cellWidth: "auto", minCellWidth: 110 }
       },
       didParseCell: function(data) {
