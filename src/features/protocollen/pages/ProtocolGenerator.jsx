@@ -211,7 +211,7 @@ function protocolToDoc(doc, p, items) {
         const isNewGroup = letter && beoordeling;
         
         if (isNewGroup) {
-          // Start een nieuwe groep MET beoordeling (WE2/WE0 style)
+          // Start een nieuwe groep MET beoordeling (WE2+/WE0 style)
           groupNumber++;
           currentGroup = {
             nummer: groupNumber.toString(),
@@ -223,14 +223,14 @@ function protocolToDoc(doc, p, items) {
             isHeader: false
           };
           tableData.push(currentGroup);
-        } else if (currentGroup && letter) {
-          // Voeg toe aan huidige groep (ongeacht beoordeling) - volgende stappen van een figuur
-          currentGroup.letters.push(letter);
+        } else if (currentGroup && (letter || oefening)) {
+          // Voeg toe aan huidige groep: letters of oefeningen zonder letter (zoals "Tussen C en H")
+          currentGroup.letters.push(letter || "");
           currentGroup.oefeningen.push(oefening);
         } else if (letter && !beoordeling) {
-          // Losse rij ZONDER beoordeling EN geen actieve groep (WE1 style) - wordt NIET gegroepeerd
+          // Losse rij ZONDER beoordeling EN geen actieve groep (WE1/WE2 style zonder beoordelingscriteria)
           groupNumber++;
-          tableData.push({
+          currentGroup = {
             nummer: groupNumber.toString(),
             letters: [letter],
             oefeningen: [oefening],
@@ -238,8 +238,8 @@ function protocolToDoc(doc, p, items) {
             puntenHeel: "",
             puntenHalf: "",
             isHeader: false
-          });
-          currentGroup = null; // Reset groep zodat volgende rij niet wordt toegevoegd
+          };
+          tableData.push(currentGroup);
         }
       }
     });
