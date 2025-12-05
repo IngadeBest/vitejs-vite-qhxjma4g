@@ -414,7 +414,20 @@ function protocolToDoc(doc, p, items) {
 
   if (isStijl) {
     const punten = (p.klasse === "we0" || p.klasse === "we1") ? ALG_PUNTEN_WE0_WE1 : ALG_PUNTEN_WE2PLUS;
-    afterAlg = generalPointsTable(doc, punten, afterItems + 12, items.length + 1);
+    
+    // Check of er nog genoeg ruimte is op de pagina voor de algemene punten.
+    // Zo niet: begin op een nieuwe pagina om "dubbele headers" te voorkomen.
+    const pageHeight = doc.internal.pageSize.height;
+    const spaceLeft = pageHeight - afterItems;
+    
+    // Als er minder dan 100 punten ruimte is (header + 1 of 2 rijen), start nieuwe pagina.
+    let startY = afterItems + 12;
+    if (spaceLeft < 100) {
+      doc.addPage();
+      startY = 40; // Marge bovenkant nieuwe pagina
+    }
+
+    afterAlg = generalPointsTable(doc, punten, startY, items.length + 1);
   }
 
   // Totaalblok aanroepen
