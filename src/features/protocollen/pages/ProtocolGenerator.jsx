@@ -133,6 +133,30 @@ function obstaclesTable(doc, items, startY) {
   });
   return doc.lastAutoTable.finalY;
 }
+function speedTable(doc, items, startY) {
+  autoTable(doc, {
+    startY,
+    head: [["Hindernis", "Strafbepaling", "Straf", "Opmerking"]],
+    body: items,
+    styles: { 
+      fontSize: 10, 
+      cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, 
+      lineColor: BORDER_COLOR,
+      lineWidth: 0.5, 
+      valign: "top" 
+    },
+    headStyles: { fillColor: HEADER_COLOR, textColor: 0, fontStyle: "bold" },
+    theme: "grid",
+    margin: MARGIN,
+    columnStyles: {
+      0: { cellWidth: 140 },  // Hindernis
+      1: { cellWidth: "auto" },  // Strafbepaling (flexibel)
+      2: { cellWidth: 60, halign: "center" },  // Straf (handmatig in te vullen)
+      3: { cellWidth: 100 }   // Opmerking
+    },
+  });
+  return doc.lastAutoTable.finalY;
+}
 function generalPointsTable(doc, punten, startY, startIndex = 1) {
   autoTable(doc, {
     startY,
@@ -324,7 +348,16 @@ autoTable(doc, {
   
   // Voor stijl/speed: oude layout
   titleBar(doc, title, `${p.klasse_naam || p.klasse}`);
-  const afterItems = obstaclesTable(doc, items, infoY + 16);
+  
+  let afterItems;
+  if (p.onderdeel === "speed") {
+    // Voor speed: gebruik speedTable met volledige template data (items zijn arrays van 4 kolommen)
+    afterItems = speedTable(doc, items, infoY + 16);
+  } else {
+    // Voor stijl: gebruik obstaclesTable (items zijn strings)
+    afterItems = obstaclesTable(doc, items, infoY + 16);
+  }
+  
   let afterAlg = afterItems;
   if (p.onderdeel === "stijl") {
     // WE0 en WE1 krijgen basis algemene punten, rest (WE2, WE2+, WE3, WE4, YR, JR) krijgt uitgebreide punten
@@ -435,8 +468,8 @@ export default function ProtocolGenerator() {
       setDbMsg(""); setDbMax(null); setItems([]);
       if (!config.wedstrijd_id || !config.klasse || !config.onderdeel) return;
       
-      // Voor dressuur: gebruik defaultTemplates.json
-      if (config.onderdeel === "dressuur") {
+      // Voor dressuur en speed: gebruik defaultTemplates.json
+      if (config.onderdeel === "dressuur" || config.onderdeel === "speed") {
         try {
           const klasseMap = {
             'we0': 'WE0',
@@ -454,30 +487,33 @@ export default function ProtocolGenerator() {
           };
           
           const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
-          console.log('Loading dressuur template for:', config.klasse, '→', normalizedKlasse);
+          const templateType = config.onderdeel === "dressuur" ? "dressuur" : "speed";
+          console.log(`Loading ${templateType} template for:`, config.klasse, '→', normalizedKlasse);
           
-          const template = defaultTemplates.dressuur?.[normalizedKlasse];
+          const template = defaultTemplates[templateType]?.[normalizedKlasse];
           
           if (template && template.sections && template.sections[0]) {
             const section = template.sections[0];
-            // Hele row array bewaren: [Letter, Omschrijving, Beoordeling]
+            // Voor dressuur: hele row array bewaren [Letter, Omschrijving, Beoordeling]
+            // Voor speed: hele row array bewaren [Hindernis, Strafbepaling, Straf, Opmerking]
             const itemsList = section.rows;
             setItems(itemsList);
-            setDbMsg(`✅ Dressuurproef geladen: ${section.title} (${itemsList.length} onderdelen)`);
-            console.log('Loaded dressuur items:', itemsList.length);
+            const label = config.onderdeel === "dressuur" ? "Dressuurproef" : "Speedtrail protocol";
+            setDbMsg(`✅ ${label} geladen: ${section.title} (${itemsList.length} onderdelen)`);
+            console.log(`Loaded ${templateType} items:`, itemsList.length);
           } else {
-            setDbMsg(`⚠️ Geen dressuurproef gevonden voor klasse ${config.klasse}`);
-            console.warn('No template found for:', normalizedKlasse, 'Available:', Object.keys(defaultTemplates.dressuur || {}));
+            setDbMsg(`⚠️ Geen ${templateType} protocol gevonden voor klasse ${config.klasse}`);
+            console.warn('No template found for:', normalizedKlasse, 'Available:', Object.keys(defaultTemplates[templateType] || {}));
           }
           return;
         } catch (e) {
-          console.error('Error loading dressuur template:', e);
-          setDbMsg("Kon dressuurproef niet laden: " + (e?.message || String(e)));
+          console.error(`Error loading ${config.onderdeel} template:`, e);
+          setDbMsg(`Kon ${config.onderdeel} protocol niet laden: ` + (e?.message || String(e)));
           return;
         }
       }
       
-      // Voor stijl/speed: haal uit database
+      // Voor stijl: haal uit database
       try {
         const { data: proef, error: e1 } = await supabase
           .from("proeven").select("id, max_score, naam")
@@ -916,9 +952,9 @@ export default function ProtocolGenerator() {
     draggedFromAvailable.current = false;
   };
 
-  // Beschikbare obstakels voor huidige klasse
+  // Beschikbare obstakels voor huidige klasse (alleen voor stijl)
   const availableObstakels = useMemo(() => {
-    if (!config.klasse || config.onderdeel === 'dressuur') return [];
+    if (!config.klasse || config.onderdeel !== 'stijl') return [];
     
     const klasseMap = {
       'we0': 'WE0',
@@ -938,18 +974,25 @@ export default function ProtocolGenerator() {
     return obstakelsData[normalizedKlasse] || [];
   }, [config.klasse, config.onderdeel]);
 
-  // Render items editor: dressuur = textarea, stijl/speed = drag-and-drop
+  // Render items editor: dressuur en speed = read-only, stijl = drag-and-drop
   const renderItemsEditor = () => {
-    // Voor dressuur: simpele textarea (items zijn arrays)
-    if (config.onderdeel === 'dressuur') {
+    // Voor dressuur en speed: read-only weergave
+    if (config.onderdeel === 'dressuur' || config.onderdeel === 'speed') {
+      const label = config.onderdeel === 'dressuur' ? 'Dressuur onderdelen' : 'Speedtrail hindernissen';
+      const explanation = config.onderdeel === 'dressuur' 
+        ? `Dressuurprotocol wordt automatisch geladen uit de template voor <b>${config.klasse?.toUpperCase()}</b>.`
+        : `Speedtrail protocol wordt automatisch geladen uit de standaard template voor <b>${config.klasse?.toUpperCase()}</b>.`;
+      
       return (
         <div style={{ marginTop: 12 }}>
-          <b>Dressuur onderdelen ({items.length})</b>
+          <b>{label} ({items.length})</b>
           <div style={{ marginTop: 6, padding: 12, background: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
-            <p style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>
-              Dressuurprotocol wordt automatisch geladen uit de template voor <b>{config.klasse?.toUpperCase()}</b>.
-              {items.length > 0 && ` (${items.length} onderdelen geladen)`}
-            </p>
+            <p style={{ fontSize: 14, color: '#666', marginBottom: 8 }} dangerouslySetInnerHTML={{ __html: explanation }} />
+            {items.length > 0 && (
+              <p style={{ fontSize: 14, color: '#666' }}>
+                {items.length} {config.onderdeel === 'dressuur' ? 'onderdelen' : 'hindernissen'} geladen
+              </p>
+            )}
             {items.length === 0 && (
               <p style={{ fontSize: 13, color: '#999', fontStyle: 'italic' }}>
                 Geen template beschikbaar voor deze klasse. Selecteer een andere klasse of ga terug naar stap 1.
@@ -960,12 +1003,11 @@ export default function ProtocolGenerator() {
       );
     }
 
-    // Voor stijl/speed: drag-and-drop interface
-    if (config.onderdeel === 'stijl' || config.onderdeel === 'speed') {
-      
+    // Voor stijl: drag-and-drop interface
+    if (config.onderdeel === 'stijl') {
       return (
         <div style={{ marginTop: 12 }}>
-          <b>Obstakels voor {config.onderdeel === 'stijl' ? 'Stijltrail' : 'Speedtrail'}</b>
+          <b>Obstakels voor Stijltrail</b>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 12 }}>
             {/* Beschikbare obstakels */}
@@ -1157,8 +1199,8 @@ export default function ProtocolGenerator() {
           <div>
             {renderItemsEditor()}
             
-            {/* Configuratie opslaan/laden knoppen */}
-            {(config.onderdeel === 'stijl' || config.onderdeel === 'speed') && items.length > 0 && (
+            {/* Configuratie opslaan/laden knoppen - alleen voor stijl */}
+            {config.onderdeel === 'stijl' && items.length > 0 && (
               <div style={{ marginTop: 12, display: 'flex', gap: 8, padding: 12, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
                 <button 
                   onClick={saveItemsConfig}
@@ -1257,12 +1299,35 @@ export default function ProtocolGenerator() {
           <div style={{ border:"1px solid #e5e7eb", borderRadius:12, padding:12, background:"#fff" }}>
             <div style={{ fontWeight: 700, marginBottom: 8 }}>Preview items ({items.length})</div>
             <table width="100%" cellPadding={6} style={{ borderCollapse: "collapse", fontSize: 14 }}>
-              <thead><tr style={{ background: "#f7f7f7" }}><th align="left" style={{ width:60 }}>#</th><th align="left">Item</th></tr></thead>
+              <thead>
+                <tr style={{ background: "#f7f7f7" }}>
+                  {config.onderdeel === 'speed' ? (
+                    <>
+                      <th align="left">Hindernis</th>
+                      <th align="left">Strafbepaling</th>
+                    </>
+                  ) : (
+                    <>
+                      <th align="left" style={{ width:60 }}>#</th>
+                      <th align="left">Item</th>
+                    </>
+                  )}
+                </tr>
+              </thead>
               <tbody>
                 {items.map((o,i)=>(
                   <tr key={`prev-${i}`} style={{ borderTop:"1px solid #f0f0f0" }}>
-                    <td>{i+1}</td>
-                    <td>{o}</td>
+                    {config.onderdeel === 'speed' && Array.isArray(o) ? (
+                      <>
+                        <td>{o[0]}</td>
+                        <td style={{ fontSize: 12, color: '#666' }}>{o[1]}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td>{i+1}</td>
+                        <td>{Array.isArray(o) ? o.join(' • ') : o}</td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>
