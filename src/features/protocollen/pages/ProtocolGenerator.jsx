@@ -170,52 +170,78 @@ function protocolToDoc(doc, p, items) {
   titleBar(doc, title, `${p.klasse_naam || p.klasse}`);
   const infoY = infoBoxesSideBySide(doc, p);
   
-  // Voor dressuur: gebruik 4-kolommen format met nummering
+  // Voor dressuur: gebruik 4-kolommen format met nummering en gegroepeerde rijen
   if (p.onderdeel === "dressuur") {
-    const tableData = items.map((item, index) => {
-      // Item format: ["Letter", "Oefening", "", "Beoordeling"]
+    const tableData = [];
+    let currentGroup = null;
+    let groupNumber = 0;
+    
+    items.forEach((item, index) => {
       if (Array.isArray(item) && item.length >= 2) {
         const letter = item[0] || "";
         const oefening = item[1] || "";
-        const beoordeling = item[3] || item[2] || ""; // Try col 3 first, then col 2 as fallback
+        const beoordeling = item[3] || item[2] || "";
         
-        // Als de letter leeg is (algemene punten), toon geen nummer
-        const nummer = letter ? (index + 1).toString() : "";
+        // Check of dit het begin van een nieuwe groep is (heeft letter en beoordeling)
+        const isNewGroup = letter && beoordeling;
         
-        return [
-          nummer,         // #
-          letter,         // Letter
-          oefening,       // Oefening
-          "",             // Punten (leeg voor invullen)
-          beoordeling     // Beoordeling criteria
-        ];
+        if (isNewGroup) {
+          // Start een nieuwe groep
+          groupNumber++;
+          currentGroup = {
+            nummer: groupNumber.toString(),
+            letters: [letter],
+            oefeningen: [oefening],
+            beoordeling: beoordeling
+          };
+          tableData.push(currentGroup);
+        } else if (currentGroup && letter) {
+          // Voeg toe aan huidige groep (tweede regel binnen zelfde onderdeel)
+          currentGroup.letters.push(letter);
+          currentGroup.oefeningen.push(oefening);
+        } else if (!letter && !beoordeling) {
+          // Algemene punten sectie (zonder nummer)
+          tableData.push({
+            nummer: "",
+            letters: [""],
+            oefeningen: [oefening],
+            beoordeling: ""
+          });
+        }
       }
-      // Fallback voor oude format
-      return ["", "", item, "", ""];
     });
+    
+    // Converteer naar tabel formaat met multi-line cellen
+    const formattedData = tableData.map(group => [
+      group.nummer,
+      group.letters.join("\n"),
+      group.oefeningen.join("\n"),
+      "",
+      group.beoordeling
+    ]);
     
     autoTable(doc, {
       startY: infoY + 16,
       head: [["#", "Letter", "Oefening", "Punten", "Beoordeling/Opmerkingen"]],
-      body: tableData,
+      body: formattedData,
       styles: { 
         fontSize: 9, 
         cellPadding: { top: 6, right: 4, bottom: 6, left: 4 }, 
         lineColor: BORDER, 
         lineWidth: 0.5,
         valign: "top",
-        minCellHeight: 40,  // ~1.4cm ruimte voor handmatig schrijven
+        minCellHeight: 40,
         cellWidth: "wrap"
       },
       headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold", fontSize: 9 },
       theme: "grid",
       margin: MARGIN,
       columnStyles: {
-        0: { cellWidth: 20, halign: "center" },   // #
-        1: { cellWidth: 50 },   // Letter
-        2: { cellWidth: 160 },  // Oefening
-        3: { cellWidth: 35, halign: "center" },  // Punten
-        4: { cellWidth: "auto", minCellWidth: 120 }  // Beoordeling - veel meer ruimte
+        0: { cellWidth: 20, halign: "center" },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 160 },
+        3: { cellWidth: 35, halign: "center" },
+        4: { cellWidth: "auto", minCellWidth: 120 }
       }
     });
     const afterTable = doc.lastAutoTable.finalY;
