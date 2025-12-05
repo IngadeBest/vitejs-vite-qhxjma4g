@@ -13,99 +13,44 @@ import Container from "@/ui/Container";
 // ======= Helpers =======
 const LS_KEY = "wp_startlijst_cache_v1";
 
-// Check of een klasse speed trail heeft
-const klasseHasSpeed = (klasse) => {
-  const normalized = normalizeKlasse(klasse);
-  // WE0 en WE1 hebben geen speed, vanaf WE2 wel
-  return ['WE2', 'WE2+', 'WE3', 'WE4', 'Young Riders', 'Junioren'].includes(normalized);
-};
-
 // Helper functie voor automatische starttijd berekening
-const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0, klasseIntervals = {}, speedInterval = 4) => {
+const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0) => {
   const times = {};
   let currentDressuurTime = new Date(`1970-01-01T${dressuurStart}:00`);
   let currentTrailTime = new Date(`1970-01-01T${trailStart}:00`);
-  let currentSpeedTime = new Date(`1970-01-01T${speedTrailStart}:00`);
-  let speedStarted = false; // Track of we al speed deelnemers hebben gehad
   
   const addMinutes = (date, minutes) => {
     return new Date(date.getTime() + minutes * 60000);
   };
   
   const formatTime = (date) => {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
-  };
-  
-  const normalizeKlasse = (klasse) => {
-    if (!klasse) return '';
-    const clean = klasse.trim().toLowerCase();
-    const klasseMap = {
-      'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0',
-      'we1': 'WE1', 'we 1': 'WE1', 'we-1': 'WE1', 
-      'we2': 'WE2', 'we 2': 'WE2', 'we-2': 'WE2',
-      'we2+': 'WE2+', 'we 2+': 'WE2+', 'we-2+': 'WE2+',
-      'we3': 'WE3', 'we 3': 'WE3', 'we-3': 'WE3',
-      'we4': 'WE4', 'we 4': 'WE4', 'we-4': 'WE4',
-      'junior': 'Junioren', 'junioren': 'Junioren',
-      'young rider': 'Young Riders', 'young riders': 'Young Riders'
-    };
-    return klasseMap[clean] || klasse.trim();
+    return date.toTimeString().substring(0, 5);
   };
   
   rows.forEach((row, index) => {
     const id = row.id || index;
-    const rowKlasse = normalizeKlasse(row.klasse);
-    
-    // Bepaal interval voor deze klasse (standaard tussenPauze, of per-klasse instelling)
-    const klasseInterval = klasseIntervals[rowKlasse] || tussenPauze;
     
     if (row.type === 'break') {
-      // Voor pauzes: voeg pauzetijd toe aan tijdlijnen (speed alleen als al gestart)
+      // Voor pauzes: voeg pauzetijd toe aan beide tijden
       currentDressuurTime = addMinutes(currentDressuurTime, pauzeMinuten);
       currentTrailTime = addMinutes(currentTrailTime, pauzeMinuten);
-      if (speedStarted) {
-        currentSpeedTime = addMinutes(currentSpeedTime, pauzeMinuten);
-      }
       times[id] = {
         dressuur: '',
         trail: '',
-        speedTrail: '',
         type: 'break'
       };
     } else {
-      // Bepaal klasse voor speed check
-      const rowKlasse = normalizeKlasse(row.klasse) || 'Geen klasse';
-      const klasseInterval = klasseIntervals[rowKlasse] || tussenPauze;
-      
-      // Controleer welke onderdelen de deelnemer rijdt
-      const doDressuur = row.onderdelen?.dressuur !== false;
-      const doTrail = row.onderdelen?.trail !== false;
-      // Speed: check of klasse speed heeft EN of checkbox aan staat
-      const doSpeed = klasseHasSpeed(rowKlasse) && (row.onderdelen?.speed !== false);
-      
-      // Voor deelnemers: bereken tijden (alleen voor onderdelen die gereden worden)
+      // Voor deelnemers: bereken beide tijden
       times[id] = {
-        dressuur: doDressuur ? formatTime(currentDressuurTime) : '--:--',
-        trail: doTrail ? formatTime(currentTrailTime) : '--:--',
-        speedTrail: doSpeed ? formatTime(currentSpeedTime) : '--:--',
+        dressuur: formatTime(currentDressuurTime),
+        trail: formatTime(currentTrailTime),
         type: 'entry'
       };
       
-      // Voeg interval toe voor volgende deelnemer (alleen voor onderdelen die gereden worden)
-      if (doDressuur) {
-        currentDressuurTime = addMinutes(currentDressuurTime, klasseInterval);
-      }
-      if (doTrail) {
-        currentTrailTime = addMinutes(currentTrailTime, klasseInterval + trailOmbouwtijd);
-      }
-      if (doSpeed) {
-        // Markeer dat speed is begonnen
-        speedStarted = true;
-        // Speed gebruikt ALTIJD de globale speedInterval, NIET de per-klasse interval
-        currentSpeedTime = addMinutes(currentSpeedTime, speedInterval);
-      }
+      // Voeg interval toe voor volgende deelnemer
+      currentDressuurTime = addMinutes(currentDressuurTime, tussenPauze);
+      // Trail krijgt extra ombouwtijd
+      currentTrailTime = addMinutes(currentTrailTime, tussenPauze + trailOmbouwtijd);
     }
   });
   
@@ -113,49 +58,38 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, speedTrailStart, t
 };
 
 // Per-klasse starttijd berekening - automatisch doornummeren
-const calculateStartTimesPerClass = (rows, klasseStartTimes, dressuurStart, trailStart, speedTrailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0, klasseIntervals = {}, speedInterval = 4) => {
+const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0) => {
   const times = {};
-  let currentDressuurTime = new Date(`1970-01-01T${dressuurStart}:00`);
-  let currentTrailTime = new Date(`1970-01-01T${trailStart}:00`);
-  let currentSpeedTime = new Date(`1970-01-01T${speedTrailStart}:00`);
+  let currentDressuurTime = null;
+  let currentTrailTime = null;
   let lastKlasse = null;
-  let speedStarted = false; // Track of we al speed deelnemers hebben gehad
   
   const addMinutes = (date, minutes) => {
     return new Date(date.getTime() + minutes * 60000);
   };
   
   const formatTime = (date) => {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    return date.toTimeString().substring(0, 5);
   };
   
   rows.forEach((row, index) => {
     const id = row.id || index;
     
     if (row.type === 'break') {
-      // Voor pauzes: voeg pauzetijd toe aan lopende tijden (speed alleen als al gestart)
+      // Voor pauzes: voeg pauzetijd toe aan lopende tijden
       if (currentDressuurTime) {
         currentDressuurTime = addMinutes(currentDressuurTime, pauzeMinuten);
       }
       if (currentTrailTime) {
         currentTrailTime = addMinutes(currentTrailTime, pauzeMinuten);
       }
-      if (currentSpeedTime && speedStarted) {
-        currentSpeedTime = addMinutes(currentSpeedTime, pauzeMinuten);
-      }
       times[id] = {
         dressuur: '',
         trail: '',
-        speedTrail: '',
         type: 'break'
       };
     } else {
       const klasse = normalizeKlasse(row.klasse) || 'Geen klasse';
-      
-      // Bepaal interval voor deze klasse
-      const klasseInterval = klasseIntervals[klasse] || tussenPauze;
       
       // Check of klasse wijzigt en of er een specifieke starttijd is
       if (klasse !== lastKlasse) {
@@ -165,51 +99,35 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, dressuurStart, trai
         // Anders blijf doornummeren vanaf vorige tijd
         if (klasseConfig.dressuur) {
           currentDressuurTime = new Date(`1970-01-01T${klasseConfig.dressuur}:00`);
+        } else if (!currentDressuurTime) {
+          // Geen tijd ingesteld en geen lopende tijd: laat leeg
+          currentDressuurTime = null;
         }
-        // Anders: blijf doornummeren (currentDressuurTime begint met globale tijd)
+        // Anders: blijf doornummeren (currentDressuurTime blijft behouden)
         
         if (klasseConfig.trail) {
           currentTrailTime = new Date(`1970-01-01T${klasseConfig.trail}:00`);
+        } else if (!currentTrailTime) {
+          currentTrailTime = null;
         }
-        // Anders: blijf doornummeren (currentTrailTime begint met globale tijd)
-        
-        if (klasseConfig.speedTrail) {
-          currentSpeedTime = new Date(`1970-01-01T${klasseConfig.speedTrail}:00`);
-        } else if (!currentSpeedTime && speedTrailStart) {
-          // Eerste klasse zonder specifieke speed tijd: gebruik globale speedTrailStart
-          currentSpeedTime = new Date(`1970-01-01T${speedTrailStart}:00`);
-        }
-        // Anders: blijf doornummeren vanaf vorige klasse
+        // Anders: blijf doornummeren
         
         lastKlasse = klasse;
       }
       
-      // Controleer welke onderdelen de deelnemer rijdt
-      const doDressuur = row.onderdelen?.dressuur !== false;
-      const doTrail = row.onderdelen?.trail !== false;
-      // Speed: check of klasse speed heeft EN of checkbox aan staat
-      const doSpeed = klasseHasSpeed(klasse) && (row.onderdelen?.speed !== false);
-      
       times[id] = {
-        dressuur: (doDressuur && currentDressuurTime) ? formatTime(currentDressuurTime) : '--:--',
-        trail: (doTrail && currentTrailTime) ? formatTime(currentTrailTime) : '--:--',
-        speedTrail: doSpeed ? formatTime(currentSpeedTime) : '--:--',
+        dressuur: currentDressuurTime ? formatTime(currentDressuurTime) : '',
+        trail: currentTrailTime ? formatTime(currentTrailTime) : '',
         type: 'entry'
       };
       
-      // Voeg interval toe voor volgende deelnemer (alleen voor onderdelen die gereden worden)
-      if (doDressuur && currentDressuurTime) {
-        currentDressuurTime = addMinutes(currentDressuurTime, klasseInterval);
+      // Voeg interval toe voor volgende deelnemer
+      if (currentDressuurTime) {
+        currentDressuurTime = addMinutes(currentDressuurTime, tussenPauze);
       }
-      if (doTrail && currentTrailTime) {
+      if (currentTrailTime) {
         // Trail krijgt extra ombouwtijd
-        currentTrailTime = addMinutes(currentTrailTime, klasseInterval + trailOmbouwtijd);
-      }
-      if (doSpeed && currentSpeedTime) {
-        // Markeer dat speed is begonnen
-        speedStarted = true;
-        // Speed gebruikt ALTIJD de globale speedInterval, NIET de per-klasse interval
-        currentSpeedTime = addMinutes(currentSpeedTime, speedInterval);
+        currentTrailTime = addMinutes(currentTrailTime, tussenPauze + trailOmbouwtijd);
       }
     }
   });
@@ -321,6 +239,46 @@ const autoAssignStartnumbers = (rows) => {
   });
 };
 
+// TEMP RENAMED TO AVOID CONFLICT
+const normalizeKlasse_OLD = (input) => {
+  if (!input || typeof input !== 'string') return '';
+  
+  const clean = input.trim().toLowerCase();
+  
+  // Map common variations to standard names
+  const klasseMap = {
+    'we0': 'WE0',
+    'we 0': 'WE0', 
+    'we-0': 'WE0',
+    'introductieklasse': 'WE0',
+    'we1': 'WE1',
+    'we 1': 'WE1',
+    'we-1': 'WE1', 
+    'we2': 'WE2',
+    'we 2': 'WE2',
+    'we-2': 'WE2',
+    'we2+': 'WE2+',
+    'we 2+': 'WE2+',
+    'we-2+': 'WE2+',
+    'we2plus': 'WE2+',
+    'we3': 'WE3',
+    'we 3': 'WE3',
+    'we-3': 'WE3',
+    'we4': 'WE4',
+    'we 4': 'WE4', 
+    'we-4': 'WE4',
+    'junior': 'Junioren',
+    'junioren': 'Junioren',
+    'juniors': 'Junioren',
+    'young rider': 'Young Riders',
+    'young riders': 'Young Riders',
+    'yr': 'Young Riders',
+    'y.r.': 'Young Riders'
+  };
+  
+  return klasseMap[clean] || input.trim();
+};
+
 // Startnummer mapping per klasse
 const getStartnummerBase = (klasse) => {
   const normalizedKlasse = normalizeKlasse(klasse);
@@ -335,6 +293,49 @@ const getStartnummerBase = (klasse) => {
     case 'we2+': return 701;
     default: return 1; // fallback
   }
+};
+
+// TEMP RENAMED TO AVOID CONFLICT
+const groupRowsByClass_OLD = (rows) => {
+  const entries = rows.filter(r => r.type === 'entry');
+  const breaks = rows.filter(r => r.type === 'break');
+  
+  // Groepeer entries per klasse
+  const classGroups = {};
+  entries.forEach(entry => {
+    const klasse = normalizeKlasse(entry.klasse || '');
+    if (!classGroups[klasse]) {
+      classGroups[klasse] = [];
+    }
+    classGroups[klasse].push(entry);
+  });
+  
+  return { classGroups, breaks };
+};
+
+// TEMP RENAMED TO AVOID CONFLICT  
+const autoAssignStartnumbers_OLD2 = (rows) => {
+  const classCounts = {};
+  
+  return rows.map(row => {
+    if (row.type === 'break') return row;
+    
+    const klasse = normalizeKlasse(row.klasse || '');
+    if (!klasse) return row;
+    
+    if (!classCounts[klasse]) {
+      classCounts[klasse] = 0;
+    }
+    classCounts[klasse]++;
+    
+    const base = getStartnummerBase(klasse);
+    const nummer = base + classCounts[klasse] - 1;
+    
+    return {
+      ...row,
+      startnummer: nummer.toString().padStart(3, '0')
+    };
+  });
 };
 
 function parseCSV(text) {
@@ -466,7 +467,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
     if (r.type === "break") {
       // Pauze regel - gebruik array syntax met colspan via styles
       body.push([
-        { content: `Pauze: ${r.duration || 0} minuten`, colSpan: 6, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
+        { content: `Pauze: ${r.duration || 0} minuten`, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
       ]);
     } else {
       // Voeg klasse header toe als nieuwe klasse
@@ -475,16 +476,15 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
         currentKlasse = rowKlasse;
         console.log('Adding class header:', rowKlasse);
         body.push([
-          { content: `Klasse: ${rowKlasse}`, colSpan: 6, styles: { fontStyle: "bold", fillColor: LIGHT_HEAD, textColor: BLUE, halign: "left", fontSize: 11 } }
+          { content: `Klasse: ${rowKlasse}`, colSpan: 5, styles: { fontStyle: "bold", fillColor: LIGHT_HEAD, textColor: BLUE, halign: "left", fontSize: 11 } }
         ]);
       }
       
-      // Data regel - inclusief Speed
+      // Data regel ZONDER # kolom
       const times = calculatedTimes[r.id || i] || {};
       body.push([
         times.dressuur || "--:--",
         times.trail || "--:--",
-        times.speedTrail || "--:--",
         r.startnummer || "",
         r.ruiter || "",
         r.paard || "",
@@ -495,7 +495,7 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   console.log('Total body rows including headers:', body.length);
 
   autoTable(doc, {
-    head: [["Dressuur", "Trail", "Speed", "Startnr", "Ruiter", "Paard"]],
+    head: [["Dressuur", "Trail", "Startnr", "Ruiter", "Paard"]],
     body,
     startY: tableStartY,
     styles: { 
@@ -510,12 +510,11 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
       fontSize: 9
     },
     columnStyles: {
-      0: { cellWidth: 50 },        // Dressuur
-      1: { cellWidth: 50 },        // Trail
-      2: { cellWidth: 50 },        // Speed
-      3: { cellWidth: 45 },        // Startnr
-      4: { cellWidth: 'auto' },    // Ruiter
-      5: { cellWidth: 'auto' }     // Paard
+      0: { cellWidth: 60 },        // Dressuur
+      1: { cellWidth: 60 },        // Trail
+      2: { cellWidth: 50 },        // Startnr
+      3: { cellWidth: 'auto' },    // Ruiter
+      4: { cellWidth: 'auto' }     // Paard
     },
     margin: { left: 40, right: 40 },
   });
@@ -570,7 +569,6 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
           Klasse: rowKlasse,
           Dressuur: times.dressuur || "",
           Trail: times.trail || "",
-          Speed: times.speedTrail || "",
           Startnummer: r.startnummer || "",
           Ruiter: r.ruiter || "",
           Paard: r.paard || "",
@@ -614,8 +612,7 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
       "Volgorde",
       "Klasse",
       "Dressuur",
-      "Trail",
-      "Speed",
+      "Trail", 
       "Startnummer",
       "Ruiter",
       "Paard",
@@ -967,17 +964,13 @@ export default function Startlijst() {
   // Starttijd systeem state
   const [dressuurStarttijd, setDressuurStarttijd] = useState("09:00");
   const [trailStarttijd, setTrailStarttijd] = useState("13:00");
-  const [speedTrailStarttijd, setSpeedTrailStarttijd] = useState("15:00");
-  const [tussenPauze, setTussenPauze] = useState(6); // minuten tussen deelnemers (dressuur/trail)
-  const [speedInterval, setSpeedInterval] = useState(4); // minuten tussen deelnemers speed (vaak korter)
+  const [tussenPauze, setTussenPauze] = useState(6); // minuten tussen deelnemers
   const [trailOmbouwtijd, setTrailOmbouwtijd] = useState(0); // extra tijd voor ombouwen trail (0-15 min)
   const [pauzeMinuten, setPauzeMinuten] = useState(15); // minuten voor een pauze
   const [saving, setSaving] = useState(false);
   
   // Per-klasse starttijden state
   const [klasseStartTimes, setKlasseStartTimes] = useState({});
-  // Per-klasse intervallen state (voor WE3+ met 8+ min proeven)
-  const [klasseIntervals, setKlasseIntervals] = useState({});
   
   // Sorteer functie voor klassen 
   const sortRowsByClass = useCallback(() => {
@@ -1370,12 +1363,10 @@ Plak je data hieronder:`);
         dressuurStart: dressuurStarttijd,
         trailStart: trailStarttijd,
         interval: tussenPauze,
-        speedInterval: speedInterval, // apart interval voor speed
         trailOmbouwtijd: trailOmbouwtijd,
         pauzeMinuten: pauzeMinuten,
         pauses: breaks,
         klasseStartTimes: klasseStartTimes,
-        klasseIntervals: klasseIntervals, // bewaar per-klasse intervals (WE3+)
         rowOrder: rows.map(r => ({ id: r.id, type: r.type })) // bewaar volgorde
       };
       
@@ -1400,25 +1391,16 @@ Plak je data hieronder:`);
         throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
       }
 
-      // Stap 3: Voeg alle huidige entries toe MET volgorde (onderdelen alleen als kolom bestaat)
-      const entriesToInsert = entries.map((row, idx) => {
-        const entry = {
-          wedstrijd_id: wedstrijd,
-          ruiter: row.ruiter.trim(),
-          paard: row.paard ? row.paard.trim() : null,
-          startnummer: row.startnummer || null,
-          klasse: normalizeKlasse(row.klasse),
-          rubriek: rubriek || 'Algemeen',
-          volgorde: rows.indexOf(row) // bewaar originele positie
-        };
-        
-        // Voeg onderdelen toe als de row die data heeft (wordt genegeerd als kolom niet bestaat)
-        if (row.onderdelen) {
-          entry.onderdelen = row.onderdelen;
-        }
-        
-        return entry;
-      });
+      // Stap 3: Voeg alle huidige entries toe MET volgorde
+      const entriesToInsert = entries.map((row, idx) => ({
+        wedstrijd_id: wedstrijd,
+        ruiter: row.ruiter.trim(),
+        paard: row.paard ? row.paard.trim() : null,
+        startnummer: row.startnummer || null,
+        klasse: normalizeKlasse(row.klasse),
+        rubriek: rubriek || 'Algemeen',
+        volgorde: rows.indexOf(row) // bewaar originele positie
+      }));
 
       const { error: insertError } = await supabase
         .from('inschrijvingen')
@@ -1470,8 +1452,8 @@ Plak je data hieronder:`);
       console.log('Starting PDF generation...');
       const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
       const calculatedTimes = hasKlasseStartTimes 
-        ? calculateStartTimesPerClass(filtered, klasseStartTimes, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
-        : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval);
+        ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+        : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
       
       const wedstrijdInfo = {
         naam: wedstrijdNaam,
@@ -1532,14 +1514,11 @@ Plak je data hieronder:`);
       if (config.dressuurStart) setDressuurStarttijd(config.dressuurStart);
       if (config.trailStart) setTrailStarttijd(config.trailStart);
       if (config.interval) setTussenPauze(config.interval);
-      if (config.speedInterval !== undefined) setSpeedInterval(config.speedInterval);
       if (config.trailOmbouwtijd !== undefined) setTrailOmbouwtijd(config.trailOmbouwtijd);
       if (config.pauzeMinuten) setPauzeMinuten(config.pauzeMinuten);
       if (config.klasseStartTimes) setKlasseStartTimes(config.klasseStartTimes);
-      if (config.klasseIntervals) setKlasseIntervals(config.klasseIntervals);
       
       // Stap 2: Laad deelnemers (sorteer op volgorde veld indien aanwezig)
-      // NOTE: 'onderdelen' kolom kan ontbreken in oude database schema - wordt later toegevoegd
       let query = supabase
         .from("inschrijvingen")
         .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde")
@@ -1594,31 +1573,17 @@ Plak je data hieronder:`);
         return 0; // behoud huidige volgorde
       });
 
-      const loadedRows = sortedData.map((r, i) => {
-        // Format startnummer with leading zeros (001, 002, etc)
-        let formattedStartnummer = '';
-        if (r.startnummer) {
-          const num = typeof r.startnummer === 'number' ? r.startnummer : parseInt(r.startnummer, 10);
-          if (!isNaN(num)) {
-            formattedStartnummer = num.toString().padStart(3, '0');
-          } else {
-            formattedStartnummer = r.startnummer.toString();
-          }
-        }
-        
-        return {
-          id: r.id || `db_${Date.now()}_${i}`,
-          type: "entry",
-          ruiter: r.ruiter || "",
-          paard: r.paard || "",
-          startnummer: formattedStartnummer,
-          klasse: normalizeKlasse(r.klasse) || "",
-          onderdelen: r.onderdelen || { dressuur: true, trail: true, speed: true }, // fallback als niet in DB
-          starttijd: "",
-          dbId: r.id,
-          fromDB: true,
-        };
-      });
+      const loadedRows = sortedData.map((r, i) => ({
+        id: r.id || `db_${Date.now()}_${i}`,
+        type: "entry",
+        ruiter: r.ruiter || "",
+        paard: r.paard || "",
+        startnummer: (r.startnummer || "").toString(),
+        klasse: normalizeKlasse(r.klasse) || "",
+        starttijd: "",
+        dbId: r.id,
+        fromDB: true,
+      }));
 
       // Stap 3: Voeg pauzes weer toe op juiste positie
       const pauses = config.pauses || [];
@@ -1685,256 +1650,262 @@ Plak je data hieronder:`);
 
   return (
     <Container>
-      <div style={{ maxWidth: 1200, margin: "24px auto" }}>
+      <div className="max-w-7xl mx-auto py-6">
         {/* Header sectie */}
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold text-gray-900">Startlijst</h2>
-          <Link
-            to="/deelnemers"
-            className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium"
-          >
-            👥 Deelnemers
-          </Link>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Startlijst Management</h1>
+              <p className="text-gray-600 mt-2">
+                Beheer startlijsten, startnummers en deelnemer volgorde
+              </p>
+            </div>
+            
+            {/* Navigation links */}
+            <div className="flex gap-2">
+              <Link
+                to="/deelnemers"
+                className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm font-medium"
+              >
+                👥 Naar Deelnemers
+              </Link>
+            </div>
+          </div>
         </div>
 
-      {/* Filters sectie */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "12px", alignItems: "end" }}>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Wedstrijd</label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm truncate"
-              value={wedstrijd}
-              onChange={(e) => setWedstrijd(e.target.value)}
-            >
-              <option value="">
-                {loadingWed ? "Laden..." : "— kies wedstrijd —"}
-              </option>
-              {(wedstrijden || []).map((w) => (
-                <option key={w.id} value={w.id} title={`${w.naam} ${w.datum ? `(${w.datum})` : ""}`}>
-                  {w.naam.length > 40 ? w.naam.substring(0, 40) + '...' : w.naam} {w.datum ? `(${w.datum})` : ""}
+      {/* Flex layout - links bewerkingstabel, rechts preview */}
+      <div className="flex gap-6 items-start">
+        {/* Main editing area (links) - nu 65% van de ruimte */}
+        <div className="flex-1 max-w-4xl">
+        {/* Filters sectie */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters & Zoekopdrachten</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Wedstrijd:
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={wedstrijd}
+                onChange={(e) => setWedstrijd(e.target.value)}
+              >
+                <option value="">
+                  {loadingWed ? "Laden..." : "— kies wedstrijd —"}
                 </option>
-              ))}
-            </select>
-          </div>
+                {(wedstrijden || []).map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.naam}
+                    {w.datum ? ` (${w.datum})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Klasse</label>
-            <input
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              placeholder="Bijv. WE2"
-              value={klasse}
-              onChange={(e) => setKlasse(e.target.value)}
-            />
-          </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Klasse:
+              </label>
+              <input
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Klasse (WE0–WE4)"
+                value={klasse}
+                onChange={(e) => setKlasse(e.target.value)}
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Zoeken</label>
-            <input
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              placeholder="Naam, paard, nr..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Rubriek:
+              </label>
+              <input
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Rubriek"
+                value={rubriek}
+                onChange={(e) => setRubriek(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Zoeken:
+              </label>
+              <input
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="ruiter/paard/startnr/tijd/pauze"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-        {/* Status bericht */}
-        {dbMessage && (
-          <div style={{ marginTop: 8, marginBottom: 8, color: "#666", fontSize: "14px" }}>
-            {dbMessage}
+        {/* DEBUG INFO - Actieve filters */}
+        {wedstrijd && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
+            <div className="flex items-center gap-4 text-sm">
+              <span className="font-semibold text-yellow-900">🔍 Actief:</span>
+              <span className="text-yellow-800">
+                Wedstrijd: <strong>{wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd.slice(0, 8)}</strong>
+              </span>
+              {klasse && (
+                <span className="text-yellow-800">
+                  | Klasse filter: <strong>{klasse}</strong>
+                </span>
+              )}
+              <span className="text-yellow-800">
+                | Geladen: <strong>{rows.length} items</strong> ({rows.filter(r => r.type === 'entry').length} deelnemers)
+              </span>
+            </div>
           </div>
         )}
 
-        {/* Starttijden Configuratie */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-4">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Dressuur</label>
+        {/* Startnummer Configuratie (vereenvoudigd) */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-4 flex-wrap">
+              <h2 className="text-lg font-semibold text-gray-900">Starttijden</h2>
+              <div className="flex items-center gap-2 text-sm">
+                <label className="text-gray-600">Dressuur:</label>
                 <input
                   type="time"
-                  className="border rounded px-2 py-1 text-sm w-24"
+                  className="border rounded px-2 py-1 text-sm"
                   value={dressuurStarttijd}
                   onChange={(e) => setDressuurStarttijd(e.target.value)}
                 />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Trail (stijl)</label>
+                <label className="text-gray-600 ml-3">Trail:</label>
                 <input
                   type="time"
-                  className="border rounded px-2 py-1 text-sm w-24"
+                  className="border rounded px-2 py-1 text-sm"
                   value={trailStarttijd}
                   onChange={(e) => setTrailStarttijd(e.target.value)}
                 />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Speed Trail</label>
+                <label className="text-gray-600 ml-3">Interval:</label>
                 <input
-                  type="time"
-                  className="border rounded px-2 py-1 text-sm w-24"
-                  value={speedTrailStarttijd}
-                  onChange={(e) => setSpeedTrailStarttijd(e.target.value)}
+                  type="number"
+                  min="1"
+                  max="15"
+                  className="border rounded px-1 py-1 w-12 text-sm"
+                  value={tussenPauze}
+                  onChange={(e) => setTussenPauze(Number(e.target.value))}
                 />
+                <span className="text-gray-600 text-sm">min</span>
               </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Interval Dr/Tr</label>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min="1"
-                    max="15"
-                    className="border rounded px-2 py-1 w-16 text-sm"
-                    value={tussenPauze}
-                    onChange={(e) => setTussenPauze(Number(e.target.value))}
-                  />
-                  <span className="text-xs text-gray-600">min</span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Interval Speed</label>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    className="border rounded px-2 py-1 w-16 text-sm"
-                    value={speedInterval}
-                    onChange={(e) => setSpeedInterval(Number(e.target.value))}
-                  />
-                  <span className="text-xs text-gray-600">min</span>
-                </div>
-              </div>
+            </div>
             <div className="flex gap-2">
               <button
-                className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
                 onClick={() => {
                   const updatedRows = autoAssignStartnumbers(rows);
                   setRows(updatedRows);
                 }}
                 disabled={!rows.filter(r => r.type === 'entry').length}
               >
-                🔢 Nummers
+                🔢 Auto Nummers
               </button>
               
               <button
-                className="px-3 py-1.5 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
                 onClick={sortRowsByClass}
                 disabled={!rows.filter(r => r.type === 'entry').length}
-                title="Sorteer klassen: WE0, WE1, WE2, WE3, WE4, Junioren, Young Riders, WE2+"
+                title="Sorteer alle klassen op volgorde: WE0, WE1, WE2, WE3, WE4, Junioren, Young Riders, WE2+"
               >
-                📋 Sorteer
+                📋 Sorteer Klassen
               </button>
+            </div>
+          </div>
+          
+          {/* Trail ombouwtijd */}
+          <div className="border-t pt-3">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-gray-700">🔧 Trail ombouwtijd:</label>
+              <input
+                type="number"
+                min="0"
+                max="15"
+                className="border rounded px-2 py-1 w-16 text-sm"
+                value={trailOmbouwtijd}
+                onChange={(e) => setTrailOmbouwtijd(Number(e.target.value))}
+              />
+              <span className="text-sm text-gray-600">minuten extra (0-15)</span>
+              <span className="text-xs text-gray-500 ml-2">
+                {trailOmbouwtijd > 0 
+                  ? `Trail interval wordt ${tussenPauze + trailOmbouwtijd} min (${tussenPauze} + ${trailOmbouwtijd})`
+                  : 'Trail gebruikt zelfde interval als dressuur'
+                }
+              </span>
             </div>
           </div>
         </div>
 
         {/* Per-klasse starttijden configuratie */}
         {classOrder.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Per klasse config (optioneel - starttijden auto, interval voor WE3+ aanpassen)</h3>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-              {classOrder.map((klasse) => {
-                const isHighLevel = ['WE3', 'WE4', 'Young Riders', 'Junioren'].includes(klasse);
-                const hasSpeed = ['WE2', 'WE2+', 'WE3', 'WE4', 'Young Riders', 'Junioren'].includes(klasse);
-                return (
-                  <div key={klasse} className="border rounded p-2 bg-gray-50">
-                    <div className="font-medium text-xs mb-1 text-gray-700">{klasse}</div>
-                    <div className="space-y-1">
-                      <div>
-                        <label className="text-[10px] text-gray-500">Dr:</label>
-                        <input
-                          type="time"
-                          className="border rounded px-1 py-0.5 text-xs w-full"
-                          value={klasseStartTimes[klasse]?.dressuur || ''}
-                          onChange={(e) => {
-                            setKlasseStartTimes(prev => ({
-                              ...prev,
-                              [klasse]: {
-                                ...prev[klasse],
-                                dressuur: e.target.value
-                              }
-                            }));
-                          }}
-                          placeholder="Auto"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500">Tr:</label>
-                        <input
-                          type="time"
-                          className="border rounded px-1 py-0.5 text-xs w-full"
-                          value={klasseStartTimes[klasse]?.trail || ''}
-                          onChange={(e) => {
-                            setKlasseStartTimes(prev => ({
-                              ...prev,
-                              [klasse]: {
-                                ...prev[klasse],
-                                trail: e.target.value
-                              }
-                            }));
-                          }}
-                          placeholder="Auto"
-                        />
-                      </div>
-                      {hasSpeed && (
-                        <div>
-                          <label className="text-[10px] text-gray-500">Sp:</label>
-                          <input
-                            type="time"
-                            className="border rounded px-1 py-0.5 text-xs w-full"
-                            value={klasseStartTimes[klasse]?.speedTrail || ''}
-                            onChange={(e) => {
-                              setKlasseStartTimes(prev => ({
-                                ...prev,
-                                [klasse]: {
-                                  ...prev[klasse],
-                                  speedTrail: e.target.value
-                                }
-                              }));
-                            }}
-                            placeholder="Auto"
-                          />
-                        </div>
-                      )}
-                      {isHighLevel && (
-                        <div>
-                          <label className="text-[10px] text-gray-500">Int:</label>
-                          <input
-                            type="number"
-                            min="6"
-                            max="15"
-                            className="border rounded px-1 py-0.5 text-xs w-full"
-                            value={klasseIntervals[klasse] !== undefined ? klasseIntervals[klasse] : ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setKlasseIntervals(prev => ({
-                                ...prev,
-                                [klasse]: val === '' ? undefined : Number(val)
-                              }));
-                            }}
-                            placeholder={tussenPauze.toString()}
-                            title="Interval in minuten (8+ voor lange proeven)"
-                          />
-                        </div>
-                      )}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+            <h3 className="text-md font-semibold text-gray-900 mb-3">Per klasse starttijden (optioneel)</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              ⏱️ <strong>Automatisch doornummeren:</strong> Vul een starttijd in voor de eerste klasse. Alle klassen erna nummeren automatisch door, 
+              tenzij je voor een volgende klasse een nieuwe starttijd invult - dan begint vanaf daar weer een nieuwe reeks.
+            </p>
+            <p className="text-sm text-gray-500 mb-3">
+              Voorbeeld: WE0 start om 09:00, WE1 start automatisch door (bijv. 09:30), maar WE2 kun je instellen op 13:00 (na pauze).
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {classOrder.map((klasse) => (
+                <div key={klasse} className="border rounded p-3 bg-gray-50">
+                  <div className="font-medium text-sm mb-2 text-gray-700">{klasse}</div>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex flex-col flex-1">
+                      <label className="text-xs text-gray-600">Dressuur:</label>
+                      <input
+                        type="time"
+                        className="border rounded px-2 py-1 text-xs"
+                        value={klasseStartTimes[klasse]?.dressuur || ''}
+                        onChange={(e) => {
+                          setKlasseStartTimes(prev => ({
+                            ...prev,
+                            [klasse]: {
+                              ...prev[klasse],
+                              dressuur: e.target.value
+                            }
+                          }));
+                        }}
+                        placeholder="Auto"
+                      />
+                    </div>
+                    <div className="flex flex-col flex-1">
+                      <label className="text-xs text-gray-600">Trail:</label>
+                      <input
+                        type="time"
+                        className="border rounded px-2 py-1 text-xs"
+                        value={klasseStartTimes[klasse]?.trail || ''}
+                        onChange={(e) => {
+                          setKlasseStartTimes(prev => ({
+                            ...prev,
+                            [klasse]: {
+                              ...prev[klasse],
+                              trail: e.target.value
+                            }
+                          }));
+                        }}
+                        placeholder="Auto"
+                      />
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
         )}
 
         {/* Actieknoppen sectie (vereenvoudigd) */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">Data laden</h3>
+            <h2 className="text-lg font-semibold text-gray-900">Data laden</h2>
             
-            <div className="flex items-center gap-2">
-              <label className="cursor-pointer px-3 py-1.5 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors text-sm">
-                📁 CSV
+            <div className="flex items-center gap-3">
+              <label className="cursor-pointer px-3 py-2 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors text-sm">
+                📁 CSV Upload
                 <input
                   type="file"
                   accept=".csv,text/csv"
@@ -1944,147 +1915,177 @@ Plak je data hieronder:`);
               </label>
 
               <button
-                className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
+                className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
                 onClick={loadDeelnemersFromDB}
                 disabled={!wedstrijd || loadingFromDB}
               >
-                {loadingFromDB ? "⏳ Laden..." : "🔄 DB"}
+                {loadingFromDB ? "⏳ Laden..." : "🔄 DB Laden"}
               </button>
               
               <button
-                className="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
                 onClick={() => {
+                  // Toon alle startlijst-gerelateerde localStorage keys
                   const keys = Object.keys(localStorage).filter(k => k.includes('startlijst') || k.includes('wp_'));
+                  console.log('LocalStorage keys gevonden:', keys);
+                  
                   if (keys.length === 0) {
                     alert('Geen startlijst cache gevonden');
                     return;
                   }
-                  if (confirm('Alle cache wissen?')) {
+                  
+                  const msg = `Gevonden cache keys:\n${keys.join('\n')}\n\nAlles wissen?`;
+                  if (confirm(msg)) {
                     keys.forEach(k => localStorage.removeItem(k));
                     setRows([]);
                     setDbMessage('🗑️ Cache gewist - klik "DB Laden" om opnieuw te laden');
                   }
                 }}
-                title="Wis lokale cache"
+                title="Debug: wis alle lokale cache"
               >
-                🗑️
+                🗑️ Cache Wissen
               </button>
             </div>
           </div>
         </div>
 
-        {/* DB Message */}
-        {dbMessage && (
-          <div className="mb-3">
-            <div
-              className={`p-3 rounded-lg border text-sm ${
-                dbMessage.includes("Fout")
-                  ? "bg-red-50 border-red-200 text-red-800"
-                  : dbMessage.includes("✅")
-                  ? "bg-green-50 border-green-200 text-green-800"
-                  : "bg-blue-50 border-blue-200 text-blue-800"
-              }`}
-            >
-              {dbMessage}
+          {dbMessage && (
+            <div className="mb-6">
+              <div
+                className={`p-4 rounded-lg border ${
+                  dbMessage.includes("Fout")
+                    ? "bg-red-50 border-red-200 text-red-800"
+                    : dbMessage.includes("✅")
+                    ? "bg-green-50 border-green-200 text-green-800"
+                    : "bg-blue-50 border-blue-200 text-blue-800"
+                }`}
+              >
+                <p className="font-medium">{dbMessage}</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
           {/* Geen deelnemers gevonden helper */}
           {wedstrijd && rows.length === 0 && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
-              <p className="text-sm text-blue-800 mb-2">
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <span className="text-blue-600 text-lg">ℹ️</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-medium text-blue-900 mb-2">
+                    Geen deelnemers gevonden
+                  </h3>
+                  <p className="text-blue-700 mb-4">
+                    Er zijn geen deelnemers gevonden voor deze wedstrijd. Je kunt:
+                  </p>
+                  <div className="flex gap-3 flex-wrap">
+                    <button
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      onClick={copyFromOtherWedstrijd}
+                    >
+                      📋 Kopieer van andere wedstrijd
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                      onClick={addEmptyRow}
+                    >
+                      ➕ Nieuwe deelnemer
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                      onClick={showManualRecoveryForm}
+                    >
+                      📝 Bulk import
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Migration helper when no data found */}
+          {wedstrijd && rows.length === 0 && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+              <p className="text-sm text-yellow-800 mb-2">
                 Geen deelnemers gevonden voor deze wedstrijd.
               </p>
               <div className="flex gap-2">
                 <button
-                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                   onClick={copyFromOtherWedstrijd}
                 >
-                  📋 Kopieer van andere wedstrijd
+                  Kopieer van andere wedstrijd
                 </button>
                 <button
-                  className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
                   onClick={addEmptyRow}
                 >
-                  ➕ Voeg handmatig toe
-                </button>
-                <button
-                  className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
-                  onClick={showManualRecoveryForm}
-                >
-                  📝 Bulk import
+                  Voeg handmatig toe
                 </button>
               </div>
             </div>
           )}
 
-          {/* Acties: deelnemer en pauze toevoegen */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
-            <div className="flex items-end gap-2 flex-wrap">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Pauze label</label>
-                <input
-                  className="border rounded px-2 py-1 text-sm w-32"
-                  placeholder="Koffiepauze"
-                  value={pauseLabel}
-                  onChange={(e) => setPauseLabel(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Minuten</label>
-                <input
-                  className="border rounded px-2 py-1 text-sm w-20"
-                  type="number"
-                  min={1}
-                  value={pauseMin}
-                  onChange={(e) => setPauseMin(e.target.value)}
-                />
-              </div>
-              <button
-                className="px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 text-sm"
-                onClick={addPauseAtEnd}
-              >
-                ☕ Pauze
-              </button>
-              <button
-                className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                onClick={addEmptyRow}
-              >
-                ➕ Deelnemer
-              </button>
+          <div className="flex items-end gap-2 mb-4">
+            <div className="flex flex-col">
+              <label className="text-sm text-gray-600">Pauze titel</label>
+              <input
+                className="border rounded px-2 py-1"
+                placeholder="Bijv. Koffiepauze"
+                value={pauseLabel}
+                onChange={(e) => setPauseLabel(e.target.value)}
+              />
             </div>
+            <div className="flex flex-col">
+              <label className="text-sm text-gray-600">Minuten</label>
+              <input
+                className="border rounded px-2 py-1 w-24"
+                type="number"
+                min={1}
+                value={pauseMin}
+                onChange={(e) => setPauseMin(e.target.value)}
+              />
+            </div>
+            <button
+              className="px-3 py-2 border rounded"
+              onClick={addPauseAtEnd}
+            >
+              + Pauze toevoegen
+            </button>
           </div>
 
-          {/* Startlijst tabel */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4">
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">Deelnemers</h3>
-                <p className="text-xs text-gray-500 mt-0.5">💡 Sleep rijen om volgorde aan te passen</p>
-              </div>
-              <div className="text-sm text-gray-600">
-                {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
+          {/* Eenvoudige bewerkingstabel - alle deelnemers op volgorde */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Startlijst Bewerken</h2>
+                  <p className="text-xs text-gray-500 mt-1">💡 Sleep rijen (inclusief pauzes) om volgorde aan te passen</p>
+                </div>
+                <div className="text-sm text-gray-600">
+                  {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
+                </div>
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="wp-table w-full">
-                <thead>
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th style={{ padding: "8px", textAlign: "left" }}>#</th>
-                    <th style={{ padding: "8px", textAlign: "left" }}>Klasse</th>
-                    <th style={{ padding: "8px", textAlign: "left" }}>Dressuur</th>
-                    <th style={{ padding: "8px", textAlign: "left" }}>Trail</th>
-                    <th style={{ padding: "8px", textAlign: "left" }}>Speed</th>
-                    <th style={{ padding: "8px", textAlign: "left" }}>Nr</th>
-                    <th style={{ padding: "8px", textAlign: "left" }}>Ruiter</th>
-                    <th style={{ padding: "8px", textAlign: "left" }}>Paard</th>
-                    <th style={{ padding: "8px", textAlign: "left", width: "100px" }}>Onderdelen</th>
-                    <th style={{ padding: "8px", textAlign: "center" }}>Acties</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Klasse</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dressuur</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trail</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Startnr</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ruiter</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paard</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acties</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="bg-white divide-y divide-gray-200">
                   {(() => {
                     // Gebruik filtered rows in huidige volgorde (geen extra sorting)
                     // De volgorde wordt nu bepaald door moveClassUp/Down functies
@@ -2114,28 +2115,28 @@ Plak je data hieronder:`);
 
                       // Gebruik per-klasse starttijden als deze ingesteld zijn, anders gebruik algemene tijden
                       const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
-                      const calculatedTimes = hasKlasseStartTimes
-                        ? calculateStartTimesPerClass(rows, klasseStartTimes, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
-                        : calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval);
+                      const calculatedTimes = hasKlasseStartTimes 
+                        ? calculateStartTimesPerClass(rows, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+                        : calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
                       const times = calculatedTimes[row.id || index] || {};
 
                       return (
                         <React.Fragment key={`${row.id || index}-${rowKlasse}`}>
                           {showClassHeader && (
-                            <tr style={{ backgroundColor: row.type !== 'break' ? '#EFF6FF' : '#FFFBEB' }}>
-                              <td colSpan="8" style={{ padding: "8px", fontSize: "14px", fontWeight: 600, color: "#1E40AF" }}>
+                            <tr className={`${row.type !== 'break' ? 'bg-blue-50' : 'bg-yellow-50'} transition-colors`}>
+                              <td colSpan="8" className="px-4 py-2 text-sm font-semibold text-blue-800 border-b border-blue-200">
                                 <div className="flex items-center justify-between">
-                                  <div>
+                                  <div className="flex items-center gap-2">
                                     {row.type === 'break' ? 
-                                      '☕ Pauzes' : 
-                                      `${rowKlasse} ${row.type !== 'break' ? `(nr vanaf ${getStartnummerBase(rowKlasse).toString().padStart(3, '0')})` : ''}`
+                                      '🍕 Pauzes' : 
+                                      `📋 Klasse ${rowKlasse} ${row.type !== 'break' ? `(startnrs vanaf ${getStartnummerBase(rowKlasse).toString().padStart(3, '0')})` : ''}`
                                     }
                                   </div>
                                   {row.type !== 'break' && isFirstHeaderForClass && (
                                     <div className="flex gap-1">
                                       <button
                                         onClick={() => moveClassUp(rowKlasse)}
-                                        className="px-2 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+                                        className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
                                         title="Verplaats klasse naar boven"
                                       >
                                         ▲
@@ -2152,12 +2153,8 @@ Plak je data hieronder:`);
                                 </div>
                               </td>
                             </tr>
-                          )}
-                          <tr 
-                            style={{ 
-                              cursor: 'move',
-                              backgroundColor: row.type === 'break' ? '#FFFBEB' : 'white'
-                            }}
+                          )}                          <tr 
+                            className={`hover:bg-gray-50 ${row.type === 'break' ? 'bg-yellow-50' : ''} cursor-move transition-colors`}
                             draggable={true}
                             onDragStart={(e) => {
                               console.log('Drag start on element:', e.target.tagName);
@@ -2165,38 +2162,29 @@ Plak je data hieronder:`);
                             }}
                             onDragEnd={handleDragEnd}
                             onDragOver={(e) => {
-                              e.preventDefault();
+                              e.preventDefault(); // Critical for drop to work
                               handleDragOver(e);
                             }}
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, row)}
                             title="Sleep om rij te verplaatsen"
                           >
-                            <td style={{ padding: "8px" }}>
-                              <div className="flex items-center gap-1">
-                                <span style={{ cursor: 'move', color: '#9CA3AF' }} title="Sleep hier">
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              <div className="flex items-center gap-2">
+                                <span className="cursor-move text-gray-400 hover:text-gray-600" title="Sleep hier om rij te verplaatsen">
                                   ⋮⋮
                                 </span>
-                                <span style={{ fontSize: "13px", color: "#6B7280" }}>
-                                  {row.type === 'break' ? '—' : klasseItemNumber}
-                                </span>
+                                {row.type === 'break' ? '—' : klasseItemNumber}
                               </div>
                             </td>
-                            <td style={{ padding: "8px" }}>
+                            <td className="px-4 py-3">
                               {row.type === 'break' ? (
-                                <span style={{ 
-                                  padding: "2px 8px", 
-                                  backgroundColor: '#FEF3C7', 
-                                  color: '#92400E', 
-                                  borderRadius: '4px', 
-                                  fontSize: '12px',
-                                  fontWeight: 500
-                                }}>
+                                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
                                   PAUZE
                                 </span>
                               ) : (
                                 <select
-                                  className="border rounded px-2 py-1 text-sm"
+                                  className="border rounded px-2 py-1 text-sm bg-white"
                                   value={normalizeKlasse(row.klasse) || ""}
                                   onChange={(e) => {
                                     const newKlasse = e.target.value;
@@ -2210,7 +2198,7 @@ Plak je data hieronder:`);
                                     });
                                   }}
                                 >
-                                  <option value="">Kies...</option>
+                                  <option value="">Kies klasse...</option>
                                   <option value="WE0">WE0</option>
                                   <option value="WE1">WE1</option>
                                   <option value="WE2">WE2</option>
@@ -2222,19 +2210,15 @@ Plak je data hieronder:`);
                                 </select>
                               )}
                             </td>
-                            <td style={{ padding: "8px", fontFamily: 'monospace', fontSize: '13px', color: '#2563EB' }}>
-                              {row.type === 'break' ? '—' : (times.dressuur || '--:--')}
+                            <td className="px-4 py-3">
+                              <div className="text-sm font-mono text-blue-600">
+                                {row.type === 'break' ? '—' : (times.dressuur || '--:--')}
+                              </div>
                             </td>
-                            <td style={{ padding: "8px", fontFamily: 'monospace', fontSize: '13px', color: '#059669' }}>
-                              {row.type === 'break' ? '—' : (times.trail || '--:--')}
-                            </td>
-                            <td style={{ padding: "8px", fontFamily: 'monospace', fontSize: '13px', color: '#DC2626' }}>
-                              {(() => {
-                                if (row.type === 'break') return '—';
-                                const rowKlasse = normalizeKlasse(row.klasse);
-                                const hasSpeed = ['WE2', 'WE2+', 'WE3', 'WE4', 'Young Riders', 'Junioren'].includes(rowKlasse);
-                                return hasSpeed ? (times.speedTrail || '--:--') : '—';
-                              })()}
+                            <td className="px-4 py-3">
+                              <div className="text-sm font-mono text-green-600">
+                                {row.type === 'break' ? '—' : (times.trail || '--:--')}
+                              </div>
                             </td>
                             <td className="px-4 py-3">
                               {row.type === 'break' ? (
@@ -2258,12 +2242,12 @@ Plak je data hieronder:`);
                                 />
                               )}
                             </td>
-                            <td style={{ padding: "8px" }}>
+                            <td className="px-4 py-3">
                               {row.type === 'break' ? (
                                 <input
                                   className="border rounded px-2 py-1 text-sm font-medium"
                                   value={row.label || ""}
-                                  placeholder="Pauze label"
+                                  placeholder="Pauze naam"
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setRows((prev) => {
@@ -2280,7 +2264,7 @@ Plak je data hieronder:`);
                                 <input
                                   className="border rounded px-2 py-1 text-sm"
                                   value={row.ruiter || ""}
-                                  placeholder="Ruiter"
+                                  placeholder="Ruiter naam"
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setRows((prev) => {
@@ -2295,12 +2279,11 @@ Plak je data hieronder:`);
                                 />
                               )}
                             </td>
-                            <td style={{ padding: "8px" }}>
+                            <td className="px-4 py-3">
                               {row.type === 'break' ? (
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center space-x-1">
                                   <input
-                                    className="border rounded px-1 py-1 text-xs"
-                                    style={{ width: '48px' }}
+                                    className="border rounded px-1 py-1 w-12 text-xs"
                                     type="number"
                                     value={row.duration || ""}
                                     placeholder="15"
@@ -2322,7 +2305,7 @@ Plak je data hieronder:`);
                                 <input
                                   className="border rounded px-2 py-1 text-sm"
                                   value={row.paard || ""}
-                                  placeholder="Paard"
+                                  placeholder="Paard naam"
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setRows((prev) => {
@@ -2337,106 +2320,24 @@ Plak je data hieronder:`);
                                 />
                               )}
                             </td>
-                            <td style={{ padding: "8px" }}>
-                              {row.type !== 'break' && (
-                                <div className="flex gap-1 text-xs">
-                                  <label className="flex items-center gap-0.5 cursor-pointer" title="Dressuur">
-                                    <input
-                                      type="checkbox"
-                                      checked={row.onderdelen?.dressuur !== false}
-                                      onChange={(e) => {
-                                        setRows((prev) => {
-                                          const next = prev.slice();
-                                          const realIndex = rows.indexOf(row);
-                                          if (realIndex >= 0) {
-                                            next[realIndex] = { 
-                                              ...next[realIndex], 
-                                              onderdelen: {
-                                                ...next[realIndex].onderdelen,
-                                                dressuur: e.target.checked
-                                              }
-                                            };
-                                          }
-                                          return next;
-                                        });
-                                      }}
-                                      className="w-3 h-3"
-                                    />
-                                    <span>D</span>
-                                  </label>
-                                  <label className="flex items-center gap-0.5 cursor-pointer" title="Trail">
-                                    <input
-                                      type="checkbox"
-                                      checked={row.onderdelen?.trail !== false}
-                                      onChange={(e) => {
-                                        setRows((prev) => {
-                                          const next = prev.slice();
-                                          const realIndex = rows.indexOf(row);
-                                          if (realIndex >= 0) {
-                                            next[realIndex] = { 
-                                              ...next[realIndex], 
-                                              onderdelen: {
-                                                ...next[realIndex].onderdelen,
-                                                trail: e.target.checked
-                                              }
-                                            };
-                                          }
-                                          return next;
-                                        });
-                                      }}
-                                      className="w-3 h-3"
-                                    />
-                                    <span>T</span>
-                                  </label>
-                                  {(() => {
-                                    const rowKlasse = normalizeKlasse(row.klasse);
-                                    const hasSpeed = ['WE2', 'WE2+', 'WE3', 'WE4', 'Young Riders', 'Junioren'].includes(rowKlasse);
-                                    return hasSpeed ? (
-                                      <label className="flex items-center gap-0.5 cursor-pointer" title="Speed Trail">
-                                        <input
-                                          type="checkbox"
-                                          checked={row.onderdelen?.speed !== false}
-                                          onChange={(e) => {
-                                            setRows((prev) => {
-                                              const next = prev.slice();
-                                              const realIndex = rows.indexOf(row);
-                                              if (realIndex >= 0) {
-                                                next[realIndex] = { 
-                                                  ...next[realIndex], 
-                                                  onderdelen: {
-                                                    ...next[realIndex].onderdelen,
-                                                    speed: e.target.checked
-                                                  }
-                                                };
-                                              }
-                                              return next;
-                                            });
-                                          }}
-                                          className="w-3 h-3"
-                                        />
-                                        <span>S</span>
-                                      </label>
-                                    ) : null;
-                                  })()}
-                                </div>
-                              )}
-                            </td>
-                            <td style={{ padding: "8px", textAlign: "center" }}>
-                              <button
-                                className="px-2 py-1 text-xs border rounded hover:bg-red-50 text-red-600"
-                                onClick={() => {
-                                  const realIndex = rows.indexOf(row);
-                                  if (realIndex >= 0) {
-                                    setRows((prev) => prev.filter((_, i) => i !== realIndex));
-                                  }
-                                }}
-                                title="Verwijderen"
-                              >
-                                🗑️
-                              </button>
-                              {row.fromDB && (
-                                <span className="px-1 py-1 text-xs bg-blue-100 text-blue-700 rounded ml-1">DB</span>
-                              )}
+                            <td className="px-4 py-3">
+                              <div className="flex items-center space-x-1">
+                                <button
+                                  className="px-2 py-1 text-xs border rounded hover:bg-red-50 text-red-600"
+                                  onClick={() => {
+                                    const realIndex = rows.indexOf(row);
+                                    if (realIndex >= 0) {
+                                      setRows((prev) => prev.filter((_, i) => i !== realIndex));
+                                    }
+                                  }}
+                                  title="Verwijderen"
+                                >
+                                  🗑️
+                                </button>
+                                {row.fromDB && (
+                                  <span className="px-1 py-1 text-xs bg-blue-100 text-blue-700 rounded">DB</span>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         </React.Fragment>
@@ -2457,19 +2358,25 @@ Plak je data hieronder:`);
             )}
           </div>
 
-          {/* Acties onder tabel */}
-          <div className="mt-4 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex gap-2">
+          <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex gap-3">
                 <button
-                  className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
-                  onClick={loadDeelnemersFromDB}
-                  disabled={!wedstrijd || loadingFromDB}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors font-medium"
+                  onClick={() => addEmptyRow(setRows, klasse)}
                 >
-                  {loadingFromDB ? "⏳ Laden..." : "🔄 Herladen"}
+                  + Nieuwe deelnemer
                 </button>
-                <label className="cursor-pointer px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-50 text-sm">
-                  📁 CSV
+                
+                <button
+                  className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
+                  onClick={() => addBreak(setRows)}
+                >
+                  🍕 + Pauze
+                </button>
+
+                <label className="cursor-pointer px-4 py-2 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                  📁 CSV Upload
                   <input
                     type="file"
                     accept=".csv,text/csv"
@@ -2479,41 +2386,205 @@ Plak je data hieronder:`);
                 </label>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
-                  className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  onClick={loadDeelnemersFromDB}
+                  disabled={!wedstrijd || loadingFromDB}
+                >
+                  {loadingFromDB ? "⏳ Laden..." : "🔄 DB Laden"}
+                </button>
+
+                <button
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                   onClick={() => {
                     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                     const calculatedTimes = hasKlasseStartTimes 
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval)
-                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, speedTrailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd, klasseIntervals, speedInterval);
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
                     exportToExcel(filtered, meta, calculatedTimes);
                   }}
                   disabled={!filtered.length}
                 >
-                  📊 Excel
+                  📊 Excel Export
                 </button>
                 
                 <button
-                  className="px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                  onClick={makeBatchPDF}
-                  disabled={!filtered.length}
-                >
-                  📄 PDF
-                </button>
-                
-                <button
-                  className={`px-4 py-1.5 rounded text-white font-medium text-sm ${saving ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+                  className={`px-4 py-2 rounded text-white font-medium ${saving ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
                   onClick={saveList}
                   disabled={saving || !wedstrijd}
                   title={!wedstrijd ? "Selecteer eerst een wedstrijd" : "Sla wijzigingen op naar database"}
                 >
-                  {saving ? 'Bezig...' : '💾 Opslaan'}
+                  {saving ? 'Bezig...' : 'Opslaan'}
                 </button>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Simpele samenvatting sidebar (rechts) */}
+        <div className="w-80 flex-shrink-0">
+          <div className="sticky top-4 space-y-4">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                📊 Overzicht
+              </h3>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-blue-50 rounded">
+                  <span className="text-sm text-blue-700">Totaal deelnemers:</span>
+                  <span className="font-bold text-blue-800">
+                    {filtered.filter(r => r.type === 'entry').length}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center p-3 bg-yellow-50 rounded">
+                  <span className="text-sm text-yellow-700">Pauzes:</span>
+                  <span className="font-bold text-yellow-800">
+                    {filtered.filter(r => r.type === 'break').length}
+                  </span>
+                </div>
+
+                {(() => {
+                  const klassen = {};
+                  filtered.filter(r => r.type === 'entry').forEach(r => {
+                    const kl = normalizeKlasse(r.klasse) || 'Geen klasse';
+                    klassen[kl] = (klassen[kl] || 0) + 1;
+                  });
+                  
+                  return Object.keys(klassen).length > 0 && (
+                    <div className="border-t pt-3">
+                      <div className="text-sm font-medium text-gray-700 mb-2">Per klasse:</div>
+                      <div className="space-y-1">
+                        {Object.entries(klassen)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([klasse, count]) => (
+                            <div key={klasse} className="flex justify-between items-center text-sm">
+                              <span className="text-gray-600">{klasse}:</span>
+                              <span className="font-medium">{count}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {wedstrijd && (
+                  <div className="border-t pt-3">
+                    <div className="text-xs text-gray-500">
+                      <div>Wedstrijd: {wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd}</div>
+                      {klasse && <div>Filter klasse: {klasse}</div>}
+                      {rubriek && <div>Rubriek: {rubriek}</div>}
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t pt-3">
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <div>Dressuur start: <span className="font-mono">{dressuurStarttijd}</span></div>
+                    <div>Trail start: <span className="font-mono">{trailStarttijd}</span></div>
+                    <div>Interval: {tussenPauze} minuten</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick actions */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="font-medium text-gray-700 mb-3">Snelle acties</h4>
+              <div className="space-y-2">
+                <button
+                  className="w-full px-3 py-2 text-sm bg-white border rounded hover:bg-gray-50 text-left"
+                  onClick={makeBatchPDF}
+                  disabled={!filtered.length}
+                >
+                  📄 Download PDF
+                </button>
+                <button
+                  className="w-full px-3 py-2 text-sm bg-white border rounded hover:bg-gray-50 text-left"
+                  onClick={() => {
+                    // Open een nieuw venster met de volledige startlijst
+                    const printWindow = window.open('', '_blank');
+                    const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
+                    const calculatedTimes = hasKlasseStartTimes 
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
+                    
+                    const htmlContent = `
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                        <title>Startlijst Volledig Overzicht</title>
+                        <style>
+                          body { font-family: Arial, sans-serif; margin: 20px; }
+                          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                          th { background-color: #f2f2f2; font-weight: bold; }
+                          .class-header { background-color: #e3f2fd; font-weight: bold; }
+                          .break-row { background-color: #fff3e0; font-weight: bold; }
+                          .dressuur { color: #1976d2; }
+                          .trail { color: #388e3c; }
+                          @media print { body { margin: 0; } }
+                        </style>
+                      </head>
+                      <body>
+                        <h1>Startlijst ${wedstrijdNaam || 'Wedstrijd'}</h1>
+                        <p>Gegenereerd op: ${new Date().toLocaleString()}</p>
+                        <p>Dressuur start: ${dressuurStarttijd} | Trail start: ${trailStarttijd} | Interval: ${tussenPauze} min</p>
+                        
+                        <table>
+                          <tr>
+                            <th>#</th>
+                            <th>Klasse</th>
+                            <th>Dressuur</th>
+                            <th>Trail</th>
+                            <th>Startnr</th>
+                            <th>Ruiter</th>
+                            <th>Paard</th>
+                          </tr>
+                          ${filtered.map((row, index) => {
+                            const times = calculatedTimes[row.id || index] || {};
+                            if (row.type === 'break') {
+                              return `<tr class="break-row">
+                                <td>${index + 1}</td>
+                                <td colspan="4">🍕 PAUZE</td>
+                                <td>${row.label || 'Pauze'}</td>
+                                <td>${row.duration || 0} minuten</td>
+                              </tr>`;
+                            }
+                            return `<tr>
+                              <td>${index + 1}</td>
+                              <td>${normalizeKlasse(row.klasse) || 'Geen klasse'}</td>
+                              <td class="dressuur">${times.dressuur || '--:--'}</td>
+                              <td class="trail">${times.trail || '--:--'}</td>
+                              <td>${row.startnummer || ''}</td>
+                              <td>${row.ruiter || ''}</td>
+                              <td>${row.paard || ''}</td>
+                            </tr>`;
+                          }).join('')}
+                        </table>
+                        
+                        <script>
+                          window.onload = function() {
+                            window.print();
+                          }
+                        </script>
+                      </body>
+                      </html>
+                    `;
+                    
+                    printWindow.document.write(htmlContent);
+                    printWindow.document.close();
+                  }}
+                  disabled={!filtered.length}
+                >
+                  👁️ Volledig overzicht
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       </div>
     </Container>
   );

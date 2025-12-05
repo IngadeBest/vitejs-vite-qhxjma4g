@@ -170,41 +170,50 @@ function protocolToDoc(doc, p, items) {
   titleBar(doc, title, `${p.klasse_naam || p.klasse}`);
   const infoY = infoBoxesSideBySide(doc, p);
   
-  // Voor dressuur: gebruik 4-kolommen format (Letter, Onderdeel, Score, Opmerkingen)
+  // Voor dressuur: gebruik 4-kolommen format met nummering
   if (p.onderdeel === "dressuur") {
-    const tableData = items.map(item => {
-      // Item format: ["Letter", "Omschrijving", "Beoordeling"]
+    const tableData = items.map((item, index) => {
+      // Item format: ["Letter", "Oefening", "", "Beoordeling"]
       if (Array.isArray(item) && item.length >= 2) {
+        const letter = item[0] || "";
+        const oefening = item[1] || "";
+        const beoordeling = item[3] || item[2] || ""; // Try col 3 first, then col 2 as fallback
+        
+        // Als de letter leeg is (algemene punten), toon geen nummer
+        const nummer = letter ? (index + 1).toString() : "";
+        
         return [
-          item[0] || "",  // Letter
-          item[1] || "",  // Omschrijving
-          "",             // Score
-          item[2] || ""   // Beoordeling/Opmerkingen
+          nummer,         // #
+          letter,         // Letter
+          oefening,       // Oefening
+          "",             // Punten (leeg voor invullen)
+          beoordeling     // Beoordeling criteria
         ];
       }
-      // Fallback voor oude format (gewone string)
-      return ["", item, "", ""];
+      // Fallback voor oude format
+      return ["", "", item, "", ""];
     });
     
     autoTable(doc, {
       startY: infoY + 16,
-      head: [["Letter", "Onderdeel", "Score", "Opmerkingen"]],
+      head: [["#", "Letter", "Oefening", "Punten", "Beoordeling/Opmerkingen"]],
       body: tableData,
       styles: { 
-        fontSize: 10, 
-        cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, 
+        fontSize: 9, 
+        cellPadding: { top: 4, right: 4, bottom: 8, left: 4 }, 
         lineColor: BORDER, 
         lineWidth: 0.5,
         valign: "top"
       },
-      headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold" },
+      headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold", fontSize: 9 },
       theme: "grid",
       margin: MARGIN,
       columnStyles: {
-        0: { cellWidth: 60 },   // Letter
-        1: { cellWidth: 240 },  // Onderdeel
-        2: { cellWidth: 60, halign: "center" },  // Score
-        3: { cellWidth: "auto" }  // Opmerkingen
+        0: { cellWidth: 25, halign: "center" },   // #
+        1: { cellWidth: 55 },   // Letter
+        2: { cellWidth: 200 },  // Oefening
+        3: { cellWidth: 45, halign: "center" },  // Punten
+        4: { cellWidth: "auto" }  // Beoordeling
       }
     });
     const afterTable = doc.lastAutoTable.finalY;
