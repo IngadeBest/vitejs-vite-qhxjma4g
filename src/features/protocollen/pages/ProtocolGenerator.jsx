@@ -523,8 +523,8 @@ export default function ProtocolGenerator() {
       if (config.onderdeel === "dressuur" || config.onderdeel === "speed") {
         try {
           const klasseMap = {
-            'we0': 'WE0', 'we1': 'WE1', 'we2': 'WE2', 'we2p': 'WE2PLUS', 'we2+': 'WE2PLUS',
-            'we2plus': 'WE2PLUS', 'we3': 'WE3', 'we4': 'WE4',
+            'we0': 'WE0', 'we1': 'WE1', 'we2': 'WE2', 'we2p': 'WE2+', 'we2+': 'WE2+',
+            'we2plus': 'WE2+', 'we3': 'WE3', 'we4': 'WE4',
             'junior': 'JUNIOR', 'junioren': 'JUNIOR', 'young riders': 'YOUNG_RIDERS', 'yr': 'YOUNG_RIDERS'
           };
           const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
