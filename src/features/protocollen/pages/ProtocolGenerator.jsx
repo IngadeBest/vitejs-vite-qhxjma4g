@@ -43,13 +43,20 @@ const ALG_PUNTEN_WE2PLUS = [
 
 /* PDF helpers */
 const BLUE = [16, 39, 84];
-const LIGHT_HEAD = [220, 230, 245];  // Subtiel maar goed zichtbaar bij printen
-const BORDER = [160, 160, 160];      // Donkerder grijs, goed zichtbaar maar niet hard
 const MARGIN = { left: 40, right: 40 };
-const COL_NUM  = 26;
-const COL_NAME = 260;
-const COL_H    = 40;
-const COL_HALF = 40;
+
+/* NIEUWE CONSTANTEN: Alles in één object voor gelijke uitlijning */
+const BORDER_COLOR = [160, 160, 160];
+const HEADER_COLOR = [220, 230, 245];
+
+const COL_WIDTHS = {
+  NUM: 25,       // Vervangt het oude COL_NUM
+  LETTER: 55,    // Nieuw: voor de letters A-X etc.
+  HEEL: 35,      // Vervangt COL_H (iets smaller voor strakkere look)
+  HALF: 35,      // Vervangt COL_HALF
+  NOTE: 130      // Vaste breedte voor opmerkingen zodat de tabel rechts uitlijnt
+  // De 'Omschrijving' kolom krijgt straks 'auto' en vult de rest
+};
 
 function titleBar(doc, title, subtitle) {
   const W = doc.internal.pageSize.getWidth();
@@ -124,45 +131,75 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
     startY,
     head: [["#", "Algemene punten", "Heel", "Half", "Opmerking"]],
     body: punten.map((naam, i) => [startIndex + i, naam, "", "", ""]),
-    styles: { fontSize: 10, cellPadding: { top: 5, right: 5, bottom: 12, left: 5 }, lineColor: BORDER, lineWidth: 0.5 },
-    headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold" },
+    styles: { 
+      fontSize: 10, 
+      cellPadding: { top: 6, right: 5, bottom: 6, left: 5 }, 
+      lineColor: BORDER_COLOR, 
+      lineWidth: 0.5,
+      valign: "middle" // Verticaal centreren staat netjes bij algemene punten
+    },
+    headStyles: { 
+      fillColor: HEADER_COLOR, 
+      textColor: 0, 
+      fontStyle: "bold", 
+      halign: "left" 
+    },
     theme: "grid",
     margin: MARGIN,
     columnStyles: {
-      0: { cellWidth: COL_NUM,  halign: "center" },
-      1: { cellWidth: COL_NAME },
-      2: { cellWidth: COL_H,    halign: "center" },
-      3: { cellWidth: COL_HALF, halign: "center" },
-      4: { cellWidth: "auto" },
+      0: { cellWidth: COL_WIDTHS.NUM,  halign: "center" }, // #
+      1: { cellWidth: "auto" },                            // Omschrijving (Vult de ruimte)
+      2: { cellWidth: COL_WIDTHS.HEEL, halign: "center" }, // Heel
+      3: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, // Half
+      4: { cellWidth: COL_WIDTHS.NOTE }                    // Opmerking
     },
   });
   return doc.lastAutoTable.finalY;
 }
 function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true, isDressuur = false) {
-  const totalLabel = maxPoints ? `Totaal (${maxPoints} max. punten)` : "Totaal";
-  const bodyRows = [["Subtotaal", "", ""]];
+  const totalLabel = maxPoints ? `Totaal (max. ${maxPoints})` : "Totaal";
   
-  // Alleen "Puntenaftrek en reden" toevoegen als showPuntenaftrek true is
+  // We bouwen de rijen op. 
+  // Voor dressuur gebruiken we 4 kolommen: [Label, Score Heel, Score Half, Lege Opmerking]
+  // Zodat de verticale lijnen exact doorlopen vanuit de tabel erboven.
+  
+  const bodyRows = [];
+  
+  // Rij 1: Subtotaal
+  bodyRows.push(["Subtotaal", "", "", ""]);
+  
+  // Rij 2: Puntenaftrek (indien nodig)
   if (showPuntenaftrek) {
-    bodyRows.push(["Puntenaftrek en reden", "", ""]);
+    bodyRows.push(["Puntenaftrek en reden", "", "", ""]);
   }
   
-  bodyRows.push([extraLabel || totalLabel, "", ""]);
+  // Rij 3: Totaal
+  bodyRows.push([extraLabel || totalLabel, "", "", ""]);
   
   autoTable(doc, {
-    startY, head: [],
+    startY, 
+    head: [],
     body: bodyRows,
-    styles: { fontSize: 10, cellPadding: 6, lineColor: BORDER, lineWidth: 0.5 },
+    styles: { 
+      fontSize: 10, 
+      cellPadding: 6, 
+      lineColor: BORDER_COLOR, 
+      lineWidth: 0.5,
+      fontStyle: "bold" // Alles dikgedrukt in het totaalblok
+    },
     theme: "grid", 
     margin: MARGIN, 
     columnStyles: isDressuur ? { 
-      0: { cellWidth: 203, fontStyle: "bold" },  // # + Letter + Oefening (18+45+140) voor dressuur
-      1: { cellWidth: 25, halign: "center" },     // Heel
-      2: { cellWidth: 25, halign: "center" }      // Half
+      // Dressuur uitlijning (matcht met bovenstaande tabellen)
+      0: { cellWidth: "auto", halign: "left" },            // Label (Vult ruimte van # + Letter + Oefening)
+      1: { cellWidth: COL_WIDTHS.HEEL, halign: "center" }, // Heel
+      2: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, // Half
+      3: { cellWidth: COL_WIDTHS.NOTE }                    // Opmerking (Leeg laten, maar behoudt breedte)
     } : {
-      0: { cellWidth: COL_NUM + COL_NAME, fontStyle: "bold" },  // # + Naam (26+260=286) voor stijl/speed
-      1: { cellWidth: COL_H, halign: "center" },     // Heel
-      2: { cellWidth: COL_HALF, halign: "center" }   // Half
+      // Speed/Stijl uitlijning (oudere stijl behouden of ook updaten naar wens)
+      0: { cellWidth: "auto", halign: "left" },
+      1: { cellWidth: 40, halign: "center" },
+      2: { cellWidth: 40, halign: "center" }
     },
   });
   return doc.lastAutoTable.finalY;
@@ -281,14 +318,16 @@ autoTable(doc, {
       },
       theme: "grid",
       margin: MARGIN,
+      // ... binnen protocolToDoc ...
       columnStyles: {
-        0: { cellWidth: 25, halign: "center" }, // #
-        1: { cellWidth: 55, halign: "left" },   // Letter (Iets breder gemaakt voor M-X-K)
-        2: { cellWidth: "auto" },               // Oefening (Vult de rest van de ruimte)
-        3: { cellWidth: 35, halign: "center" }, // Heel
-        4: { cellWidth: 35, halign: "center" }, // Half
-        5: { cellWidth: 130 }                   // Opmerkingen
+        0: { cellWidth: COL_WIDTHS.NUM, halign: "center" }, // #
+        1: { cellWidth: COL_WIDTHS.LETTER, halign: "left" }, // Letter
+        2: { cellWidth: "auto" },                           // Oefening
+        3: { cellWidth: COL_WIDTHS.HEEL, halign: "center" }, // Heel
+        4: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, // Half
+        5: { cellWidth: COL_WIDTHS.NOTE }                   // Opmerkingen
       }
+// ...
     });
     const afterOefeningen = doc.lastAutoTable.finalY;
     
