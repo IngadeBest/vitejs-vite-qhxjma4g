@@ -433,13 +433,17 @@ function protocolToDoc(doc, p, items) {
 }
 
 async function makePdfBlob(protocol, items) {
-  const mod = await import('jspdf');
-  const modAuto = await import('jspdf-autotable');
-  const jsPDFLib = (mod && (mod.default || mod.jsPDF)) || mod;
-  autoTable = (modAuto && (modAuto.default || modAuto)) || modAuto;
-  const doc = new (jsPDFLib.default || jsPDFLib)({ unit: "pt", format: "A4" });
-  protocolToDoc(doc, protocol, items);
-  return doc.output("blob");
+  try {
+    const jsPDF = (await import('jspdf')).default;
+    const autoTableModule = await import('jspdf-autotable');
+    autoTable = autoTableModule.default;
+    const doc = new jsPDF({ unit: "pt", format: "A4" });
+    protocolToDoc(doc, protocol, items);
+    return doc.output("blob");
+  } catch (error) {
+    console.error('Error loading jsPDF:', error);
+    throw new Error('Kon PDF bibliotheek niet laden. Probeer de pagina te vernieuwen.');
+  }
 }
 
 export default function ProtocolGenerator() {
@@ -740,11 +744,10 @@ export default function ProtocolGenerator() {
   const downloadBatch = async () => {
     try {
       if (!protocollen.length) return;
-      const mod = await import('jspdf');
-      const modAuto = await import('jspdf-autotable');
-      const jsPDFLib = (mod && (mod.default || mod.jsPDF)) || mod;
-      autoTable = (modAuto && (modAuto.default || modAuto)) || modAuto;
-      const doc = new (jsPDFLib.default || jsPDFLib)({ unit: "pt", format: "A4" });
+      const jsPDF = (await import('jspdf')).default;
+      const autoTableModule = await import('jspdf-autotable');
+      autoTable = autoTableModule.default;
+      const doc = new jsPDF({ unit: "pt", format: "A4" });
       protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items); });
       doc.save(`protocollen_${config.onderdeel}.pdf`);
     } catch (error) { console.error(error); alert('Fout bij batch download: ' + error.message); }
