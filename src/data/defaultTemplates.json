@@ -350,21 +350,28 @@
       ["Ringsteken", "-5 sec (als ring terug)\n+5 sec omrijden houder", "", ""],
       ["Hoedje omhangen", "", "", ""]
     ]}]},
-    "YOUNG_RIDERS": { "sections": [{ "title": "Speedtrail – Protocol per combinatie", "columns": ["Hindernis", "Strafbepaling", "Straf", "Opmerking"], "rows": [
-      ["3 tonnen", "+5 sec per ton", "", ""],
-      ["2 tonnen", "+5 sec per ton", "", ""],
-      ["Brug", "+5 sec per deel", "", ""],
-      ["Parallel slalom", "+3 sec per paal", "", ""],
-      ["Enkele slalom", "+3 sec per paal", "", ""],
-      ["Slalom achterwaarts", "+3 sec per paal", "", ""],
-      ["Bel", "+5 sec per deel", "", ""],
-      ["Sprong", "+5 sec per deel", "", ""],
-      ["Pen", "+5 sec per deel", "", ""],
-      ["Poort", "+10 sec per deel\n+30 sec totaal om", "", ""],
-      ["Travers balk", "+7 sec afgooien\n+5 sec benen verkeerde kant", "", ""],
-      ["Garrocha uit ton", "+5 sec ton om", "", ""],
-      ["Garrocha in ton", "+5 sec ton om", "", ""],
-      ["Ringsteken", "-5 sec (als ring terug)\n+5 sec omrijden houder", "", ""],
-      ["Hoedje omhangen", "", "", ""]
-    ]}]}
+    "YOUNG_RIDERS": { 
+      "sections": [{ 
+        "title": "Speedtrail – Protocol per combinatie", 
+        "columns": ["Hindernis", "Strafbepaling", "Straf", "Opmerking"], 
+        "rows": [
+          ["3 tonnen", "+5 sec per ton", "", ""],
+          ["2 tonnen", "+5 sec per ton", "", ""],
+          ["Brug", "+5 sec per deel", "", ""],
+          ["Parallel slalom", "+3 sec per paal", "", ""],
+          ["Enkele slalom", "+3 sec per paal", "", ""],
+          ["Slalom achterwaarts", "+3 sec per paal", "", ""],
+          ["Bel", "+5 sec per deel", "", ""],
+          ["Sprong", "+5 sec per deel", "", ""],
+          ["Pen", "+5 sec per deel", "", ""],
+          ["Poort", "+10 sec per deel\n+30 sec totaal om", "", ""],
+          ["Travers balk", "+7 sec afgooien\n+5 sec benen verkeerde kant", "", ""],
+          ["Garrocha uit ton", "+5 sec ton om", "", ""],
+          ["Garrocha in ton", "+5 sec ton om", "", ""],
+          ["Ringsteken", "-5 sec (als ring terug)\n+5 sec omrijden houder", "", ""],
+          ["Hoedje omhangen", "", "", ""]
+        ]
+      }]
+    }
   }
+}
