@@ -89,56 +89,183 @@
       ]
     },
     "WE2": {
-      "sections": [
-        {
-          "title": "Dressuur – WE2 Lichte klasse",
-          "columns": ["Letter", "Oefening", "Punten", "Beoordeling"],
-          "rows": [
-            ["A-X", "Binnenkomen in arbeidsdraf", "", "."],
-            ["X", "Halthouden, groeten", "", ""],
-            ["X", "Voorwaarts in arbeidsdraf", "", "."],
-            ["C", "Rechterhand", "", ""],
-            ["K", "Volte 10 meter", "", "."],
-            ["K-E", "Travers", "", "."],
-            ["E", "Rechtuit", "", ""],
-            ["C", "Halthouden, 6 passen achterwaarts, voorwaarts in arbeidsdraf", "", "."],
-            ["M-X-K", "K hand veranderen daarbij draf verruimen", "", "."],
-            ["K", "Arbeidsdraf", "", ""],
-            ["F", "Volte 10 meter", "", "."],
-            ["F-B", "Travers", "", "."],
-            ["B", "Rechtuit", "", ""],
-            ["C", "Verzamelde stap", "", "."],
-            ["H", "Kwart keertwending om de achterhand links", "", "."],
-            ["M", "Rechterhand", "", ""],
-            ["B", "Kwart keertwending om de achterhand rechts", "", "."],
-            ["E-M", "Van hand veranderen, voor M enkele passen middenstap", "", "."],
-            ["M", "Arbeidsstap", "", ""],
-            ["", "Tussen C en H", "", ""],
-            ["", "Arbeidsgalop links", "", ""],
-            ["E-B-E", "Grote volte in middengalop", "", "."],
-            ["E", "Arbeidsgalop", "", ""],
-            ["A", "Afwenden en verzamelde galop", "", "."],
-            ["X", "Volte 10 meter links", "", "."],
-            ["X", "Eenvoudige galopwissel", "", ""],
-            ["X", "Volte 10 meter rechts", "", "."],
-            ["C", "Rechterhand", "", ""],
-            ["B-E-B", "Grote volte in middengalop", "", "."],
-            ["B", "Arbeidsgalop", "", ""],
-            ["A", "Verzamelde galop, slangenvolte met 3 bogen met op de A-C lijn eenvoudige galopwissels", "", "."],
-            ["M-E", "Van hand veranderen met op de A-C lijn eenvoudige galopwissel", "", "."],
-            ["E", "Verzamelde galop", "", ""],
-            ["A", "Afwenden", "", "."],
-            ["G", "Halthouden en groeten In vrije stap rijbaan verlaten", "", ""],
-            ["", "Gangen. Takt, regelmaat, ritme", "", ""],
-            ["", "Impuls. Losgelatenheid van het paard, correct ruggebruik en gebruik van de achterhand", "", ""],
-            ["", "Gehoorzaamheid. De ontspanning, oplettendheid en vertrouwen, lichtheid en aanleuning", "", ""],
-            ["", "Harmonie. Het op een sympathieke, paardvriendelijke manier rijden en het gebruik van de hulpmiddelen", "", ""],
-            ["", "Het rijden op zit, houding en inwerking van de ruiter.", "", ""],
-            ["", "Presentatie van de combinatie", "", ""]
-          ]
-        }
+  "sections": [
+    {
+      "title": "Dressuur – WE2 Lichte klasse (2025)",
+      "columns": ["Letter", "Oefening", "Punten", "Beoordeling/Opmerkingen"],
+      "rows": [
+        [
+          "A-X\nX", 
+          "Binnenkomen in arbeidsdraf\nHalthouden, groeten", 
+          "", 
+          ""
+        ],
+        [
+          "X\nC", 
+          "Voorwaarts in arbeidsdraf\nRechterhand", 
+          "", 
+          ""
+        ],
+        [
+          "K", 
+          "Volte 10 meter", 
+          "", 
+          ""
+        ],
+        [
+          "K-E\nE", 
+          "Travers\nRechtuit", 
+          "", 
+          ""
+        ],
+        [
+          "C", 
+          "Halthouden, 6 passen achterwaarts,\nvoorwaarts in arbeidsdraf", 
+          "", 
+          ""
+        ],
+        [
+          "MXK\nK", 
+          "K hand veranderen daarbij draf verruimen\nArbeidsdraf", 
+          "", 
+          ""
+        ],
+        [
+          "F", 
+          "Volte 10 meter", 
+          "", 
+          ""
+        ],
+        [
+          "F-B\nB", 
+          "Travers\nRechtuit", 
+          "", 
+          ""
+        ],
+        [
+          "C", 
+          "Verzamelde stap", 
+          "", 
+          ""
+        ],
+        [
+          "H\nM", 
+          "Kwart keertwending om de achterhand links\nRechterhand", 
+          "", 
+          ""
+        ],
+        [
+          "B", 
+          "Kwart keertwending om de achterhand rechts", 
+          "", 
+          ""
+        ],
+        [
+          "EM\nM", 
+          "Van hand veranderen, voor M enkele passen middenstap\nArbeidsstap", 
+          "", 
+          ""
+        ],
+        [
+          "Tussen\nC en H", 
+          "Arbeidsgalop links", 
+          "", 
+          ""
+        ],
+        [
+          "EBE\nE", 
+          "Grote volte in middengalop\nArbeidsgalop", 
+          "", 
+          ""
+        ],
+        [
+          "A\nX", 
+          "Afwenden en verzamelde galop\nVolte 10 meter links", 
+          "", 
+          ""
+        ],
+        [
+          "X", 
+          "Eenvoudige galopwissel", 
+          "", 
+          ""
+        ],
+        [
+          "X\nC", 
+          "Volte 10 meter rechts\nRechterhand", 
+          "", 
+          ""
+        ],
+        [
+          "BEB\nB", 
+          "Grote volte in middengalop\nArbeidsgalop", 
+          "", 
+          ""
+        ],
+        [
+          "A", 
+          "Verzamelde galop, slangenvolte met 3 bogen\nmet op de A-C lijn eenvoudige galopwissels", 
+          "", 
+          ""
+        ],
+        [
+          "ME\nE", 
+          "Van hand veranderen met op de A-C lijn\neenvoudige galopwissel\nVerzamelde galop", 
+          "", 
+          ""
+        ],
+        [
+          "A", 
+          "Afwenden", 
+          "", 
+          ""
+        ],
+        [
+          "G", 
+          "Halthouden en groeten\nIn vrije stap rijbaan verlaten", 
+          "", 
+          ""
+        ],
+        [
+          "", 
+          "Gangen. Takt, regelmaat, ritme", 
+          "", 
+          ""
+        ],
+        [
+          "", 
+          "Impuls. Losgelatenheid van het paard, correct\nruggebruik en gebruik van de achterhand", 
+          "", 
+          ""
+        ],
+        [
+          "", 
+          "Gehoorzaamheid. De ontspanning, oplettendheid en\nvertrouwen, lichtheid en aanleuning", 
+          "", 
+          ""
+        ],
+        [
+          "", 
+          "Harmonie. Het op een sympathieke, paardvriendelijke\nmanier rijden en het gebruik van de hulpmiddelen", 
+          "", 
+          ""
+        ],
+        [
+          "", 
+          "Het rijden op zit, houding en inwerking van de ruiter.", 
+          "", 
+          ""
+        ],
+        [
+          "", 
+          "Presentatie van de combinatie", 
+          "", 
+          ""
+        ]
       ]
-    },
+    }
+  ]
+},
     "WE2PLUS": {
       "sections": [
         {
