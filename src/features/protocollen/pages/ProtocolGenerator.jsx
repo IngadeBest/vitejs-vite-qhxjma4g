@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { padStartnummer, lookupOffset } from '@/lib/startnummer';
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import obstakelsData from "@/data/obstakels.json";
+import defaultTemplates from "@/data/defaultTemplates.json";
 
 /* Klassen & Onderdelen */
 const KLASSEN = [
@@ -407,7 +408,6 @@ export default function ProtocolGenerator() {
       // Voor dressuur: gebruik defaultTemplates.json
       if (config.onderdeel === "dressuur") {
         try {
-          const templates = await import('../../../data/defaultTemplates.json');
           const klasseMap = {
             'we0': 'WE0',
             'we1': 'WE1', 
@@ -426,7 +426,7 @@ export default function ProtocolGenerator() {
           const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
           console.log('Loading dressuur template for:', config.klasse, '→', normalizedKlasse);
           
-          const template = templates.default?.dressuur?.[normalizedKlasse];
+          const template = defaultTemplates.dressuur?.[normalizedKlasse];
           
           if (template && template.sections && template.sections[0]) {
             const section = template.sections[0];
@@ -437,7 +437,7 @@ export default function ProtocolGenerator() {
             console.log('Loaded dressuur items:', itemsList.length);
           } else {
             setDbMsg(`⚠️ Geen dressuurproef gevonden voor klasse ${config.klasse}`);
-            console.warn('No template found for:', normalizedKlasse, 'Available:', Object.keys(templates.default?.dressuur || {}));
+            console.warn('No template found for:', normalizedKlasse, 'Available:', Object.keys(defaultTemplates.dressuur || {}));
           }
           return;
         } catch (e) {
