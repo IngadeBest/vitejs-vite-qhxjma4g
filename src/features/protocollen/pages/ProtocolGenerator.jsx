@@ -164,8 +164,9 @@ function obstaclesTable(doc, items, startY) {
       fillColor: HEADER_COLOR, 
       textColor: 0, 
       fontStyle: "bold", 
-      fontSize: 8,    // Kleinere header
-      cellPadding: 3, // Slankere header balk
+      fontSize: 9,    // Kleinere header font
+      cellPadding: 2, // Slankere header balk (was 3 of 4)
+      minCellHeight: 15, // Forceer compacte header
       halign: "left" 
     },
     theme: "grid",
@@ -192,8 +193,9 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
       fillColor: HEADER_COLOR, 
       textColor: 0, 
       fontStyle: "bold", 
-      fontSize: 8,
-      cellPadding: 3,
+      fontSize: 9,
+      cellPadding: 2, // Compact
+      minCellHeight: 15,
       halign: "left" 
     },
     theme: "grid",
@@ -377,8 +379,9 @@ function protocolToDoc(doc, p, items) {
         fillColor: HEADER_COLOR, 
         textColor: 0, 
         fontStyle: "bold", 
-        fontSize: 8, // Header font klein
-        cellPadding: 3, // Header compact
+        fontSize: 9, // Header font klein
+        cellPadding: 2, // Header compact
+        minCellHeight: 15,
         halign: "left",
         valign: "middle"
       },
@@ -398,7 +401,19 @@ function protocolToDoc(doc, p, items) {
     
     let afterAlg = afterOefeningen;
     if (algemenePuntenData.length > 0) {
-      afterAlg = generalPointsTable(doc, algemenePuntenData, afterOefeningen + 12, groupNumber + 1);
+      // CHECK RUIMTE: Is er nog genoeg plek op de pagina?
+      // Zo niet, begin nieuwe pagina. Dit voorkomt dubbele headers.
+      const pageHeight = doc.internal.pageSize.height;
+      const spaceLeft = pageHeight - afterOefeningen - MARGIN.bottom;
+      
+      let startY = afterOefeningen + 12;
+      // Als er minder dan 120pt over is, begin opnieuw (genoeg voor header + paar rijen)
+      if (spaceLeft < 120) {
+        doc.addPage();
+        startY = 40; 
+      }
+
+      afterAlg = generalPointsTable(doc, algemenePuntenData, startY, groupNumber + 1);
     }
     
     totalsBox(doc, afterAlg + 6, p.max_score ? Number(p.max_score) : null, null, true, true);
@@ -415,16 +430,14 @@ function protocolToDoc(doc, p, items) {
   if (isStijl) {
     const punten = (p.klasse === "we0" || p.klasse === "we1") ? ALG_PUNTEN_WE0_WE1 : ALG_PUNTEN_WE2PLUS;
     
-    // Check of er nog genoeg ruimte is op de pagina voor de algemene punten.
-    // Zo niet: begin op een nieuwe pagina om "dubbele headers" te voorkomen.
+    // CHECK RUIMTE voor stijltrail
     const pageHeight = doc.internal.pageSize.height;
-    const spaceLeft = pageHeight - afterItems;
+    const spaceLeft = pageHeight - afterItems - MARGIN.bottom;
     
-    // Als er minder dan 100 punten ruimte is (header + 1 of 2 rijen), start nieuwe pagina.
     let startY = afterItems + 12;
-    if (spaceLeft < 100) {
+    if (spaceLeft < 120) {
       doc.addPage();
-      startY = 40; // Marge bovenkant nieuwe pagina
+      startY = 40;
     }
 
     afterAlg = generalPointsTable(doc, punten, startY, items.length + 1);
@@ -536,8 +549,8 @@ export default function ProtocolGenerator() {
       if (config.onderdeel === "dressuur" || config.onderdeel === "speed") {
         try {
           const klasseMap = {
-            'we0': 'WE0', 'we1': 'WE1', 'we2': 'WE2', 'we2p': 'WE2+', 'we2+': 'WE2+',
-            'we2plus': 'WE2+', 'we3': 'WE3', 'we4': 'WE4',
+            'we0': 'WE0', 'we1': 'WE1', 'we2': 'WE2', 'we2p': 'WE2PLUS', 'we2+': 'WE2PLUS',
+            'we2plus': 'WE2PLUS', 'we3': 'WE3', 'we4': 'WE4',
             'junior': 'JUNIOR', 'junioren': 'JUNIOR', 'young riders': 'YOUNG_RIDERS', 'yr': 'YOUNG_RIDERS'
           };
           const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
