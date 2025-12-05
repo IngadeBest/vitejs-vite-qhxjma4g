@@ -290,7 +290,7 @@ autoTable(doc, {
         overflow: 'linebreak'
       },
       headStyles: { 
-        fillColor: LIGHT_HEAD, 
+        fillColor: HEADER_COLOR, 
         textColor: 0, 
         fontStyle: "bold", 
         fontSize: 10,
