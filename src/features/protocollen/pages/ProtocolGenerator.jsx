@@ -228,6 +228,20 @@ function protocolToDoc(doc, p, items) {
           // Voeg toe aan huidige groep (tweede regel binnen zelfde onderdeel)
           currentGroup.letters.push(letter);
           currentGroup.oefeningen.push(oefening);
+        } else if (letter && !beoordeling && !inAlgemenePunten) {
+          // Losse rij met letter maar geen beoordeling (WE1, WE2 style)
+          groupNumber++;
+          const newGroup = {
+            nummer: groupNumber.toString(),
+            letters: [letter],
+            oefeningen: [oefening],
+            beoordeling: "",
+            puntenHeel: "",
+            puntenHalf: "",
+            isHeader: false
+          };
+          tableData.push(newGroup);
+          currentGroup = newGroup; // Zet als huidige groep voor eventuele volgende rijen
         } else if (!letter && !beoordeling && inAlgemenePunten) {
           // Algemene punten item
           algemenePuntenNumber++;
