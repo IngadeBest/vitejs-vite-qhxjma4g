@@ -212,7 +212,7 @@ function protocolToDoc(doc, p, items) {
         const isNewGroup = letter && beoordeling;
         
         if (isNewGroup) {
-          // Start een nieuwe groep MET beoordeling (WE0 style)
+          // Start een nieuwe groep MET beoordeling (WE2/WE0 style)
           groupNumber++;
           currentGroup = {
             nummer: groupNumber.toString(),
@@ -224,12 +224,12 @@ function protocolToDoc(doc, p, items) {
             isHeader: false
           };
           tableData.push(currentGroup);
-        } else if (currentGroup && letter && beoordeling && !inAlgemenePunten) {
-          // Voeg toe aan huidige groep (alleen als er beoordeling is)
+        } else if (currentGroup && letter && !inAlgemenePunten) {
+          // Voeg toe aan huidige groep (ongeacht beoordeling) - volgende stappen van een figuur
           currentGroup.letters.push(letter);
           currentGroup.oefeningen.push(oefening);
         } else if (letter && !beoordeling && !inAlgemenePunten) {
-          // Losse rij ZONDER beoordeling (WE1, WE2 style) - wordt NIET gegroepeerd
+          // Losse rij ZONDER beoordeling EN geen actieve groep (WE1 style) - wordt NIET gegroepeerd
           groupNumber++;
           tableData.push({
             nummer: groupNumber.toString(),
