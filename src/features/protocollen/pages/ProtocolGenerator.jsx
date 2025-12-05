@@ -112,16 +112,22 @@ function obstaclesTable(doc, items, startY) {
     startY,
     head: [["#", "Onderdeel / obstakel", "Heel", "Half", "Opmerking"]],
     body: items.map((o, i) => [i + 1, o, "", "", ""]),
-    styles: { fontSize: 10, cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, lineColor: BORDER, lineWidth: 0.5, valign: "top" },
-    headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold" },
+    styles: { 
+      fontSize: 10, 
+      cellPadding: { top: 5, right: 5, bottom: 10, left: 5 }, 
+      lineColor: BORDER_COLOR, // <--- Aangepaste naam
+      lineWidth: 0.5, 
+      valign: "top" 
+    },
+    headStyles: { fillColor: HEADER_COLOR, textColor: 0, fontStyle: "bold" }, // <--- Aangepaste naam
     theme: "grid",
     margin: MARGIN,
     columnStyles: {
-      0: { cellWidth: COL_NUM,  halign: "center" },
-      1: { cellWidth: COL_NAME },
-      2: { cellWidth: COL_H,    halign: "center" },
-      3: { cellWidth: COL_HALF, halign: "center" },
-      4: { cellWidth: "auto" },
+      0: { cellWidth: COL_WIDTHS.NUM,  halign: "center" }, // <--- Was COL_NUM
+      1: { cellWidth: "auto" },                            // <--- Was COL_NAME, nu auto (vult ruimte)
+      2: { cellWidth: COL_WIDTHS.HEEL,    halign: "center" }, // <--- Was COL_H
+      3: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, // <--- Was COL_HALF
+      4: { cellWidth: COL_WIDTHS.NOTE },                   // <--- Nieuw: vaste breedte opmerking
     },
   });
   return doc.lastAutoTable.finalY;
@@ -136,70 +142,43 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
       cellPadding: { top: 6, right: 5, bottom: 6, left: 5 }, 
       lineColor: BORDER_COLOR, 
       lineWidth: 0.5,
-      valign: "middle" // Verticaal centreren staat netjes bij algemene punten
+      valign: "middle"
     },
-    headStyles: { 
-      fillColor: HEADER_COLOR, 
-      textColor: 0, 
-      fontStyle: "bold", 
-      halign: "left" 
-    },
+    headStyles: { fillColor: HEADER_COLOR, textColor: 0, fontStyle: "bold", halign: "left" },
     theme: "grid",
     margin: MARGIN,
     columnStyles: {
-      0: { cellWidth: COL_WIDTHS.NUM,  halign: "center" }, // #
-      1: { cellWidth: "auto" },                            // Omschrijving (Vult de ruimte)
-      2: { cellWidth: COL_WIDTHS.HEEL, halign: "center" }, // Heel
-      3: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, // Half
-      4: { cellWidth: COL_WIDTHS.NOTE }                    // Opmerking
+      0: { cellWidth: COL_WIDTHS.NUM,  halign: "center" },
+      1: { cellWidth: "auto" },
+      2: { cellWidth: COL_WIDTHS.HEEL,    halign: "center" },
+      3: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
+      4: { cellWidth: COL_WIDTHS.NOTE },
     },
   });
   return doc.lastAutoTable.finalY;
 }
 function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true, isDressuur = false) {
-  const totalLabel = maxPoints ? `Totaal (max. ${maxPoints})` : "Totaal";
+  const totalLabel = maxPoints ? `Totaal (${maxPoints} max. punten)` : "Totaal";
+  const bodyRows = [["Subtotaal", "", "", ""]]; // Let op: 4 items in array voor 4 kolommen
   
-  // We bouwen de rijen op. 
-  // Voor dressuur gebruiken we 4 kolommen: [Label, Score Heel, Score Half, Lege Opmerking]
-  // Zodat de verticale lijnen exact doorlopen vanuit de tabel erboven.
-  
-  const bodyRows = [];
-  
-  // Rij 1: Subtotaal
-  bodyRows.push(["Subtotaal", "", "", ""]);
-  
-  // Rij 2: Puntenaftrek (indien nodig)
   if (showPuntenaftrek) {
     bodyRows.push(["Puntenaftrek en reden", "", "", ""]);
   }
   
-  // Rij 3: Totaal
   bodyRows.push([extraLabel || totalLabel, "", "", ""]);
   
   autoTable(doc, {
-    startY, 
-    head: [],
+    startY, head: [],
     body: bodyRows,
-    styles: { 
-      fontSize: 10, 
-      cellPadding: 6, 
-      lineColor: BORDER_COLOR, 
-      lineWidth: 0.5,
-      fontStyle: "bold" // Alles dikgedrukt in het totaalblok
-    },
+    styles: { fontSize: 10, cellPadding: 6, lineColor: BORDER_COLOR, lineWidth: 0.5, fontStyle: "bold" },
     theme: "grid", 
     margin: MARGIN, 
-    columnStyles: isDressuur ? { 
-      // Dressuur uitlijning (matcht met bovenstaande tabellen)
-      0: { cellWidth: "auto", halign: "left" },            // Label (Vult ruimte van # + Letter + Oefening)
+    columnStyles: {
+      // We gebruiken nu voor ALLES dezelfde indeling, dat is het mooist:
+      0: { cellWidth: "auto", halign: "left" },            // Label
       1: { cellWidth: COL_WIDTHS.HEEL, halign: "center" }, // Heel
       2: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, // Half
-      3: { cellWidth: COL_WIDTHS.NOTE }                    // Opmerking (Leeg laten, maar behoudt breedte)
-    } : {
-      // Speed/Stijl uitlijning (oudere stijl behouden of ook updaten naar wens)
-      0: { cellWidth: "auto", halign: "left" },
-      1: { cellWidth: 40, halign: "center" },
-      2: { cellWidth: 40, halign: "center" }
+      3: { cellWidth: COL_WIDTHS.NOTE }                    // Lege cel voor opmerking
     },
   });
   return doc.lastAutoTable.finalY;
