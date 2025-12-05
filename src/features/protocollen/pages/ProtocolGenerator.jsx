@@ -195,11 +195,17 @@ function protocolToDoc(doc, p, items) {
         const oefening = item[1] || "";
         const beoordeling = item[3] || item[2] || "";
         
-        // Check of dit het begin van algemene punten is
-        if (!letter && !beoordeling && oefening.toLowerCase().includes("algemene punten")) {
+        // Check of dit algemene punten zijn (geen letter, geen beoordeling, oefening begint met Gangen/Impuls/Gehoorzaamheid etc)
+        if (!letter && !beoordeling && (
+          oefening.toLowerCase().includes("gangen") ||
+          oefening.toLowerCase().includes("impuls") ||
+          oefening.toLowerCase().includes("gehoorzaamheid") ||
+          oefening.toLowerCase().includes("harmonie") ||
+          oefening.toLowerCase().includes("rijden op zit") ||
+          oefening.toLowerCase().includes("presentatie")
+        )) {
           inAlgemenePunten = true;
           currentGroup = null;
-          return; // Skip de header
         }
         
         if (inAlgemenePunten) {
@@ -211,7 +217,7 @@ function protocolToDoc(doc, p, items) {
         const isNewGroup = letter && beoordeling;
         
         if (isNewGroup) {
-          // Start een nieuwe groep MET beoordeling (WE2+/WE0 style)
+          // Start een nieuwe groep MET beoordeling (WE2+/WE0 style met beoordelingscriteria)
           groupNumber++;
           currentGroup = {
             nummer: groupNumber.toString(),
@@ -223,12 +229,12 @@ function protocolToDoc(doc, p, items) {
             isHeader: false
           };
           tableData.push(currentGroup);
-        } else if (currentGroup && (letter || oefening)) {
-          // Voeg toe aan huidige groep: letters of oefeningen zonder letter (zoals "Tussen C en H")
-          currentGroup.letters.push(letter || "");
+        } else if (!letter && oefening && currentGroup) {
+          // Rij zonder letter maar met oefening: toevoegen aan huidige groep (zoals "Tussen C en H")
+          currentGroup.letters.push("");
           currentGroup.oefeningen.push(oefening);
         } else if (letter && !beoordeling) {
-          // Losse rij ZONDER beoordeling EN geen actieve groep (WE1/WE2 style zonder beoordelingscriteria)
+          // Rij met letter maar ZONDER beoordeling (WE1/WE2 style): apart figuur
           groupNumber++;
           currentGroup = {
             nummer: groupNumber.toString(),
