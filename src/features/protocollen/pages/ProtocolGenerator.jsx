@@ -164,9 +164,8 @@ function obstaclesTable(doc, items, startY) {
       fillColor: HEADER_COLOR, 
       textColor: 0, 
       fontStyle: "bold", 
-      fontSize: 9,    // Kleinere header font
-      cellPadding: 2, // Slankere header balk (was 3 of 4)
-      minCellHeight: 15, // Forceer compacte header
+      fontSize: 8,    // Kleinere header
+      cellPadding: 3, // Slankere header balk
       halign: "left" 
     },
     theme: "grid",
@@ -193,9 +192,8 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
       fillColor: HEADER_COLOR, 
       textColor: 0, 
       fontStyle: "bold", 
-      fontSize: 9,
-      cellPadding: 2, // Compact
-      minCellHeight: 15,
+      fontSize: 8,
+      cellPadding: 3,
       halign: "left" 
     },
     theme: "grid",
@@ -379,9 +377,8 @@ function protocolToDoc(doc, p, items) {
         fillColor: HEADER_COLOR, 
         textColor: 0, 
         fontStyle: "bold", 
-        fontSize: 9, // Header font klein
-        cellPadding: 2, // Header compact
-        minCellHeight: 15,
+        fontSize: 8, // Header font klein
+        cellPadding: 3, // Header compact
         halign: "left",
         valign: "middle"
       },
