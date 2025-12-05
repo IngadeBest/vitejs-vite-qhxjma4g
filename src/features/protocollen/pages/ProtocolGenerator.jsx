@@ -175,12 +175,31 @@ function protocolToDoc(doc, p, items) {
     const tableData = [];
     let currentGroup = null;
     let groupNumber = 0;
+    let inAlgemenePunten = false;
+    let algemenePuntenNumber = 0;
     
     items.forEach((item, index) => {
       if (Array.isArray(item) && item.length >= 2) {
         const letter = item[0] || "";
         const oefening = item[1] || "";
         const beoordeling = item[3] || item[2] || "";
+        
+        // Check of dit het begin van algemene punten is
+        if (!letter && !beoordeling && oefening.toLowerCase().includes("algemene punten")) {
+          inAlgemenePunten = true;
+          algemenePuntenNumber = 0;
+          // Voeg "Algemene punten" header toe
+          tableData.push({
+            nummer: "",
+            letters: [""],
+            oefeningen: [oefening],
+            beoordeling: "",
+            puntenHeel: "",
+            puntenHalf: "",
+            isHeader: true
+          });
+          return;
+        }
         
         // Check of dit het begin van een nieuwe groep is (heeft letter en beoordeling)
         const isNewGroup = letter && beoordeling;
@@ -192,20 +211,38 @@ function protocolToDoc(doc, p, items) {
             nummer: groupNumber.toString(),
             letters: [letter],
             oefeningen: [oefening],
-            beoordeling: beoordeling
+            beoordeling: beoordeling,
+            puntenHeel: "",
+            puntenHalf: "",
+            isHeader: false
           };
           tableData.push(currentGroup);
-        } else if (currentGroup && letter) {
+        } else if (currentGroup && letter && !inAlgemenePunten) {
           // Voeg toe aan huidige groep (tweede regel binnen zelfde onderdeel)
           currentGroup.letters.push(letter);
           currentGroup.oefeningen.push(oefening);
+        } else if (!letter && !beoordeling && inAlgemenePunten) {
+          // Algemene punten item
+          algemenePuntenNumber++;
+          tableData.push({
+            nummer: groupNumber + algemenePuntenNumber,
+            letters: [""],
+            oefeningen: [oefening],
+            beoordeling: "",
+            puntenHeel: "",
+            puntenHalf: "",
+            isHeader: false
+          });
         } else if (!letter && !beoordeling) {
-          // Algemene punten sectie (zonder nummer)
+          // Algemene punten sectie voor "Algemene punten" header (oude format)
           tableData.push({
             nummer: "",
             letters: [""],
             oefeningen: [oefening],
-            beoordeling: ""
+            beoordeling: "",
+            puntenHeel: "",
+            puntenHalf: "",
+            isHeader: false
           });
         }
       }
@@ -216,32 +253,44 @@ function protocolToDoc(doc, p, items) {
       group.nummer,
       group.letters.join("\n"),
       group.oefeningen.join("\n"),
-      "",
+      group.puntenHeel,
+      group.puntenHalf,
       group.beoordeling
     ]);
     
     autoTable(doc, {
       startY: infoY + 16,
-      head: [["#", "Letter", "Oefening", "Punten", "Beoordeling/Opmerkingen"]],
+      head: [["#", "Letter", "Oefening", "Heel", "Half", "Beoordeling/Opmerkingen"]],
       body: formattedData,
       styles: { 
         fontSize: 9, 
-        cellPadding: { top: 6, right: 4, bottom: 6, left: 4 }, 
+        cellPadding: { top: 8, right: 4, bottom: 8, left: 4 }, 
         lineColor: BORDER, 
         lineWidth: 0.5,
         valign: "top",
-        minCellHeight: 40,
+        minCellHeight: 50,  // Nog meer ruimte voor schrijven
         cellWidth: "wrap"
       },
       headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold", fontSize: 9 },
       theme: "grid",
       margin: MARGIN,
       columnStyles: {
-        0: { cellWidth: 20, halign: "center" },
-        1: { cellWidth: 50 },
-        2: { cellWidth: 160 },
-        3: { cellWidth: 35, halign: "center" },
-        4: { cellWidth: "auto", minCellWidth: 120 }
+        0: { cellWidth: 18, halign: "center" },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 140 },
+        3: { cellWidth: 20, halign: "center" },
+        4: { cellWidth: 20, halign: "center" },
+        5: { cellWidth: "auto", minCellWidth: 110 }
+      },
+      didParseCell: function(data) {
+        // Maak "Algemene punten" header bold
+        if (data.section === 'body' && data.column.index === 2) {
+          const text = data.cell.text[0];
+          if (text && text.toLowerCase().includes("algemene punten")) {
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fillColor = [245, 245, 245];
+          }
+        }
       }
     });
     const afterTable = doc.lastAutoTable.finalY;
