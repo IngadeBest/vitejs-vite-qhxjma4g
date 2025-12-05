@@ -592,12 +592,28 @@ export default function ProtocolGenerator() {
     };
     
     try {
+      // Normalize klasse for database lookup
+      const klasseMap = {
+        'we0': 'WE0',
+        'we1': 'WE1',
+        'we2': 'WE2',
+        'we2p': 'WE2+',
+        'we2+': 'WE2+',
+        'we2plus': 'WE2+',
+        'we3': 'WE3',
+        'we4': 'WE4',
+        'yr': 'YR',
+        'junior': 'Junioren',
+        'junioren': 'Junioren'
+      };
+      const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
+      
       // Try database first
       const { data, error } = await supabase
         .from('inschrijvingen')
         .select('ruiter,paard,startnummer,rubriek')
         .eq('wedstrijd_id', config.wedstrijd_id)
-        .eq('klasse', config.klasse)
+        .eq('klasse', normalizedKlasse)
         .order('startnummer', { ascending: true });
       
       if (error) {
