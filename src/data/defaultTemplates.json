@@ -88,7 +88,7 @@
         }
       ]
     },
-    "WE2": {
+   "WE2": {
   "sections": [
     {
       "title": "Dressuur – WE2 Lichte klasse (2025)",
@@ -97,171 +97,119 @@
         [
           "A-X\nX", 
           "Binnenkomen in arbeidsdraf\nHalthouden, groeten", 
-          "", 
-          ""
+          "", ""
         ],
         [
-          "X\nC", 
+          "X-C\nC", 
           "Voorwaarts in arbeidsdraf\nRechterhand", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "K", 
           "Volte 10 meter", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "K-E\nE", 
           "Travers\nRechtuit", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "C", 
           "Halthouden, 6 passen achterwaarts,\nvoorwaarts in arbeidsdraf", 
-          "", 
-          ""
+          "", ""
         ],
         [
-          "MXK\nK", 
+          "M-X-K\nK", 
           "K hand veranderen daarbij draf verruimen\nArbeidsdraf", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "F", 
           "Volte 10 meter", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "F-B\nB", 
           "Travers\nRechtuit", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "C", 
           "Verzamelde stap", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "H\nM", 
           "Kwart keertwending om de achterhand links\nRechterhand", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "B", 
           "Kwart keertwending om de achterhand rechts", 
-          "", 
-          ""
+          "", ""
         ],
         [
-          "EM\nM", 
+          "E-M\nM", 
           "Van hand veranderen, voor M enkele passen middenstap\nArbeidsstap", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "Tussen\nC en H", 
           "Arbeidsgalop links", 
-          "", 
-          ""
+          "", ""
         ],
         [
-          "EBE\nE", 
+          "E-B-E\nE", 
           "Grote volte in middengalop\nArbeidsgalop", 
-          "", 
-          ""
+          "", ""
         ],
         [
-          "A\nX", 
+          "A-X\nX", 
           "Afwenden en verzamelde galop\nVolte 10 meter links", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "X", 
           "Eenvoudige galopwissel", 
-          "", 
-          ""
+          "", ""
         ],
         [
-          "X\nC", 
+          "X-C\nC", 
           "Volte 10 meter rechts\nRechterhand", 
-          "", 
-          ""
+          "", ""
         ],
         [
-          "BEB\nB", 
+          "B-E-B\nB", 
           "Grote volte in middengalop\nArbeidsgalop", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "A", 
           "Verzamelde galop, slangenvolte met 3 bogen\nmet op de A-C lijn eenvoudige galopwissels", 
-          "", 
-          ""
+          "", ""
         ],
         [
-          "ME\nE", 
+          "M-E\nE", 
           "Van hand veranderen met op de A-C lijn\neenvoudige galopwissel\nVerzamelde galop", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "A", 
           "Afwenden", 
-          "", 
-          ""
+          "", ""
         ],
         [
           "G", 
           "Halthouden en groeten\nIn vrije stap rijbaan verlaten", 
-          "", 
-          ""
+          "", ""
         ],
-        [
-          "", 
-          "Gangen. Takt, regelmaat, ritme", 
-          "", 
-          ""
-        ],
-        [
-          "", 
-          "Impuls. Losgelatenheid van het paard, correct\nruggebruik en gebruik van de achterhand", 
-          "", 
-          ""
-        ],
-        [
-          "", 
-          "Gehoorzaamheid. De ontspanning, oplettendheid en\nvertrouwen, lichtheid en aanleuning", 
-          "", 
-          ""
-        ],
-        [
-          "", 
-          "Harmonie. Het op een sympathieke, paardvriendelijke\nmanier rijden en het gebruik van de hulpmiddelen", 
-          "", 
-          ""
-        ],
-        [
-          "", 
-          "Het rijden op zit, houding en inwerking van de ruiter.", 
-          "", 
-          ""
-        ],
-        [
-          "", 
-          "Presentatie van de combinatie", 
-          "", 
-          ""
-        ]
+        ["", "Gangen. Takt, regelmaat, ritme", "", ""],
+        ["", "Impuls. Losgelatenheid van het paard, correct\nruggebruik en gebruik van de achterhand", "", ""],
+        ["", "Gehoorzaamheid. De ontspanning, oplettendheid en\nvertrouwen, lichtheid en aanleuning", "", ""],
+        ["", "Harmonie. Het op een sympathieke, paardvriendelijke\nmanier rijden en het gebruik van de hulpmiddelen", "", ""],
+        ["", "Het rijden op zit, houding en inwerking van de ruiter.", "", ""],
+        ["", "Presentatie van de combinatie", "", ""]
       ]
     }
   ]

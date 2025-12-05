@@ -260,29 +260,34 @@ function protocolToDoc(doc, p, items) {
       group.beoordeling
     ]);
     
-    autoTable(doc, {
+autoTable(doc, {
       startY: infoY + 16,
       head: [["#", "Letter", "Oefening", "Heel", "Half", "Beoordeling/Opmerkingen"]],
       body: formattedData,
       styles: { 
-        fontSize: 9, 
-        cellPadding: { top: 8, right: 4, bottom: 8, left: 4 }, 
+        fontSize: 10,                 // Iets groter lettertype voor leesbaarheid
+        cellPadding: { top: 6, right: 5, bottom: 6, left: 5 }, 
         lineColor: BORDER, 
         lineWidth: 0.5,
-        valign: "top",
-        minCellHeight: 50,  // Nog meer ruimte voor schrijven
-        cellWidth: "wrap"
+        valign: "top",                // Zorgt dat Figuurnummer altijd bovenaan staat naast de eerste regel
+        overflow: 'linebreak'
       },
-      headStyles: { fillColor: LIGHT_HEAD, textColor: 0, fontStyle: "bold", fontSize: 9 },
+      headStyles: { 
+        fillColor: LIGHT_HEAD, 
+        textColor: 0, 
+        fontStyle: "bold", 
+        fontSize: 10,
+        halign: "left"                // Koppen links uitlijnen oogt vaak rustiger
+      },
       theme: "grid",
       margin: MARGIN,
       columnStyles: {
-        0: { cellWidth: 18, halign: "center" },
-        1: { cellWidth: 45 },
-        2: { cellWidth: 140 },
-        3: { cellWidth: 25, halign: "center" },
-        4: { cellWidth: 25, halign: "center" },
-        5: { cellWidth: "auto", minCellWidth: 110 }
+        0: { cellWidth: 25, halign: "center" }, // #
+        1: { cellWidth: 55, halign: "left" },   // Letter (Iets breder gemaakt voor M-X-K)
+        2: { cellWidth: "auto" },               // Oefening (Vult de rest van de ruimte)
+        3: { cellWidth: 35, halign: "center" }, // Heel
+        4: { cellWidth: 35, halign: "center" }, // Half
+        5: { cellWidth: 130 }                   // Opmerkingen
       }
     });
     const afterOefeningen = doc.lastAutoTable.finalY;
