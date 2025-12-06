@@ -144,23 +144,39 @@ export default function ScoreInvoer() {
       return;
     }
     setError("");
-    let insertObj = {
-      proef_id: selectedProef.id,
-      ruiter_id: selectedRuiter,
-      dq: dq,
-    };
-    if (selectedOnderdeel === "Speedtrail") {
-      insertObj.score = dq ? 0 : parseTimeString(scoreInput);
-    } else {
-      insertObj.score = dq ? 0 : Number(scoreInput);
+    
+    try {
+      let insertObj = {
+        proef_id: selectedProef.id,
+        ruiter_id: selectedRuiter,
+        dq: dq,
+      };
+      if (selectedOnderdeel === "Speedtrail") {
+        insertObj.score = dq ? 0 : parseTimeString(scoreInput);
+      } else {
+        insertObj.score = dq ? 0 : Number(scoreInput);
+      }
+      
+      let result;
+      if (editingId) {
+        result = await supabase.from("scores").update(insertObj).eq("id", editingId);
+      } else {
+        result = await supabase.from("scores").insert([insertObj]);
+      }
+      
+      if (result.error) {
+        console.error('Database error:', result.error);
+        setError("Database fout: " + result.error.message);
+        return;
+      }
+      
+      console.log('Score saved successfully:', result);
+      resetForm();
+      fetchScores();
+    } catch (err) {
+      console.error('Save error:', err);
+      setError("Fout bij opslaan: " + (err.message || String(err)));
     }
-    if (editingId) {
-      await supabase.from("scores").update(insertObj).eq("id", editingId);
-    } else {
-      await supabase.from("scores").insert([insertObj]);
-    }
-    resetForm();
-    fetchScores();
   }
   function handleEdit(score) {
     setEditingId(score.id);
