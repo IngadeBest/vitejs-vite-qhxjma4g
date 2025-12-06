@@ -458,7 +458,14 @@ function protocolToDoc(doc, p, items) {
 
 async function makePdfBlob(protocol, items) {
   try {
+    const jsPDF = await loadPdfLibraries();
     const doc = new jsPDF({ unit: "pt", format: "A4" });
+    
+    // Check of autoTable beschikbaar is
+    if (typeof doc.autoTable !== 'function') {
+      throw new Error('autoTable functie niet beschikbaar op doc');
+    }
+    
     protocolToDoc(doc, protocol, items);
     return doc.output("blob");
   } catch (error) {
@@ -765,7 +772,13 @@ export default function ProtocolGenerator() {
   const downloadBatch = async () => {
     try {
       if (!protocollen.length) return;
+      const jsPDF = await loadPdfLibraries();
       const doc = new jsPDF({ unit: "pt", format: "A4" });
+      
+      if (typeof doc.autoTable !== 'function') {
+        throw new Error('autoTable functie niet beschikbaar op doc');
+      }
+      
       protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items); });
       doc.save(`protocollen_${config.onderdeel}.pdf`);
     } catch (error) { console.error(error); alert('Fout bij batch download: ' + error.message); }
