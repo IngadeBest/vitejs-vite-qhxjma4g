@@ -175,8 +175,8 @@ function obstaclesTable(doc, items, startY, autoTable) {
       fillColor: HEADER_COLOR, 
       textColor: 0, 
       fontStyle: "bold", 
-      fontSize: 8,
-      cellPadding: 3,
+      fontSize: 6,
+      cellPadding: 1.5,
       halign: "left" 
     },
     theme: "grid",
@@ -203,8 +203,8 @@ function generalPointsTable(doc, punten, startY, startIndex, autoTable) {
       fillColor: HEADER_COLOR, 
       textColor: 0, 
       fontStyle: "bold", 
-      fontSize: 8,
-      cellPadding: 3,
+      fontSize: 6,
+      cellPadding: 1.5,
       halign: "left" 
     },
     theme: "grid",
@@ -384,8 +384,8 @@ function protocolToDoc(doc, p, items, autoTable) {
         fillColor: HEADER_COLOR, 
         textColor: 0, 
         fontStyle: "bold", 
-        fontSize: 8, 
-        cellPadding: 2, 
+        fontSize: 6, 
+        cellPadding: 1.5, 
         halign: "left",
         valign: "middle"
       },
