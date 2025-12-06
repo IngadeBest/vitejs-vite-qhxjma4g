@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
+// Globale variabele voor jspdf-autotable (wordt dynamisch geladen)
 let autoTable = null;
 import { supabase } from "@/lib/supabaseClient";
 import { padStartnummer, lookupOffset } from '@/lib/startnummer';
@@ -79,7 +80,7 @@ function titleBar(doc, title, subtitle) {
   doc.setTextColor(0, 0, 0);
 }
 
-function infoBoxesSideBySide(doc, info) {
+function infoBoxesSideBySide(doc, info, autoTable) {
   const startY = 74;
   autoTable(doc, {
     startY,
