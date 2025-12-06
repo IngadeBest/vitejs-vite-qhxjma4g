@@ -146,8 +146,22 @@ export default function Einduitslag() {
     );
     const deelnemers = ruiters.filter(r => r.klasse === klasse);
 
+    console.log(`🏆 Berekenen eindstand voor ${klasse}:`, {
+      proeven: proevenInKlasse.length,
+      onderdelen,
+      deelnemers: deelnemers.length,
+      totaalScores: scores.length
+    });
+
     const perRuiter = deelnemers.map(r => {
-      let resultaat = { naam: r.naam, paard: r.paard, totaalpunten: 0, dqCount: 0, onderdelen: {} };
+      let resultaat = { 
+        id: r.id, // Bewaar ID voor matching
+        naam: r.naam, 
+        paard: r.paard, 
+        totaalpunten: 0, 
+        dqCount: 0, 
+        onderdelen: {} 
+      };
       onderdelen.forEach(onderdeel => {
         const proef = proevenInKlasse.find(p => p.onderdeel === onderdeel);
         if (proef) {
@@ -185,6 +199,8 @@ export default function Einduitslag() {
         }))
         .filter(d => d.raw !== null && d.raw !== undefined);
 
+      console.log(`📊 ${onderdeel} groep voor plaatsing:`, groep.map(g => ({ naam: g.naam, raw: g.raw, id: g.id })));
+
       groep.sort((a, b) => onderdeel === "Speedtrail" ? a.raw - b.raw : b.raw - a.raw);
 
       // Punten toekennen, ex aequo correct
@@ -199,8 +215,15 @@ export default function Einduitslag() {
           ? groep.length + 1
           : groep.length - (plek - 1);
         for (let d of exEq) {
-          uitslag.find(u => u.naam === d.naam).onderdelen[onderdeel].plaats = plek + (exEq.length > 1 ? "*" : "");
-          uitslag.find(u => u.naam === d.naam).onderdelen[onderdeel].plaatsingspunten = d.raw === Infinity || d.raw === -999999 ? 0 : punten;
+          // Match op ID in plaats van naam voor betrouwbaarheid
+          const uitslagEntry = uitslag.find(u => u.id === d.id);
+          if (uitslagEntry) {
+            uitslagEntry.onderdelen[onderdeel].plaats = plek + (exEq.length > 1 ? "*" : "");
+            uitslagEntry.onderdelen[onderdeel].plaatsingspunten = d.raw === Infinity || d.raw === -999999 ? 0 : punten;
+            console.log(`  → ${uitslagEntry.naam}: plaats ${plek}, punten ${punten}`);
+          } else {
+            console.error(`❌ Geen match gevonden voor ruiter met ID ${d.id}`);
+          }
         }
         plek += exEq.length;
         i += exEq.length;
