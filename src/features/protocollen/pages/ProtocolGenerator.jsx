@@ -439,7 +439,7 @@ function protocolToDoc(doc, p, items, autoTable) {
     afterAlg + 6, 
     p.max_score ? Number(p.max_score) : null, 
     isSpeed ? "Tijd / Strafseconden / Totaal" : null, 
-    !isSpeed, 
+    false, // Geen puntenaftrek voor stijl en speed
     false,    
     isSpeed,
     autoTable   
