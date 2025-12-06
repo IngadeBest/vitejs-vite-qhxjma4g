@@ -6,13 +6,8 @@ import obstakelsData from "@/data/obstakels.json";
 import defaultTemplates from "@/data/defaultTemplates.json";
 
 // Static imports van PDF libraries
-import jsPDFLib from 'jspdf';
-import 'jspdf-autotable'; // Side-effect import die jsPDF patcht
-
-// jsPDF en autoTable zijn nu beschikbaar
-const jsPDF = jsPDFLib;
-// autoTable wordt automatisch toegevoegd aan jsPDF.API door de side-effect import
-const autoTable = (doc, options) => doc.autoTable(options);
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 /* Klassen & Onderdelen */
 const KLASSEN = [
