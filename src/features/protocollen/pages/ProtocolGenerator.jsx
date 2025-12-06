@@ -7,17 +7,18 @@ import defaultTemplates from "@/data/defaultTemplates.json";
 
 // Globale variabelen voor dynamisch geladen libraries
 let jsPDFLoaded = null;
-let autoTableLoaded = null;
+let librariesInitialized = false;
 
 // Laad PDF libraries dynamisch
 async function ensurePdfLibraries() {
-  if (!jsPDFLoaded || !autoTableLoaded) {
+  if (!librariesInitialized) {
     const jsPDFModule = await import('jspdf');
     jsPDFLoaded = jsPDFModule.default;
-    const autoTableModule = await import('jspdf-autotable');
-    autoTableLoaded = autoTableModule.default;
+    // Import autoTable - dit is een side-effect die jsPDF.API.autoTable toevoegt
+    await import('jspdf-autotable');
+    librariesInitialized = true;
   }
-  return { jsPDF: jsPDFLoaded, autoTable: autoTableLoaded };
+  return { jsPDF: jsPDFLoaded };
 }
 
 /* Klassen & Onderdelen */
