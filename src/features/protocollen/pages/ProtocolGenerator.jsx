@@ -7,7 +7,19 @@ import defaultTemplates from "@/data/defaultTemplates.json";
 
 // Static imports van PDF libraries
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// jspdf-autotable moet als side-effect worden geïmporteerd
+// Het voegt doc.autoTable() toe aan de jsPDF instantie
+import 'jspdf-autotable';
+
+// Wrapper functie die doc.autoTable aanroept
+const autoTable = (doc, options) => {
+  if (typeof doc.autoTable === 'function') {
+    doc.autoTable(options);
+  } else {
+    console.error('autoTable is not available on doc object');
+    throw new Error('jspdf-autotable niet correct geladen');
+  }
+};
 
 /* Klassen & Onderdelen */
 const KLASSEN = [
