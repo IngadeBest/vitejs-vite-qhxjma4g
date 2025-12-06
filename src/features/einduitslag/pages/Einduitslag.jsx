@@ -60,11 +60,20 @@ export default function Einduitslag() {
     
     console.log("📊 Laden einduitslag voor wedstrijd:", selectedWedstrijdId);
     
-    // 1. Haal proeven op voor deze wedstrijd
+    // Vind de geselecteerde wedstrijd om de datum te krijgen
+    const selectedWedstrijd = wedstrijden.find(w => w.id === selectedWedstrijdId);
+    if (!selectedWedstrijd) {
+      console.error("❌ Wedstrijd niet gevonden");
+      return;
+    }
+    
+    console.log("📅 Wedstrijd datum:", selectedWedstrijd.datum);
+    
+    // 1. Haal proeven op voor deze datum
     const { data: proevenVanWedstrijd, error: proevenError } = await supabase
       .from("proeven")
       .select("*")
-      .eq("wedstrijd_id", selectedWedstrijdId);
+      .eq("datum", selectedWedstrijd.datum);
     
     if (proevenError) {
       console.error("❌ Fout bij laden proeven:", proevenError);
