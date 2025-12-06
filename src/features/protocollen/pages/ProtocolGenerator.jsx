@@ -160,8 +160,9 @@ function obstaclesTable(doc, items, startY, autoTable) {
       textColor: 0, 
       fontStyle: "bold", 
       fontSize: 6,
-      cellPadding: 1.5,
-      halign: "left" 
+      cellPadding: 0.5,
+      halign: "left",
+      minCellHeight: 8
     },
     theme: "grid",
     margin: MARGIN,
@@ -188,8 +189,9 @@ function generalPointsTable(doc, punten, startY, startIndex, autoTable) {
       textColor: 0, 
       fontStyle: "bold", 
       fontSize: 6,
-      cellPadding: 1.5,
-      halign: "left" 
+      cellPadding: 0.5,
+      halign: "left",
+      minCellHeight: 8
     },
     theme: "grid",
     margin: MARGIN,
@@ -369,9 +371,10 @@ function protocolToDoc(doc, p, items, autoTable) {
         textColor: 0, 
         fontStyle: "bold", 
         fontSize: 6, 
-        cellPadding: 1.5, 
+        cellPadding: 0.5, 
         halign: "left",
-        valign: "middle"
+        valign: "middle",
+        minCellHeight: 8
       },
       theme: "grid",
       margin: MARGIN,
