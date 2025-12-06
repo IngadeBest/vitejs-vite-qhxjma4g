@@ -1398,7 +1398,7 @@ Plak je data hieronder:`);
         paard: row.paard ? row.paard.trim() : null,
         startnummer: row.startnummer || null,
         klasse: normalizeKlasse(row.klasse),
-        rubriek: rubriek || 'Algemeen',
+        rubriek: row.rubriek || 'Algemeen', // Gebruik rubriek van elke individuele row
         volgorde: rows.indexOf(row) // bewaar originele positie
       }));
 
@@ -1580,6 +1580,7 @@ Plak je data hieronder:`);
         paard: r.paard || "",
         startnummer: (r.startnummer || "").toString(),
         klasse: normalizeKlasse(r.klasse) || "",
+        rubriek: r.rubriek || "Algemeen",
         starttijd: "",
         dbId: r.id,
         fromDB: true,
@@ -2077,6 +2078,7 @@ Plak je data hieronder:`);
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Klasse</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rubriek</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dressuur</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trail</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Startnr</th>
@@ -2124,7 +2126,7 @@ Plak je data hieronder:`);
                         <React.Fragment key={`${row.id || index}-${rowKlasse}`}>
                           {showClassHeader && (
                             <tr className={`${row.type !== 'break' ? 'bg-blue-50' : 'bg-yellow-50'} transition-colors`}>
-                              <td colSpan="8" className="px-4 py-2 text-sm font-semibold text-blue-800 border-b border-blue-200">
+                              <td colSpan="9" className="px-4 py-2 text-sm font-semibold text-blue-800 border-b border-blue-200">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
                                     {row.type === 'break' ? 
@@ -2207,6 +2209,31 @@ Plak je data hieronder:`);
                                   <option value="Junioren">Junioren</option>
                                   <option value="Young Riders">Young Riders</option>
                                   <option value="WE2+">WE2+</option>
+                                </select>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {row.type === 'break' ? (
+                                <span className="text-gray-400">—</span>
+                              ) : (
+                                <select
+                                  className="border rounded px-2 py-1 text-sm bg-white"
+                                  value={row.rubriek || "Algemeen"}
+                                  onChange={(e) => {
+                                    const newRubriek = e.target.value;
+                                    setRows((prev) => {
+                                      const next = prev.slice();
+                                      const realIndex = rows.indexOf(row);
+                                      if (realIndex >= 0) {
+                                        next[realIndex] = { ...next[realIndex], rubriek: newRubriek };
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  <option value="Algemeen">Algemeen</option>
+                                  <option value="Senior">Senior</option>
+                                  <option value="Jeugd">Jeugd</option>
                                 </select>
                               )}
                             </td>

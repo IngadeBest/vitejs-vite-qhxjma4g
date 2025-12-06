@@ -45,7 +45,7 @@ export default function ScoreInvoer() {
 
   async function fetchRuiters() {
     // Haal ruiters uit inschrijvingen tabel (nieuw systeem)
-    let { data } = await supabase.from("inschrijvingen").select("id, ruiter, paard, klasse, wedstrijd_id").order("id");
+    let { data } = await supabase.from("inschrijvingen").select("id, ruiter, paard, klasse, wedstrijd_id, rubriek").order("id");
     
     // Normaliseer klasse codes naar proeven formaat
     const klasseMap = {
@@ -64,11 +64,21 @@ export default function ScoreInvoer() {
     // Map naar oude structuur voor backwards compatibility
     const mapped = (data || []).map(inschrijving => {
       const normalizedKlasse = klasseMap[inschrijving.klasse?.toLowerCase()] || inschrijving.klasse;
+      const rubriek = inschrijving.rubriek || 'Algemeen';
+      
+      // Voeg rubriek toe aan klasse voor jeugd matching
+      let klasseMetRubriek = normalizedKlasse;
+      if (rubriek === 'Jeugd') {
+        klasseMetRubriek = normalizedKlasse + ' - Jeugd';
+      }
+      
       return {
         id: inschrijving.id,
         naam: inschrijving.ruiter,
         paard: inschrijving.paard,
         klasse: normalizedKlasse,
+        klasseMetRubriek: klasseMetRubriek,
+        rubriek: rubriek,
         wedstrijd_id: inschrijving.wedstrijd_id
       };
     });
@@ -108,7 +118,21 @@ export default function ScoreInvoer() {
     return "";
   }
   function getRuitersVoorKlasse() {
-    return ruiters.filter((r) => r.klasse === selectedKlasse);
+    // Filter ruiters op basis van geselecteerde proef
+    // Als proef " - Jeugd" suffix heeft, toon alleen jeugd ruiters
+    // Anders toon algemeen + senior ruiters
+    if (!selectedProef) return [];
+    
+    const isJeugdProef = selectedProef.klasse?.includes(' - Jeugd');
+    
+    return ruiters.filter((r) => {
+      // Match op klasseMetRubriek voor jeugd proeven
+      if (isJeugdProef) {
+        return r.klasseMetRubriek === selectedProef.klasse;
+      }
+      // Voor niet-jeugd proeven: toon algemeen en senior ruiters
+      return r.klasse === selectedKlasse && (r.rubriek === 'Algemeen' || r.rubriek === 'Senior');
+    });
   }
   async function handleOpslaan() {
     if (!selectedProef || !selectedRuiter) {
