@@ -129,6 +129,7 @@ function infoBoxesSideBySide(doc, info, autoTable) {
     tableWidth: "auto",
     columnStyles: { 0: { cellWidth: 90, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
   });
+  const rightY = doc.lastAutoTable.finalY;
   return Math.max(leftY, rightY);
 }
 
