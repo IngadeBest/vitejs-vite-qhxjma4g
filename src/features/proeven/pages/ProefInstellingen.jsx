@@ -35,14 +35,27 @@ export default function ProefInstellingen() {
       max_score: form.onderdeel === "Speedtrail" ? null : Number(form.max_score),
       klasse: form.klasse + (form.jeugd ? " - Jeugd" : "")
     };
-    if (editingId) {
-      await supabase.from("proeven").update(proefData).eq("id", editingId);
-    } else {
-      await supabase.from("proeven").insert([proefData]);
+    try {
+      let result;
+      if (editingId) {
+        result = await supabase.from("proeven").update(proefData).eq("id", editingId);
+      } else {
+        result = await supabase.from("proeven").insert([proefData]);
+      }
+      if (result.error) {
+        console.error('Database error:', result.error);
+        alert('Database fout: ' + result.error.message);
+        setLoading(false);
+        return;
+      }
+      setForm({ naam: "", klasse: "WE1", onderdeel: "Dressuur", max_score: "", datum: "", jeugd: false });
+      setEditingId(null);
+      await fetchProeven();
+      alert(editingId ? 'Proef bijgewerkt!' : 'Proef toegevoegd!');
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Fout: ' + err.message);
     }
-    setForm({ naam: "", klasse: "WE1", onderdeel: "Dressuur", max_score: "", datum: "", jeugd: false });
-    setEditingId(null);
-    await fetchProeven();
     setLoading(false);
   }
 

@@ -12,6 +12,7 @@ import Einduitslag from "@/features/einduitslag/pages/Einduitslag";
 import Contact from "@/features/public/pages/Contact";
 import WedstrijdenBeheer from "@/features/wedstrijden/pages/WedstrijdenBeheer";
 import ProefInstellingen from "@/features/proeven/pages/ProefInstellingen";
+import ScoreInvoer from "@/features/scoring/pages/ScoreInvoer";
 
 const navStyle = ({ isActive }) => ({
   padding: "8px 10px",
@@ -64,6 +65,7 @@ function InnerApp() {
               <NavLink to="/deelnemers" style={navStyle}>Deelnemers</NavLink>
               <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
               <NavLink to="/proeven" style={navStyle}>Proeven</NavLink>
+              <NavLink to="/scores" style={navStyle}>Score Invoer</NavLink>
               <NavLink to="/uitslagen" style={navStyle}>Uitslagen</NavLink>
             </>
           ) : (
@@ -86,6 +88,7 @@ function InnerApp() {
   <Route path="/deelnemers" element={<Deelnemers />} />
   <Route path="/protocollen" element={<ProtocolGenerator />} />
   <Route path="/proeven" element={<ProefInstellingen />} />
+  <Route path="/scores" element={<ScoreInvoer />} />
   <Route path="/uitslagen" element={<Einduitslag />} />
   <Route path="/wedstrijden" element={<WedstrijdenBeheer />} />
 
