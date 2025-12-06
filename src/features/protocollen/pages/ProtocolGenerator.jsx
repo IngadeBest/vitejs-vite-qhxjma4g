@@ -5,21 +5,20 @@ import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijde
 import obstakelsData from "@/data/obstakels.json";
 import defaultTemplates from "@/data/defaultTemplates.json";
 
-// Static imports van PDF libraries
-import jsPDF from 'jspdf';
-// jspdf-autotable moet als side-effect worden geïmporteerd
-// Het voegt doc.autoTable() toe aan de jsPDF instantie
-import 'jspdf-autotable';
+// Globale variabelen voor dynamisch geladen libraries
+let jsPDFLoaded = null;
+let autoTableLoaded = null;
 
-// Wrapper functie die doc.autoTable aanroept
-const autoTable = (doc, options) => {
-  if (typeof doc.autoTable === 'function') {
-    doc.autoTable(options);
-  } else {
-    console.error('autoTable is not available on doc object');
-    throw new Error('jspdf-autotable niet correct geladen');
+// Laad PDF libraries dynamisch
+async function ensurePdfLibraries() {
+  if (!jsPDFLoaded || !autoTableLoaded) {
+    const jsPDFModule = await import('jspdf');
+    jsPDFLoaded = jsPDFModule.default;
+    const autoTableModule = await import('jspdf-autotable');
+    autoTableLoaded = autoTableModule.default;
   }
-};
+  return { jsPDF: jsPDFLoaded, autoTable: autoTableLoaded };
+}
 
 /* Klassen & Onderdelen */
 const KLASSEN = [
