@@ -456,7 +456,7 @@ function protocolToDoc(doc, p, items) {
     afterAlg + 6, 
     p.max_score ? Number(p.max_score) : null, 
     isSpeed ? "Tijd / Strafseconden / Totaal" : null, 
-    !isSpeed, // Geen standaard puntenaftrek rij voor speed
+    false,    // Geen puntenaftrek rij voor speed en stijl
     false,    // isDressuur = false
     isSpeed   // isSpeed = true/false
   );
