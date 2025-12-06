@@ -31,9 +31,11 @@ export default function ProefInstellingen() {
     }
     setLoading(true);
     const proefData = {
-      ...form,
+      naam: form.naam,
+      klasse: form.klasse + (form.jeugd ? " - Jeugd" : ""),
+      onderdeel: form.onderdeel,
       max_score: form.onderdeel === "Speedtrail" ? null : Number(form.max_score),
-      klasse: form.klasse + (form.jeugd ? " - Jeugd" : "")
+      datum: form.datum || null, // Lege string wordt null
     };
     try {
       let result;

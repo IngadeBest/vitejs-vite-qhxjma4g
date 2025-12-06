@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 // heavy libs: imported on-demand below to avoid module-init side-effects in the main bundle
 
 // HELPER: 'mm:ss:hh'
@@ -31,27 +32,59 @@ function sorteerKlasses(klasses) {
 import Container from "@/ui/Container";
 
 export default function Einduitslag() {
+  const { items: wedstrijden, loading: loadingWed } = useWedstrijden(false);
+  const [selectedWedstrijdId, setSelectedWedstrijdId] = useState("");
   const [ruiters, setRuiters] = useState([]);
   const [proeven, setProeven] = useState([]);
   const [scores, setScores] = useState([]);
   const [klasses, setKlasses] = useState([]);
   const refs = useRef({}); // voor afbeelding export
 
+  // Auto-selecteer vandaag of eerste wedstrijd
   useEffect(() => {
-    fetchAll();
-  }, []);
+    if (!loadingWed && wedstrijden.length > 0 && !selectedWedstrijdId) {
+      const today = new Date().toISOString().split('T')[0];
+      const vandaag = wedstrijden.find(w => w.datum === today);
+      setSelectedWedstrijdId(vandaag?.id || wedstrijden[0].id);
+    }
+  }, [wedstrijden, loadingWed]);
+
+  useEffect(() => {
+    if (selectedWedstrijdId) {
+      fetchAll();
+    }
+  }, [selectedWedstrijdId]);
 
   async function fetchAll() {
+    if (!selectedWedstrijdId) return;
+    
+    // Haal alle data op - we filteren later op basis van wedstrijd datum
     const [r, p, s] = await Promise.all([
       supabase.from("ruiters").select("*"),
       supabase.from("proeven").select("*"),
       supabase.from("scores").select("*"),
     ]);
-    setRuiters(r.data || []);
-    setProeven(p.data || []);
-    setScores(s.data || []);
+    
+    // Filter proeven op datum (match met geselecteerde wedstrijd)
+    const selectedWedstrijd = wedstrijden.find(w => w.id === selectedWedstrijdId);
+    const proevenVanWedstrijd = selectedWedstrijd?.datum 
+      ? (p.data || []).filter(proef => proef.datum === selectedWedstrijd.datum)
+      : (p.data || []);
+    
+    setProeven(proevenVanWedstrijd);
+    
+    // Filter scores voor alleen proeven van deze wedstrijd
+    const proevenIds = proevenVanWedstrijd.map(proef => proef.id);
+    const filteredScores = (s.data || []).filter(score => proevenIds.includes(score.proef_id));
+    setScores(filteredScores);
+    
+    // Filter ruiters - alleen die met scores in deze proeven
+    const ruiterIdsMetScores = new Set(filteredScores.map(s => s.ruiter_id));
+    const ruitersVanWedstrijd = (r.data || []).filter(ruiter => ruiterIdsMetScores.has(ruiter.id));
+    setRuiters(ruitersVanWedstrijd);
+    
     // Automatisch alle klasses uit proeven (inclusief Jeugd)
-    const unieke = Array.from(new Set((p.data || []).map(x => x.klasse)));
+    const unieke = Array.from(new Set(proevenVanWedstrijd.map(x => x.klasse)));
     setKlasses(sorteerKlasses(unieke));
   }
 
@@ -222,7 +255,47 @@ export default function Einduitslag() {
         <h2 style={{ fontSize: 33, fontWeight: 900, color: "#204574", letterSpacing: 1.2, marginBottom: 22 }}>
           Einduitslag per klasse
         </h2>
-        {klasses.map(klasse => {
+        
+        {/* Wedstrijd selectie */}
+        <div style={{ marginBottom: 24, padding: 16, background: "#f0f4f8", borderRadius: 8 }}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 8, color: "#204574" }}>
+            Wedstrijd:
+          </label>
+          <select 
+            value={selectedWedstrijdId} 
+            onChange={(e) => setSelectedWedstrijdId(e.target.value)}
+            disabled={loadingWed}
+            style={{ 
+              width: "100%", 
+              padding: "10px 12px", 
+              fontSize: 16, 
+              borderRadius: 6, 
+              border: "1px solid #cbd5e0",
+              background: "#fff"
+            }}
+          >
+            <option value="">{loadingWed ? "Laden..." : "— Selecteer wedstrijd —"}</option>
+            {wedstrijden.map(w => (
+              <option key={w.id} value={w.id}>
+                {w.naam} {w.datum ? `(${w.datum})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {!selectedWedstrijdId && (
+          <div style={{ padding: 20, textAlign: "center", color: "#666" }}>
+            Selecteer een wedstrijd om de einduitslag te bekijken
+          </div>
+        )}
+
+        {selectedWedstrijdId && klasses.length === 0 && (
+          <div style={{ padding: 20, textAlign: "center", color: "#666" }}>
+            Geen proeven of scores gevonden voor deze wedstrijd
+          </div>
+        )}
+
+        {selectedWedstrijdId && klasses.map(klasse => {
           const { onderdelen, eindstand } = berekenEindstand(klasse);
           if (eindstand.length === 0) return null;
           return (
