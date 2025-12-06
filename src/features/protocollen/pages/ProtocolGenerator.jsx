@@ -5,29 +5,14 @@ import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijde
 import obstakelsData from "@/data/obstakels.json";
 import defaultTemplates from "@/data/defaultTemplates.json";
 
-// PDF libraries - probeer eerst static import, dan dynamic
-import jsPDFStatic from 'jspdf';
-import autoTableStatic from 'jspdf-autotable';
+// Static imports van PDF libraries
+import jsPDFLib from 'jspdf';
+import 'jspdf-autotable'; // Side-effect import die jsPDF patcht
 
-let jsPDF = jsPDFStatic;
-let autoTable = autoTableStatic;
-
-// Lazy load PDF libraries on first use (fallback als static niet werkt)
-async function loadPdfLibraries() {
-  if (!jsPDF) {
-    try {
-      const jsPDFModule = await import('jspdf');
-      jsPDF = jsPDFModule.default;
-      const autoTableModule = await import('jspdf-autotable');
-      autoTable = autoTableModule.default;
-    } catch (error) {
-      console.error('Dynamic import failed, using static:', error);
-      jsPDF = jsPDFStatic;
-      autoTable = autoTableStatic;
-    }
-  }
-  return { jsPDF, autoTable };
-}
+// jsPDF en autoTable zijn nu beschikbaar
+const jsPDF = jsPDFLib;
+// autoTable wordt automatisch toegevoegd aan jsPDF.API door de side-effect import
+const autoTable = (doc, options) => doc.autoTable(options);
 
 /* Klassen & Onderdelen */
 const KLASSEN = [
@@ -467,16 +452,12 @@ function protocolToDoc(doc, p, items) {
 
 async function makePdfBlob(protocol, items) {
   try {
-    await loadPdfLibraries();
-    if (!jsPDF || !autoTable) {
-      throw new Error('PDF libraries konden niet worden geladen');
-    }
     const doc = new jsPDF({ unit: "pt", format: "A4" });
     protocolToDoc(doc, protocol, items);
     return doc.output("blob");
   } catch (error) {
-    console.error('Error loading jsPDF:', error);
-    throw new Error('Kon PDF bibliotheek niet laden. Probeer de pagina te vernieuwen.');
+    console.error('Error creating PDF:', error);
+    throw new Error('Kon PDF niet genereren: ' + error.message);
   }
 }
 
@@ -778,10 +759,6 @@ export default function ProtocolGenerator() {
   const downloadBatch = async () => {
     try {
       if (!protocollen.length) return;
-      await loadPdfLibraries();
-      if (!jsPDF || !autoTable) {
-        throw new Error('PDF libraries konden niet worden geladen');
-      }
       const doc = new jsPDF({ unit: "pt", format: "A4" });
       protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items); });
       doc.save(`protocollen_${config.onderdeel}.pdf`);
