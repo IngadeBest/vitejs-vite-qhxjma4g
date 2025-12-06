@@ -1,11 +1,33 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-// Globale variabele voor jspdf-autotable (wordt dynamisch geladen)
-let autoTable = null;
 import { supabase } from "@/lib/supabaseClient";
 import { padStartnummer, lookupOffset } from '@/lib/startnummer';
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import obstakelsData from "@/data/obstakels.json";
 import defaultTemplates from "@/data/defaultTemplates.json";
+
+// PDF libraries - probeer eerst static import, dan dynamic
+import jsPDFStatic from 'jspdf';
+import autoTableStatic from 'jspdf-autotable';
+
+let jsPDF = jsPDFStatic;
+let autoTable = autoTableStatic;
+
+// Lazy load PDF libraries on first use (fallback als static niet werkt)
+async function loadPdfLibraries() {
+  if (!jsPDF) {
+    try {
+      const jsPDFModule = await import('jspdf');
+      jsPDF = jsPDFModule.default;
+      const autoTableModule = await import('jspdf-autotable');
+      autoTable = autoTableModule.default;
+    } catch (error) {
+      console.error('Dynamic import failed, using static:', error);
+      jsPDF = jsPDFStatic;
+      autoTable = autoTableStatic;
+    }
+  }
+  return { jsPDF, autoTable };
+}
 
 /* Klassen & Onderdelen */
 const KLASSEN = [
@@ -445,9 +467,10 @@ function protocolToDoc(doc, p, items) {
 
 async function makePdfBlob(protocol, items) {
   try {
-    const jsPDF = (await import('jspdf')).default;
-    const autoTableModule = await import('jspdf-autotable');
-    autoTable = autoTableModule.default;
+    await loadPdfLibraries();
+    if (!jsPDF || !autoTable) {
+      throw new Error('PDF libraries konden niet worden geladen');
+    }
     const doc = new jsPDF({ unit: "pt", format: "A4" });
     protocolToDoc(doc, protocol, items);
     return doc.output("blob");
@@ -755,9 +778,10 @@ export default function ProtocolGenerator() {
   const downloadBatch = async () => {
     try {
       if (!protocollen.length) return;
-      const jsPDF = (await import('jspdf')).default;
-      const autoTableModule = await import('jspdf-autotable');
-      autoTable = autoTableModule.default;
+      await loadPdfLibraries();
+      if (!jsPDF || !autoTable) {
+        throw new Error('PDF libraries konden niet worden geladen');
+      }
       const doc = new jsPDF({ unit: "pt", format: "A4" });
       protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items); });
       doc.save(`protocollen_${config.onderdeel}.pdf`);
