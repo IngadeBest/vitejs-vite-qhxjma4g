@@ -153,20 +153,21 @@ function obstaclesTable(doc, items, startY) {
     head: head,
     body: body,
     styles: { 
-      fontSize: 9, // Kleiner font voorkomt afkapping
-      cellPadding: { top: 8, right: 3, bottom: 8, left: 3 }, // Minder padding opzij = meer ruimte voor tekst
+      fontSize: 9,
+      cellPadding: { top: 8, right: 3, bottom: 8, left: 3 },
       lineColor: BORDER_COLOR, 
       lineWidth: 0.5, 
       valign: "middle",
-      minCellHeight: 40 // Voldoende hoogte
+      minCellHeight: 35
     },
     headStyles: { 
       fillColor: HEADER_COLOR, 
       textColor: 0, 
       fontStyle: "bold", 
-      fontSize: 8,    // Kleinere header
-      cellPadding: 3, // Slankere header balk
-      halign: "left" 
+      fontSize: 7,
+      cellPadding: 2,
+      halign: "left",
+      valign: "middle"
     },
     theme: "grid",
     margin: MARGIN,
@@ -192,9 +193,10 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
       fillColor: HEADER_COLOR, 
       textColor: 0, 
       fontStyle: "bold", 
-      fontSize: 8,
-      cellPadding: 3,
-      halign: "left" 
+      fontSize: 7,
+      cellPadding: 2,
+      halign: "left",
+      valign: "middle"
     },
     theme: "grid",
     margin: MARGIN,
@@ -299,6 +301,7 @@ function protocolToDoc(doc, p, items) {
         const beoordeling = item[3] || item[2] || "";
         
         // Detecteer algemene punten
+        // ALLEEN als er geen letter EN geen beoordeling is EN de oefening keywords bevat
         if (!letter && !beoordeling && (
           oefening.toLowerCase().includes("gangen") ||
           oefening.toLowerCase().includes("impuls") ||
@@ -307,7 +310,8 @@ function protocolToDoc(doc, p, items) {
           oefening.toLowerCase().includes("rijden op zit") ||
           oefening.toLowerCase().includes("presentatie") ||
           oefening.toLowerCase().includes("ruiter") ||
-          oefening.toLowerCase().includes("artistiek")
+          oefening.toLowerCase().includes("artistiek") ||
+          oefening.toLowerCase().includes("submission")
         )) {
           inAlgemenePunten = true;
           currentGroup = null;
@@ -318,13 +322,15 @@ function protocolToDoc(doc, p, items) {
           return;
         }
 
-        const isNewGroup = letter && beoordeling;
+        // Young Riders en andere proeven zonder letters: als er beoordeling is, is het een nieuwe groep
+        // Zelfs als er geen letter is
+        const isNewGroup = beoordeling && (letter || oefening);
         
         if (isNewGroup) {
           groupNumber++;
           currentGroup = {
             nummer: groupNumber.toString(),
-            letters: [letter],
+            letters: letter ? [letter] : [""],
             oefeningen: [oefening],
             beoordeling: beoordeling,
             puntenHeel: "",
@@ -332,7 +338,8 @@ function protocolToDoc(doc, p, items) {
             isHeader: false
           };
           tableData.push(currentGroup);
-        } else if (!letter && oefening && currentGroup) {
+        } else if (!letter && oefening && currentGroup && !beoordeling) {
+          // Alleen toevoegen aan huidige groep als er GEEN beoordeling is
           currentGroup.letters.push("");
           currentGroup.oefeningen.push(oefening);
         } else if (letter && !beoordeling) {
@@ -377,8 +384,8 @@ function protocolToDoc(doc, p, items) {
         fillColor: HEADER_COLOR, 
         textColor: 0, 
         fontStyle: "bold", 
-        fontSize: 8, // Header font klein
-        cellPadding: 3, // Header compact
+        fontSize: 7,
+        cellPadding: 2,
         halign: "left",
         valign: "middle"
       },
