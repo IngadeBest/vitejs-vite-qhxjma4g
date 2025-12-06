@@ -45,7 +45,7 @@ export default function ScoreInvoer() {
 
   async function fetchRuiters() {
     // Haal ruiters uit inschrijvingen tabel (nieuw systeem)
-    let { data } = await supabase.from("inschrijvingen").select("id, ruiter, paard, klasse, wedstrijd_id, rubriek").order("id");
+    let { data } = await supabase.from("inschrijvingen").select("id, startnummer, ruiter, paard, klasse, wedstrijd_id, rubriek").order("startnummer");
     
     // Normaliseer klasse codes naar proeven formaat
     const klasseMap = {
@@ -72,16 +72,22 @@ export default function ScoreInvoer() {
         klasseMetRubriek = normalizedKlasse + ' - Jeugd';
       }
       
+      // Gebruik startnummer als numeriek ID voor scores tabel
+      const numericId = inschrijving.startnummer ? parseInt(inschrijving.startnummer) : null;
+      
       return {
-        id: inschrijving.id,
+        id: numericId,  // Gebruik startnummer als numeriek ID
+        uuid: inschrijving.id,  // Bewaar originele UUID voor referentie
         naam: inschrijving.ruiter,
         paard: inschrijving.paard,
         klasse: normalizedKlasse,
         klasseMetRubriek: klasseMetRubriek,
         rubriek: rubriek,
-        wedstrijd_id: inschrijving.wedstrijd_id
+        wedstrijd_id: inschrijving.wedstrijd_id,
+        startnummer: inschrijving.startnummer
       };
-    });
+    }).filter(r => r.id !== null);  // Filter out entries zonder startnummer
+    
     setRuiters(mapped);
   }
   async function fetchProeven() {
