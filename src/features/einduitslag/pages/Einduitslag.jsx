@@ -58,34 +58,76 @@ export default function Einduitslag() {
   async function fetchAll() {
     if (!selectedWedstrijdId) return;
     
-    // Haal alle data op - we filteren later op basis van wedstrijd datum
-    const [r, p, s] = await Promise.all([
-      supabase.from("ruiters").select("*"),
-      supabase.from("proeven").select("*"),
-      supabase.from("scores").select("*"),
-    ]);
+    console.log("📊 Laden einduitslag voor wedstrijd:", selectedWedstrijdId);
     
-    // Filter proeven op datum (match met geselecteerde wedstrijd)
-    const selectedWedstrijd = wedstrijden.find(w => w.id === selectedWedstrijdId);
-    const proevenVanWedstrijd = selectedWedstrijd?.datum 
-      ? (p.data || []).filter(proef => proef.datum === selectedWedstrijd.datum)
-      : (p.data || []);
+    // 1. Haal proeven op voor deze wedstrijd
+    const { data: proevenVanWedstrijd, error: proevenError } = await supabase
+      .from("proeven")
+      .select("*")
+      .eq("wedstrijd_id", selectedWedstrijdId);
     
-    setProeven(proevenVanWedstrijd);
+    if (proevenError) {
+      console.error("❌ Fout bij laden proeven:", proevenError);
+      return;
+    }
     
-    // Filter scores voor alleen proeven van deze wedstrijd
+    console.log("✅ Proeven gevonden:", proevenVanWedstrijd?.length || 0);
+    setProeven(proevenVanWedstrijd || []);
+    
+    if (!proevenVanWedstrijd || proevenVanWedstrijd.length === 0) {
+      setScores([]);
+      setRuiters([]);
+      setKlasses([]);
+      return;
+    }
+    
+    // 2. Haal scores op voor deze proeven
     const proevenIds = proevenVanWedstrijd.map(proef => proef.id);
-    const filteredScores = (s.data || []).filter(score => proevenIds.includes(score.proef_id));
-    setScores(filteredScores);
+    const { data: scoresData, error: scoresError } = await supabase
+      .from("scores")
+      .select("*")
+      .in("proef_id", proevenIds);
     
-    // Filter ruiters - alleen die met scores in deze proeven
-    const ruiterIdsMetScores = new Set(filteredScores.map(s => s.ruiter_id));
-    const ruitersVanWedstrijd = (r.data || []).filter(ruiter => ruiterIdsMetScores.has(ruiter.id));
-    setRuiters(ruitersVanWedstrijd);
+    if (scoresError) {
+      console.error("❌ Fout bij laden scores:", scoresError);
+      return;
+    }
     
-    // Automatisch alle klasses uit proeven (inclusief Jeugd)
+    console.log("✅ Scores gevonden:", scoresData?.length || 0);
+    setScores(scoresData || []);
+    
+    // 3. Haal inschrijvingen op voor deze wedstrijd
+    const { data: inschrijvingenData, error: inschrijvingenError } = await supabase
+      .from("inschrijvingen")
+      .select("*")
+      .eq("wedstrijd_id", selectedWedstrijdId);
+    
+    if (inschrijvingenError) {
+      console.error("❌ Fout bij laden inschrijvingen:", inschrijvingenError);
+      return;
+    }
+    
+    console.log("✅ Inschrijvingen gevonden:", inschrijvingenData?.length || 0);
+    
+    // 4. Map inschrijvingen naar ruiters structuur (voor compatibiliteit met bestaande code)
+    // Gebruik startnummer als id zodat het matcht met scores.ruiter_id
+    const ruitersVanInschrijvingen = (inschrijvingenData || [])
+      .filter(inschrijving => inschrijving.startnummer) // Alleen inschrijvingen met startnummer
+      .map(inschrijving => ({
+        id: parseInt(inschrijving.startnummer), // Dit moet matchen met scores.ruiter_id
+        naam: `${inschrijving.voornaam || ''} ${inschrijving.achternaam || ''}`.trim() || inschrijving.ruiter || 'Onbekend',
+        paard: inschrijving.paard || 'Onbekend',
+        klasse: inschrijving.klasse || 'Onbekend',
+        uuid: inschrijving.id // Bewaar originele UUID voor referentie
+      }));
+    
+    console.log("✅ Ruiters gemapped:", ruitersVanInschrijvingen.length);
+    setRuiters(ruitersVanInschrijvingen);
+    
+    // 5. Verzamel alle unieke klasses uit proeven
     const unieke = Array.from(new Set(proevenVanWedstrijd.map(x => x.klasse)));
     setKlasses(sorteerKlasses(unieke));
+    console.log("✅ Klasses:", unieke);
   }
 
   function berekenEindstand(klasse) {
