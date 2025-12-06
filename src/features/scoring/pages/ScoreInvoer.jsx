@@ -44,8 +44,35 @@ export default function ScoreInvoer() {
   useEffect(() => { if (selectedProef) { fetchScores(); } else { setScores([]); } }, [selectedProef]);
 
   async function fetchRuiters() {
-    let { data } = await supabase.from("ruiters").select("*").order("id");
-    setRuiters(data || []);
+    // Haal ruiters uit inschrijvingen tabel (nieuw systeem)
+    let { data } = await supabase.from("inschrijvingen").select("id, ruiter, paard, klasse, wedstrijd_id").order("id");
+    
+    // Normaliseer klasse codes naar proeven formaat
+    const klasseMap = {
+      'we0': 'Introductieklasse (WE0)',
+      'we1': 'WE1',
+      'we2': 'WE2',
+      'we2p': 'WE2+',
+      'we2+': 'WE2+',
+      'we3': 'WE3',
+      'we4': 'WE4',
+      'yr': 'Young Riders',
+      'junior': 'Junioren',
+      'junioren': 'Junioren'
+    };
+    
+    // Map naar oude structuur voor backwards compatibility
+    const mapped = (data || []).map(inschrijving => {
+      const normalizedKlasse = klasseMap[inschrijving.klasse?.toLowerCase()] || inschrijving.klasse;
+      return {
+        id: inschrijving.id,
+        naam: inschrijving.ruiter,
+        paard: inschrijving.paard,
+        klasse: normalizedKlasse,
+        wedstrijd_id: inschrijving.wedstrijd_id
+      };
+    });
+    setRuiters(mapped);
   }
   async function fetchProeven() {
     let { data } = await supabase.from("proeven").select("*").order("id");
