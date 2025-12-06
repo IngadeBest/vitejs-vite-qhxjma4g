@@ -4,24 +4,8 @@ import { padStartnummer, lookupOffset } from '@/lib/startnummer';
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import obstakelsData from "@/data/obstakels.json";
 import defaultTemplates from "@/data/defaultTemplates.json";
-
-// Globale variabelen voor dynamisch geladen libraries
-let jsPDFLoaded = null;
-let autoTableLoaded = null;
-let librariesInitialized = false;
-
-// Laad PDF libraries dynamisch
-async function ensurePdfLibraries() {
-  if (!librariesInitialized) {
-    const jsPDFModule = await import('jspdf');
-    jsPDFLoaded = jsPDFModule.default;
-    // Import autoTable als default export
-    const autoTableModule = await import('jspdf-autotable');
-    autoTableLoaded = autoTableModule.default;
-    librariesInitialized = true;
-  }
-  return { jsPDF: jsPDFLoaded, autoTable: autoTableLoaded };
-}
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 /* Klassen & Onderdelen */
 const KLASSEN = [
@@ -463,8 +447,9 @@ function protocolToDoc(doc, p, items, autoTable) {
 
 async function makePdfBlob(protocol, items) {
   try {
-    const { jsPDF, autoTable } = await ensurePdfLibraries();
     const doc = new jsPDF({ unit: "pt", format: "A4" });
+    // autoTable is nu beschikbaar als doc.autoTable door de side-effect import
+    const autoTable = (d, opts) => d.autoTable(opts);
     protocolToDoc(doc, protocol, items, autoTable);
     return doc.output("blob");
   } catch (error) {
@@ -771,8 +756,8 @@ export default function ProtocolGenerator() {
   const downloadBatch = async () => {
     try {
       if (!protocollen.length) return;
-      const { jsPDF, autoTable } = await ensurePdfLibraries();
       const doc = new jsPDF({ unit: "pt", format: "A4" });
+      const autoTable = (d, opts) => d.autoTable(opts);
       protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items, autoTable); });
       doc.save(`protocollen_${config.onderdeel}.pdf`);
     } catch (error) { console.error(error); alert('Fout bij batch download: ' + error.message); }
