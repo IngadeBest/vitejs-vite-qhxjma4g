@@ -1,5 +1,42 @@
 {
   "dressuur": {
+    "WE0": {
+      "sections": [
+        {
+          "title": "Dressuur – Introductieklasse (WE0)",
+          "columns": ["Letter", "Oefening", "Punten", "Beoordeling/Opmerkingen"],
+          "rows": [
+            ["A-X\nX", "Binnenkomen in arbeidsdraf\nHalthouden en groeten", "", "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang op zit, plaats, kwaliteit halt, ontspanning"],
+            ["X-C\nC", "Voorwaarts in arbeidsdraf\nRechterhand", "", "Aanleuning, takt en regelmaat, rechtgerichtheid, plaats, overgang"],
+            ["C", "Slangenvolte 3 bogen", "", "Aanleuning, takt en regelmaat, stelling en buiging, figuur"],
+            ["K-X-M\nM", "Van hand veranderen, enkele passen verruimen\nArbeidsdraf", "", "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang op zit, verruiming"],
+            ["C-X", "Halve grote volte links", "", "Aanleuning, takt en regelmaat, stelling en buiging, figuur"],
+            ["X-A", "Halve grote volte rechts", "", "Aanleuning, takt en regelmaat, stelling en buiging, figuur"],
+            ["A", "Halthouden en 4 seconden stilstaan", "", "Aanleuning, takt en regelmaat, rechtgerichtheid, plaats, overgang op zit, kwaliteit halt, ontspanning"],
+            ["A", "Voorwaarts in arbeidsstap", "", "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang"],
+            ["K-H", "Op de lange zijde", "", "Aanleuning, takt en regelmaat, stelling en buiging, figuur"],
+            ["(K-E en E-H)\nC", "2x gebroken lijn 3-5 meter\nArbeidsdraf doorzitten", "", "Aanleuning, takt en regelmaat, rechtgerichtheid, plaats, overgang"],
+            ["B-E-B", "Grote volte", "", "Aanleuning, takt en regelmaat, stelling en buiging, figuur"],
+            ["Voor E", "Arbeidsgalop rechts aanspringen", "", "Aanleuning, takt en regelmaat, stelling en buiging, figuur, overgang galop"],
+            ["B\nTussen A-K", "Hoefslag volgen\nOvergang naar de arbeidsdraf", "", "Aanleuning, takt en regelmaat, stelling en buiging, plaats, overgang op de zit"],
+            ["E-M", "Van hand veranderen", "", "Aanleuning, takt en regelmaat, rechtgerichtheid, figuur"],
+            ["Tussen C en H", "Arbeidsgalop links aanspringen", "", "Aanleuning, takt en regelmaat, stelling en buiging, plaats, overgang galop"],
+            ["E-B-E", "Grote volte", "", "Aanleuning, takt en regelmaat, stelling en buiging, figuur"],
+            ["E", "Volte 15 m met overgang naar draf", "", "Aanleuning, takt en regelmaat, stelling en buiging, figuur, overgang op zit"],
+            ["Tussen E-K\nrichting H", "Linksomkeert 15 m", "", "Aanleuning, takt en regelmaat, stelling en buiging, figuur"],
+            ["B", "Volte 15 m rechts", "", "Aanleuning, takt en regelmaat, stelling en buiging, figuur"],
+            ["A", "Afwenden", "", "Aanleuning, takt en regelmaat, stelling en buiging, plaats"],
+            ["Tussen X-G", "Halthouden en groeten\nIn vrije stap de rijbaan verlaten bij A", "", "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang op zit, plaats, kwaliteit halt, ontspanning"],
+            ["", "Gangen. Takt, regelmaat, ritme", "", ""],
+            ["", "Impuls. Losgelatenheid van het paard, correct ruggebruik en gebruik van de achterhand", "", ""],
+            ["", "Gehoorzaamheid. De ontspanning, oplettendheid en vertrouwen, lichtheid en aanleuning", "", ""],
+            ["", "Harmonie. Het op een sympathieke, paardvriendelijke manier rijden en het gebruik van de hulpmiddelen", "", ""],
+            ["", "Rijden op de zit. Houding en inwerking van de ruiter. Lichtheid in de verbinding", "", ""],
+            ["", "Presentatie van de combinatie", "", ""]
+          ]
+        }
+      ]
+    },
     "WE1": {
       "sections": [
         {
