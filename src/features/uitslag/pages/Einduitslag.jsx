@@ -35,27 +35,102 @@ export default function Einduitslag() {
     setBusy(true);
     setMsg("");
     try {
-      const { data, error } = await supabase
+      // Map klasse code naar proeven formaat
+      const klasseMap = {
+        'we0': 'Introductieklasse (WE0)',
+        'we1': 'WE1',
+        'we2': 'WE2',
+        'we2p': 'WE2+',
+        'we3': 'WE3',
+        'we4': 'WE4',
+        'yr': 'Young Riders',
+        'junior': 'Junioren'
+      };
+      const proefKlasse = klasseMap[filters.klasse] || filters.klasse;
+      
+      // Eerst proeven ophalen voor deze wedstrijd en klasse
+      const { data: proeven, error: proevenError } = await supabase
+        .from("proeven")
+        .select("id, naam, onderdeel, klasse")
+        .eq("wedstrijd_id", filters.wedstrijd_id)
+        .eq("klasse", proefKlasse);
+      
+      if (proevenError) throw proevenError;
+      
+      if (!proeven || proeven.length === 0) {
+        setMsg(`⚠️ Geen proeven gevonden voor deze wedstrijd en klasse (gezocht naar: ${proefKlasse})`);
+        setRows([]);
+        return;
+      }
+      
+      console.log('Found proeven:', proeven);
+      const proefIds = proeven.map(p => p.id);
+      
+      // Dan scores ophalen voor deze proeven
+      const { data: scores, error: scoresError } = await supabase
         .from("scores")
         .select("*")
+        .in("proef_id", proefIds);
+      
+      if (scoresError) throw scoresError;
+      
+      console.log('Found scores:', scores);
+      
+      // Inschrijvingen ophalen voor ruiter/paard info
+      const { data: inschrijvingen, error: inschrijvingenError } = await supabase
+        .from("inschrijvingen")
+        .select("startnummer, ruiter, paard")
         .eq("wedstrijd_id", filters.wedstrijd_id)
         .eq("klasse", filters.klasse);
-      if (error) throw error;
-
+      
+      if (inschrijvingenError) throw inschrijvingenError;
+      
+      console.log('Found inschrijvingen:', inschrijvingen);
+      
+      // Map startnummer naar ruiter/paard
+      const inschrijvingMap = new Map();
+      (inschrijvingen || []).forEach(i => {
+        const numId = i.startnummer ? parseInt(i.startnummer) : null;
+        if (numId) {
+          inschrijvingMap.set(numId, { ruiter: i.ruiter, paard: i.paard });
+        }
+      });
+      
+      // Groepeer scores per ruiter
       const map = new Map();
-      for (const s of data || []) {
-        const key = `${s.ruiter}__${s.paard}`;
-        const entry = map.get(key) || { ruiter: s.ruiter, paard: s.paard, dressuur: null, stijl: null, speed: null, totaal: 0 };
-        if (s.onderdeel === "dressuur") entry.dressuur = Number(s.totaal) || 0;
-        if (s.onderdeel === "stijl") entry.stijl = Number(s.totaal) || 0;
-        if (s.onderdeel === "speed") entry.speed = Number(s.totaal) || 0;
+      for (const s of scores || []) {
+        const inschr = inschrijvingMap.get(s.ruiter_id);
+        if (!inschr) continue; // Skip als ruiter niet gevonden
+        
+        const key = `${inschr.ruiter}__${inschr.paard}`;
+        const proef = proeven.find(p => p.id === s.proef_id);
+        const onderdeel = proef?.onderdeel || "";
+        
+        const entry = map.get(key) || { 
+          ruiter: inschr.ruiter, 
+          paard: inschr.paard, 
+          dressuur: null, 
+          stijl: null, 
+          speed: null, 
+          totaal: 0 
+        };
+        
+        if (onderdeel === "dressuur") entry.dressuur = Number(s.score) || 0;
+        if (onderdeel === "stijl") entry.stijl = Number(s.score) || 0;
+        if (onderdeel === "speed") entry.speed = Number(s.score) || 0;
+        
         map.set(key, entry);
       }
-      const arr = Array.from(map.values()).map(r => ({ ...r, totaal: (r.dressuur||0) + (r.stijl||0) + (r.speed||0) }));
+      
+      const arr = Array.from(map.values()).map(r => ({ 
+        ...r, 
+        totaal: (r.dressuur||0) + (r.stijl||0) + (r.speed||0) 
+      }));
       arr.sort((a,b) => (b.totaal - a.totaal));
       setRows(arr);
-      setMsg(`Einduitslag samengesteld voor ${arr.length} combinaties.`);
+      setMsg(`✅ Einduitslag samengesteld voor ${arr.length} combinaties (${scores?.length || 0} scores gevonden).`);
     } catch (e) {
+      console.error('Load error:', e);
       setMsg("Fout bij laden: " + (e?.message || String(e)));
     } finally {
       setBusy(false);
