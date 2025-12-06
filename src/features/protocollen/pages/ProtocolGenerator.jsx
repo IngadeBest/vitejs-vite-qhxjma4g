@@ -7,6 +7,7 @@ import defaultTemplates from "@/data/defaultTemplates.json";
 
 // Globale variabelen voor dynamisch geladen libraries
 let jsPDFLoaded = null;
+let autoTableLoaded = null;
 let librariesInitialized = false;
 
 // Laad PDF libraries dynamisch
@@ -14,11 +15,12 @@ async function ensurePdfLibraries() {
   if (!librariesInitialized) {
     const jsPDFModule = await import('jspdf');
     jsPDFLoaded = jsPDFModule.default;
-    // Import autoTable - dit is een side-effect die jsPDF.API.autoTable toevoegt
-    await import('jspdf-autotable');
+    // Import autoTable als default export
+    const autoTableModule = await import('jspdf-autotable');
+    autoTableLoaded = autoTableModule.default;
     librariesInitialized = true;
   }
-  return { jsPDF: jsPDFLoaded };
+  return { jsPDF: jsPDFLoaded, autoTable: autoTableLoaded };
 }
 
 /* Klassen & Onderdelen */
@@ -130,7 +132,7 @@ function infoBoxesSideBySide(doc, info, autoTable) {
   return Math.max(leftY, rightY);
 }
 
-function obstaclesTable(doc, items, startY) {
+function obstaclesTable(doc, items, startY, autoTable) {
   const isSpeedData = items.length > 0 && Array.isArray(items[0]);
   let head, body, colStyles;
 
@@ -183,7 +185,7 @@ function obstaclesTable(doc, items, startY) {
   return doc.lastAutoTable.finalY;
 }
 
-function generalPointsTable(doc, punten, startY, startIndex = 1) {
+function generalPointsTable(doc, punten, startY, startIndex, autoTable) {
   autoTable(doc, {
     startY,
     head: [["#", "Algemene punten", "Heel", "Half", "Opmerking"]],
@@ -217,7 +219,7 @@ function generalPointsTable(doc, punten, startY, startIndex = 1) {
   return doc.lastAutoTable.finalY;
 }
 
-function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true, isDressuur = false, isSpeed = false) {
+function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true, isDressuur = false, isSpeed = false, autoTable = null) {
   let bodyRows = [];
   let colStyles = {};
 
@@ -276,12 +278,12 @@ function signatureLine(doc) {
   doc.line(MARGIN.left + 120, pageH - 44, doc.internal.pageSize.getWidth() - MARGIN.right, pageH - 44);
 }
 
-function protocolToDoc(doc, p, items) {
+function protocolToDoc(doc, p, items, autoTable) {
   const title = p.onderdeel === "dressuur" ? "Working Point • Dressuurprotocol"
                : p.onderdeel === "stijl" ? "Working Point • Stijltrail Protocol"
                : "Working Point • Speedtrail Protocol";
   titleBar(doc, title, `${p.klasse_naam || p.klasse}`);
-  const infoY = infoBoxesSideBySide(doc, p);
+  const infoY = infoBoxesSideBySide(doc, p, autoTable);
   
   // DRESSUUR LOGICA
   if (p.onderdeel === "dressuur") {
@@ -414,16 +416,16 @@ function protocolToDoc(doc, p, items) {
         startY = 40; 
       }
 
-      afterAlg = generalPointsTable(doc, algemenePuntenData, startY, groupNumber + 1);
+      afterAlg = generalPointsTable(doc, algemenePuntenData, startY, groupNumber + 1, autoTable);
     }
     
-    totalsBox(doc, afterAlg + 6, p.max_score ? Number(p.max_score) : null, null, true, true);
+    totalsBox(doc, afterAlg + 6, p.max_score ? Number(p.max_score) : null, null, true, true, false, autoTable);
     signatureLine(doc);
     return;
   }
   
   // STIJL & SPEED LOGICA
-  const afterItems = obstaclesTable(doc, items, infoY + 16);
+  const afterItems = obstaclesTable(doc, items, infoY + 16, autoTable);
   let afterAlg = afterItems;
   const isSpeed = p.onderdeel === "speed";
   const isStijl = p.onderdeel === "stijl";
@@ -441,7 +443,7 @@ function protocolToDoc(doc, p, items) {
       startY = 40;
     }
 
-    afterAlg = generalPointsTable(doc, punten, startY, items.length + 1);
+    afterAlg = generalPointsTable(doc, punten, startY, items.length + 1, autoTable);
   }
 
   totalsBox(
@@ -451,7 +453,8 @@ function protocolToDoc(doc, p, items) {
     isSpeed ? "Tijd / Strafseconden / Totaal" : null, 
     !isSpeed, 
     false,    
-    isSpeed   
+    isSpeed,
+    autoTable   
   );
   
   signatureLine(doc);
@@ -459,15 +462,9 @@ function protocolToDoc(doc, p, items) {
 
 async function makePdfBlob(protocol, items) {
   try {
-    const { jsPDF } = await ensurePdfLibraries();
+    const { jsPDF, autoTable } = await ensurePdfLibraries();
     const doc = new jsPDF({ unit: "pt", format: "A4" });
-    
-    // Check of autoTable beschikbaar is
-    if (typeof doc.autoTable !== 'function') {
-      throw new Error('autoTable functie niet beschikbaar op doc');
-    }
-    
-    protocolToDoc(doc, protocol, items);
+    protocolToDoc(doc, protocol, items, autoTable);
     return doc.output("blob");
   } catch (error) {
     console.error('Error creating PDF:', error);
@@ -773,14 +770,9 @@ export default function ProtocolGenerator() {
   const downloadBatch = async () => {
     try {
       if (!protocollen.length) return;
-      const { jsPDF } = await ensurePdfLibraries();
+      const { jsPDF, autoTable } = await ensurePdfLibraries();
       const doc = new jsPDF({ unit: "pt", format: "A4" });
-      
-      if (typeof doc.autoTable !== 'function') {
-        throw new Error('autoTable functie niet beschikbaar op doc');
-      }
-      
-      protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items); });
+      protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items, autoTable); });
       doc.save(`protocollen_${config.onderdeel}.pdf`);
     } catch (error) { console.error(error); alert('Fout bij batch download: ' + error.message); }
   };
