@@ -458,7 +458,7 @@ function protocolToDoc(doc, p, items) {
 
 async function makePdfBlob(protocol, items) {
   try {
-    const jsPDF = await loadPdfLibraries();
+    const { jsPDF } = await ensurePdfLibraries();
     const doc = new jsPDF({ unit: "pt", format: "A4" });
     
     // Check of autoTable beschikbaar is
@@ -772,7 +772,7 @@ export default function ProtocolGenerator() {
   const downloadBatch = async () => {
     try {
       if (!protocollen.length) return;
-      const jsPDF = await loadPdfLibraries();
+      const { jsPDF } = await ensurePdfLibraries();
       const doc = new jsPDF({ unit: "pt", format: "A4" });
       
       if (typeof doc.autoTable !== 'function') {
