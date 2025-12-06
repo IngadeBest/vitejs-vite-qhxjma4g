@@ -5,7 +5,7 @@ import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijde
 import obstakelsData from "@/data/obstakels.json";
 import defaultTemplates from "@/data/defaultTemplates.json";
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 /* Klassen & Onderdelen */
 const KLASSEN = [
@@ -448,8 +448,6 @@ function protocolToDoc(doc, p, items, autoTable) {
 async function makePdfBlob(protocol, items) {
   try {
     const doc = new jsPDF({ unit: "pt", format: "A4" });
-    // autoTable is nu beschikbaar als doc.autoTable door de side-effect import
-    const autoTable = (d, opts) => d.autoTable(opts);
     protocolToDoc(doc, protocol, items, autoTable);
     return doc.output("blob");
   } catch (error) {
@@ -757,7 +755,6 @@ export default function ProtocolGenerator() {
     try {
       if (!protocollen.length) return;
       const doc = new jsPDF({ unit: "pt", format: "A4" });
-      const autoTable = (d, opts) => d.autoTable(opts);
       protocollen.forEach((p, i) => { if (i > 0) doc.addPage(); protocolToDoc(doc, p, items, autoTable); });
       doc.save(`protocollen_${config.onderdeel}.pdf`);
     } catch (error) { console.error(error); alert('Fout bij batch download: ' + error.message); }
