@@ -10,6 +10,7 @@ const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
   { code: "we1", label: "WE1" },
   { code: "we2", label: "WE2" },
+  { code: "we2p", label: "WE2+" },
   { code: "we3", label: "WE3" },
   { code: "we4", label: "WE4" },
 ];

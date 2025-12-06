@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-const klasses = ["WE Intro", "WE1", "WE2", "WE3", "WE4"];
+const klasses = ["Introductieklasse (WE0)", "WE1", "WE2", "WE2+", "WE3", "WE4", "Young Riders", "Junioren"];
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
 
 export default function ProefInstellingen() {
