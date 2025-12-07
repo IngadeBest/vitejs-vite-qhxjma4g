@@ -115,6 +115,7 @@ export default function Einduitslag() {
     console.log("✅ Proeven gevonden:", proevenVanWedstrijd?.length || 0);
     if (proevenVanWedstrijd && proevenVanWedstrijd.length > 0) {
       console.log("📋 Eerste proef:", proevenVanWedstrijd[0]);
+      console.log("📋 Alle proef klasses:", proevenVanWedstrijd.map(p => ({ naam: p.naam, klasse: p.klasse, onderdeel: p.onderdeel })));
     }
     setProeven(proevenVanWedstrijd || []);
     
