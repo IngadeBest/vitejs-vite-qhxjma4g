@@ -161,13 +161,21 @@ export default function Einduitslag() {
     // Gebruik startnummer als id zodat het matcht met scores.ruiter_id
     const ruitersVanInschrijvingen = (inschrijvingenData || [])
       .filter(inschrijving => inschrijving.startnummer) // Alleen inschrijvingen met startnummer
-      .map(inschrijving => ({
-        id: parseInt(inschrijving.startnummer), // Dit moet matchen met scores.ruiter_id
-        naam: `${inschrijving.voornaam || ''} ${inschrijving.achternaam || ''}`.trim() || inschrijving.ruiter || 'Onbekend',
-        paard: inschrijving.paard || 'Onbekend',
-        klasse: normalizeKlasse(inschrijving.klasse) || 'Onbekend',
-        uuid: inschrijving.id // Bewaar originele UUID voor referentie
-      }));
+      .map(inschrijving => {
+        // Bepaal klasse: als leeftijd_ruiter "Jeugd" is, voeg " - Jeugd" toe
+        let baseKlasse = normalizeKlasse(inschrijving.klasse);
+        if (inschrijving.leeftijd_ruiter === "Jeugd") {
+          baseKlasse = baseKlasse + " - Jeugd";
+        }
+        
+        return {
+          id: parseInt(inschrijving.startnummer), // Dit moet matchen met scores.ruiter_id
+          naam: `${inschrijving.voornaam || ''} ${inschrijving.achternaam || ''}`.trim() || inschrijving.ruiter || 'Onbekend',
+          paard: inschrijving.paard || 'Onbekend',
+          klasse: baseKlasse,
+          uuid: inschrijving.id // Bewaar originele UUID voor referentie
+        };
+      });
     
     console.log("✅ Ruiters gemapped:", ruitersVanInschrijvingen.length);
     console.log("📋 Eerste 3 ruiters:", ruitersVanInschrijvingen.slice(0, 3));
