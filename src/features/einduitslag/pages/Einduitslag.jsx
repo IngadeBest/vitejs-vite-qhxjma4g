@@ -89,12 +89,17 @@ export default function Einduitslag() {
     }
     
     console.log("📅 Wedstrijd datum:", selectedWedstrijd.datum);
+    console.log("📝 Wedstrijd naam:", selectedWedstrijd.naam);
     
-    // 1. Haal proeven op voor deze datum
-    const { data: proevenVanWedstrijd, error: proevenError } = await supabase
-      .from("proeven")
-      .select("*")
-      .eq("datum", selectedWedstrijd.datum);
+    // 1. Haal proeven op voor deze datum (of voor deze wedstrijd_id als die bestaat)
+    let proevenQuery = supabase.from("proeven").select("*");
+    
+    // Probeer eerst op wedstrijd_id, anders op datum
+    if (selectedWedstrijd.datum) {
+      proevenQuery = proevenQuery.eq("datum", selectedWedstrijd.datum);
+    }
+    
+    const { data: proevenVanWedstrijd, error: proevenError } = await proevenQuery;
     
     if (proevenError) {
       console.error("❌ Fout bij laden proeven:", proevenError);
@@ -102,6 +107,9 @@ export default function Einduitslag() {
     }
     
     console.log("✅ Proeven gevonden:", proevenVanWedstrijd?.length || 0);
+    if (proevenVanWedstrijd && proevenVanWedstrijd.length > 0) {
+      console.log("📋 Eerste proef:", proevenVanWedstrijd[0]);
+    }
     setProeven(proevenVanWedstrijd || []);
     
     if (!proevenVanWedstrijd || proevenVanWedstrijd.length === 0) {
@@ -138,6 +146,10 @@ export default function Einduitslag() {
     }
     
     console.log("✅ Inschrijvingen gevonden:", inschrijvingenData?.length || 0);
+    if (inschrijvingenData && inschrijvingenData.length > 0) {
+      console.log("📋 Eerste inschrijving:", inschrijvingenData[0]);
+      console.log("📋 Klasses in inschrijvingen:", [...new Set(inschrijvingenData.map(i => i.klasse))]);
+    }
     
     // 4. Map inschrijvingen naar ruiters structuur (voor compatibiliteit met bestaande code)
     // Gebruik startnummer als id zodat het matcht met scores.ruiter_id
