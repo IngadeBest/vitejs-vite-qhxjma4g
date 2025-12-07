@@ -1528,6 +1528,10 @@ Plak je data hieronder:`);
         query = query.eq("klasse", klasse);
       }
 
+      if (rubriek) {
+        query = query.eq("rubriek", rubriek);
+      }
+
       const { data, error } = await query;
       console.log("🔍 DATABASE QUERY RESULT:", { 
         wedstrijd_id: wedstrijd, 
@@ -1550,7 +1554,13 @@ Plak je data hieronder:`);
         
         if (stored) {
           const parsed = JSON.parse(stored);
-          const filteredRows = klasse ? parsed.filter(r => normalizeKlasse(r.klasse) === klasse) : parsed;
+          let filteredRows = parsed;
+          if (klasse) {
+            filteredRows = filteredRows.filter(r => normalizeKlasse(r.klasse) === klasse);
+          }
+          if (rubriek) {
+            filteredRows = filteredRows.filter(r => r.rubriek === rubriek);
+          }
           setRows(filteredRows);
           setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage)`);
           setLoadingFromDB(false);
@@ -1621,7 +1631,13 @@ Plak je data hieronder:`);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          const filteredRows = klasse ? parsed.filter(r => normalizeKlasse(r.klasse) === klasse) : parsed;
+          let filteredRows = parsed;
+          if (klasse) {
+            filteredRows = filteredRows.filter(r => normalizeKlasse(r.klasse) === klasse);
+          }
+          if (rubriek) {
+            filteredRows = filteredRows.filter(r => r.rubriek === rubriek);
+          }
           setRows(filteredRows);
           setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage - database niet beschikbaar)`);
         } catch (parseErr) {
