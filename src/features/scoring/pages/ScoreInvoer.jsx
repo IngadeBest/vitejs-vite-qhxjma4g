@@ -50,12 +50,18 @@ export default function ScoreInvoer() {
     // Normaliseer klasse codes naar proeven formaat
     const klasseMap = {
       'we0': 'Introductieklasse (WE0)',
+      'we0 - jeugd': 'Introductieklasse (WE0) - Jeugd',
       'we1': 'WE1',
+      'we1 - jeugd': 'WE1 - Jeugd',
       'we2': 'WE2',
+      'we2 - jeugd': 'WE2 - Jeugd',
       'we2p': 'WE2+',
+      'we2+ - jeugd': 'WE2+ - Jeugd',
       'we2+': 'WE2+',
       'we3': 'WE3',
+      'we3 - jeugd': 'WE3 - Jeugd',
       'we4': 'WE4',
+      'we4 - jeugd': 'WE4 - Jeugd',
       'yr': 'Young Riders',
       'junior': 'Junioren',
       'junioren': 'Junioren'
@@ -63,14 +69,15 @@ export default function ScoreInvoer() {
     
     // Map naar oude structuur voor backwards compatibility
     const mapped = (data || []).map(inschrijving => {
-      const normalizedKlasse = klasseMap[inschrijving.klasse?.toLowerCase()] || inschrijving.klasse;
+      const klasseLower = (inschrijving.klasse || '').toLowerCase();
+      const normalizedKlasse = klasseMap[klasseLower] || inschrijving.klasse;
       const rubriek = inschrijving.rubriek || 'Algemeen';
       
-      // Voeg rubriek toe aan klasse voor jeugd matching
-      let klasseMetRubriek = normalizedKlasse;
-      if (rubriek === 'Jeugd') {
-        klasseMetRubriek = normalizedKlasse + ' - Jeugd';
-      }
+      // Bepaal base klasse (zonder jeugd suffix)
+      const baseKlasse = normalizedKlasse.replace(/ - Jeugd$/i, '');
+      
+      // klasseMetRubriek is hetzelfde als normalizedKlasse (klasse heeft al jeugd suffix indien van toepassing)
+      const klasseMetRubriek = normalizedKlasse;
       
       // Gebruik startnummer als numeriek ID voor scores tabel
       const numericId = inschrijving.startnummer ? parseInt(inschrijving.startnummer) : null;
@@ -80,8 +87,8 @@ export default function ScoreInvoer() {
         uuid: inschrijving.id,  // Bewaar originele UUID voor referentie
         naam: inschrijving.ruiter,
         paard: inschrijving.paard,
-        klasse: normalizedKlasse,
-        klasseMetRubriek: klasseMetRubriek,
+        klasse: baseKlasse,  // Base klasse zonder jeugd
+        klasseMetRubriek: klasseMetRubriek,  // Volledige klasse inclusief jeugd suffix
         rubriek: rubriek,
         wedstrijd_id: inschrijving.wedstrijd_id,
         startnummer: inschrijving.startnummer
