@@ -1,18 +1,18 @@
--- Update bestaande inschrijvingen: voeg " - Jeugd" toe aan klasse als leeftijd_ruiter = 'Jeugd'
+-- Update bestaande inschrijvingen: voeg " - Jeugd" toe aan klasse als rubriek = 'Jeugd'
 -- en de klasse nog niet " - Jeugd" bevat
 
 UPDATE inschrijvingen
 SET klasse = klasse || ' - Jeugd'
-WHERE leeftijd_ruiter = 'Jeugd'
+WHERE rubriek = 'Jeugd'
   AND klasse NOT LIKE '% - Jeugd';
 
 -- Controleer resultaat
 SELECT 
   id,
   klasse,
-  leeftijd_ruiter,
+  rubriek,
   ruiter,
   paard
 FROM inschrijvingen
-WHERE leeftijd_ruiter = 'Jeugd'
+WHERE rubriek = 'Jeugd'
 ORDER BY klasse, ruiter;

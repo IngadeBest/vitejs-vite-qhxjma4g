@@ -165,19 +165,16 @@ export default function Einduitslag() {
     const ruitersVanInschrijvingen = (inschrijvingenData || [])
       .filter(inschrijving => inschrijving.startnummer) // Alleen inschrijvingen met startnummer
       .map(inschrijving => {
-        // Bepaal klasse: als leeftijd_ruiter "Jeugd" is (case-insensitive), voeg " - Jeugd" toe
-        let baseKlasse = normalizeKlasse(inschrijving.klasse);
-        const leeftijdRuiter = (inschrijving.leeftijd_ruiter || '').toString().toLowerCase().trim();
-        if (leeftijdRuiter === 'jeugd') {
-          baseKlasse = baseKlasse + " - Jeugd";
-        }
+        // Klasse is al correct opgeslagen in de database (met " - Jeugd" suffix indien van toepassing)
+        // We hoeven hier alleen te normaliseren
+        const baseKlasse = normalizeKlasse(inschrijving.klasse);
         
         return {
           id: parseInt(inschrijving.startnummer), // Dit moet matchen met scores.ruiter_id
           naam: `${inschrijving.voornaam || ''} ${inschrijving.achternaam || ''}`.trim() || inschrijving.ruiter || 'Onbekend',
           paard: inschrijving.paard || 'Onbekend',
           klasse: baseKlasse,
-          leeftijd_ruiter_raw: inschrijving.leeftijd_ruiter, // Voor debugging
+          rubriek_raw: inschrijving.rubriek, // Voor debugging
           uuid: inschrijving.id // Bewaar originele UUID voor referentie
         };
       });
