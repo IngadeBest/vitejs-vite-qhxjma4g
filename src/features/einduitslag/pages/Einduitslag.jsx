@@ -12,9 +12,30 @@ function formatTime(secs) {
   return [m, s, h].map((v, i) => v.toString().padStart(2, "0")).join(":");
 }
 
+// HELPER: Normalize klasse names to consistent format
+function normalizeKlasse(input) {
+  if (!input || typeof input !== 'string') return '';
+  
+  const clean = input.trim().toLowerCase();
+  
+  // Map common variations to standard names
+  const klasseMap = {
+    'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0', 'introductieklasse': 'WE0', 'we intro': 'WE0',
+    'we1': 'WE1', 'we 1': 'WE1', 'we-1': 'WE1', 
+    'we2': 'WE2', 'we 2': 'WE2', 'we-2': 'WE2',
+    'we2+': 'WE2+', 'we 2+': 'WE2+', 'we-2+': 'WE2+', 'we2plus': 'WE2+',
+    'we3': 'WE3', 'we 3': 'WE3', 'we-3': 'WE3',
+    'we4': 'WE4', 'we 4': 'WE4', 'we-4': 'WE4',
+    'junior': 'Junioren', 'junioren': 'Junioren', 'juniors': 'Junioren',
+    'young rider': 'Young Riders', 'young riders': 'Young Riders', 'yr': 'Young Riders'
+  };
+  
+  return klasseMap[clean] || input.trim();
+}
+
 // --- Sorteer klasses met Jeugd direct na hoofdklasse, altijd Intro, WE1, WE2, WE3, WE4 ---
 const KLASSERIJ = [
-  "WE Intro", "WE1", "WE2", "WE3", "WE4",
+  "WE0", "WE1", "WE2", "WE3", "WE4",
 ];
 function sorteerKlasses(klasses) {
   // Vul lijst met hoofdklasses + direct erna Jeugd-variant als ze bestaan
@@ -126,27 +147,29 @@ export default function Einduitslag() {
         id: parseInt(inschrijving.startnummer), // Dit moet matchen met scores.ruiter_id
         naam: `${inschrijving.voornaam || ''} ${inschrijving.achternaam || ''}`.trim() || inschrijving.ruiter || 'Onbekend',
         paard: inschrijving.paard || 'Onbekend',
-        klasse: inschrijving.klasse || 'Onbekend',
+        klasse: normalizeKlasse(inschrijving.klasse) || 'Onbekend',
         uuid: inschrijving.id // Bewaar originele UUID voor referentie
       }));
     
     console.log("✅ Ruiters gemapped:", ruitersVanInschrijvingen.length);
+    console.log("📋 Eerste 3 ruiters:", ruitersVanInschrijvingen.slice(0, 3));
     setRuiters(ruitersVanInschrijvingen);
     
-    // 5. Verzamel alle unieke klasses uit proeven
-    const unieke = Array.from(new Set(proevenVanWedstrijd.map(x => x.klasse)));
+    // 5. Verzamel alle unieke klasses uit proeven (normalize alle klasses)
+    const unieke = Array.from(new Set(proevenVanWedstrijd.map(x => normalizeKlasse(x.klasse))));
     setKlasses(sorteerKlasses(unieke));
     console.log("✅ Klasses:", unieke);
   }
 
   function berekenEindstand(klasse) {
-    const proevenInKlasse = proeven.filter(p => p.klasse === klasse);
+    const normalizedKlasse = normalizeKlasse(klasse);
+    const proevenInKlasse = proeven.filter(p => normalizeKlasse(p.klasse) === normalizedKlasse);
     const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"].filter(o =>
       proevenInKlasse.some(p => p.onderdeel === o)
     );
-    const deelnemers = ruiters.filter(r => r.klasse === klasse);
+    const deelnemers = ruiters.filter(r => r.klasse === normalizedKlasse);
 
-    console.log(`🏆 Berekenen eindstand voor ${klasse}:`, {
+    console.log(`🏆 Berekenen eindstand voor ${klasse} (normalized: ${normalizedKlasse}):`, {
       proeven: proevenInKlasse.length,
       onderdelen,
       deelnemers: deelnemers.length,
