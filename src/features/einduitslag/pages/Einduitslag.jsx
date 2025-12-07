@@ -179,6 +179,8 @@ export default function Einduitslag() {
     
     console.log("✅ Ruiters gemapped:", ruitersVanInschrijvingen.length);
     console.log("📋 Eerste 3 ruiters:", ruitersVanInschrijvingen.slice(0, 3));
+    console.log("📋 Ruiters klasses:", [...new Set(ruitersVanInschrijvingen.map(r => r.klasse))]);
+    console.log("📋 Jeugdruiters:", ruitersVanInschrijvingen.filter(r => r.klasse.includes('Jeugd')).map(r => ({ naam: r.naam, klasse: r.klasse })));
     setRuiters(ruitersVanInschrijvingen);
     
     // 5. Verzamel alle unieke klasses uit proeven (normalize alle klasses)
