@@ -18,9 +18,14 @@ function normalizeKlasse(input) {
   
   const clean = input.trim().toLowerCase();
   
+  // Extract jeugd suffix if present
+  const isJeugd = clean.includes('jeugd');
+  const baseClean = clean.replace(/\s*-?\s*jeugd\s*$/i, '').trim();
+  
   // Map common variations to standard names
   const klasseMap = {
-    'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0', 'introductieklasse': 'WE0', 'we intro': 'WE0',
+    'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0', 
+    'introductieklasse': 'WE0', 'introductieklasse (we0)': 'WE0', 'we intro': 'WE0',
     'we1': 'WE1', 'we 1': 'WE1', 'we-1': 'WE1', 
     'we2': 'WE2', 'we 2': 'WE2', 'we-2': 'WE2',
     'we2+': 'WE2+', 'we 2+': 'WE2+', 'we-2+': 'WE2+', 'we2plus': 'WE2+',
@@ -30,7 +35,8 @@ function normalizeKlasse(input) {
     'young rider': 'Young Riders', 'young riders': 'Young Riders', 'yr': 'Young Riders'
   };
   
-  return klasseMap[clean] || input.trim();
+  const normalized = klasseMap[baseClean] || input.trim();
+  return isJeugd ? `${normalized} - Jeugd` : normalized;
 }
 
 // --- Sorteer klasses met Jeugd direct na hoofdklasse, altijd Intro, WE1, WE2, WE3, WE4 ---
