@@ -164,9 +164,10 @@ export default function Einduitslag() {
     const ruitersVanInschrijvingen = (inschrijvingenData || [])
       .filter(inschrijving => inschrijving.startnummer) // Alleen inschrijvingen met startnummer
       .map(inschrijving => {
-        // Bepaal klasse: als leeftijd_ruiter "Jeugd" is, voeg " - Jeugd" toe
+        // Bepaal klasse: als leeftijd_ruiter "Jeugd" is (case-insensitive), voeg " - Jeugd" toe
         let baseKlasse = normalizeKlasse(inschrijving.klasse);
-        if (inschrijving.leeftijd_ruiter === "Jeugd") {
+        const leeftijdRuiter = (inschrijving.leeftijd_ruiter || '').toString().toLowerCase().trim();
+        if (leeftijdRuiter === 'jeugd') {
           baseKlasse = baseKlasse + " - Jeugd";
         }
         
@@ -175,6 +176,7 @@ export default function Einduitslag() {
           naam: `${inschrijving.voornaam || ''} ${inschrijving.achternaam || ''}`.trim() || inschrijving.ruiter || 'Onbekend',
           paard: inschrijving.paard || 'Onbekend',
           klasse: baseKlasse,
+          leeftijd_ruiter_raw: inschrijving.leeftijd_ruiter, // Voor debugging
           uuid: inschrijving.id // Bewaar originele UUID voor referentie
         };
       });
