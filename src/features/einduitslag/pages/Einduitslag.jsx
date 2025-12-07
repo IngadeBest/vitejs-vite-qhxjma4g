@@ -155,6 +155,8 @@ export default function Einduitslag() {
     if (inschrijvingenData && inschrijvingenData.length > 0) {
       console.log("📋 Eerste inschrijving:", inschrijvingenData[0]);
       console.log("📋 Klasses in inschrijvingen:", [...new Set(inschrijvingenData.map(i => i.klasse))]);
+      console.log("📋 Leeftijd_ruiter waarden:", [...new Set(inschrijvingenData.map(i => i.leeftijd_ruiter))]);
+      console.log("📋 Jeugd inschrijvingen:", inschrijvingenData.filter(i => i.leeftijd_ruiter === "Jeugd").length);
     }
     
     // 4. Map inschrijvingen naar ruiters structuur (voor compatibiliteit met bestaande code)
