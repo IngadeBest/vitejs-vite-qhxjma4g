@@ -98,7 +98,7 @@ export default async function handler(req, res) {
     const payload = {
       wedstrijd_id,
       wedstrijd: b.wedstrijd || wedstrijd.naam || null, // denormalized name for readability
-      klasse: b.klasse,
+      klasse: b.leeftijd_ruiter === "Jeugd" ? (b.klasse + " - Jeugd") : b.klasse, // Voeg " - Jeugd" toe als het een jeugdruiter is
       categorie: b.categorie,
       weh_lid: b.weh_lid || false,
       ruiter: b.ruiter || null,
