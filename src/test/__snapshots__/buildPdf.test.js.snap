@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PDF Snapshot Tests > Jeugd WE1 stijl PDF structure should match snapshot > jeugd-we1-stijl-pages 1`] = `2`;
+
+exports[`PDF Snapshot Tests > WE0 dressuur PDF structure should match snapshot > we0-dressuur-pages 1`] = `2`;
+
+exports[`PDF Snapshot Tests > WE1 stijl PDF structure should match snapshot > we1-stijl-pages 1`] = `2`;
+
+exports[`PDF Snapshot Tests > WE2 speed PDF structure should match snapshot > we2-speed-pages 1`] = `2`;
+
+exports[`PDF Snapshot Tests > WE2+ dressuur PDF structure should match snapshot > we2plus-dressuur-pages 1`] = `2`;
+
+exports[`PDF Snapshot Tests > WE3 dressuur PDF structure should match snapshot > we3-dressuur-pages 1`] = `2`;

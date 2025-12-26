@@ -18,14 +18,9 @@ function normalizeKlasse(input) {
   
   const clean = input.trim().toLowerCase();
   
-  // Extract jeugd suffix if present
-  const isJeugd = clean.includes('jeugd');
-  const baseClean = clean.replace(/\s*-?\s*jeugd\s*$/i, '').trim();
-  
   // Map common variations to standard names
   const klasseMap = {
-    'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0', 
-    'introductieklasse': 'WE0', 'introductieklasse (we0)': 'WE0', 'we intro': 'WE0',
+    'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0', 'introductieklasse': 'WE0', 'we intro': 'WE0',
     'we1': 'WE1', 'we 1': 'WE1', 'we-1': 'WE1', 
     'we2': 'WE2', 'we 2': 'WE2', 'we-2': 'WE2',
     'we2+': 'WE2+', 'we 2+': 'WE2+', 'we-2+': 'WE2+', 'we2plus': 'WE2+',
@@ -35,8 +30,7 @@ function normalizeKlasse(input) {
     'young rider': 'Young Riders', 'young riders': 'Young Riders', 'yr': 'Young Riders'
   };
   
-  const normalized = klasseMap[baseClean] || input.trim();
-  return isJeugd ? `${normalized} - Jeugd` : normalized;
+  return klasseMap[clean] || input.trim();
 }
 
 // --- Sorteer klasses met Jeugd direct na hoofdklasse, altijd Intro, WE1, WE2, WE3, WE4 ---
@@ -115,7 +109,6 @@ export default function Einduitslag() {
     console.log("✅ Proeven gevonden:", proevenVanWedstrijd?.length || 0);
     if (proevenVanWedstrijd && proevenVanWedstrijd.length > 0) {
       console.log("📋 Eerste proef:", proevenVanWedstrijd[0]);
-      console.log("📋 Alle proef klasses:", proevenVanWedstrijd.map(p => ({ naam: p.naam, klasse: p.klasse, onderdeel: p.onderdeel })));
     }
     setProeven(proevenVanWedstrijd || []);
     
@@ -156,33 +149,22 @@ export default function Einduitslag() {
     if (inschrijvingenData && inschrijvingenData.length > 0) {
       console.log("📋 Eerste inschrijving:", inschrijvingenData[0]);
       console.log("📋 Klasses in inschrijvingen:", [...new Set(inschrijvingenData.map(i => i.klasse))]);
-      console.log("📋 Leeftijd_ruiter waarden:", [...new Set(inschrijvingenData.map(i => i.leeftijd_ruiter))]);
-      console.log("📋 Jeugd inschrijvingen:", inschrijvingenData.filter(i => i.leeftijd_ruiter === "Jeugd").length);
     }
     
     // 4. Map inschrijvingen naar ruiters structuur (voor compatibiliteit met bestaande code)
     // Gebruik startnummer als id zodat het matcht met scores.ruiter_id
     const ruitersVanInschrijvingen = (inschrijvingenData || [])
       .filter(inschrijving => inschrijving.startnummer) // Alleen inschrijvingen met startnummer
-      .map(inschrijving => {
-        // Klasse is al correct opgeslagen in de database (met " - Jeugd" suffix indien van toepassing)
-        // We hoeven hier alleen te normaliseren
-        const baseKlasse = normalizeKlasse(inschrijving.klasse);
-        
-        return {
-          id: parseInt(inschrijving.startnummer), // Dit moet matchen met scores.ruiter_id
-          naam: `${inschrijving.voornaam || ''} ${inschrijving.achternaam || ''}`.trim() || inschrijving.ruiter || 'Onbekend',
-          paard: inschrijving.paard || 'Onbekend',
-          klasse: baseKlasse,
-          rubriek_raw: inschrijving.rubriek, // Voor debugging
-          uuid: inschrijving.id // Bewaar originele UUID voor referentie
-        };
-      });
+      .map(inschrijving => ({
+        id: parseInt(inschrijving.startnummer), // Dit moet matchen met scores.ruiter_id
+        naam: `${inschrijving.voornaam || ''} ${inschrijving.achternaam || ''}`.trim() || inschrijving.ruiter || 'Onbekend',
+        paard: inschrijving.paard || 'Onbekend',
+        klasse: normalizeKlasse(inschrijving.klasse) || 'Onbekend',
+        uuid: inschrijving.id // Bewaar originele UUID voor referentie
+      }));
     
     console.log("✅ Ruiters gemapped:", ruitersVanInschrijvingen.length);
     console.log("📋 Eerste 3 ruiters:", ruitersVanInschrijvingen.slice(0, 3));
-    console.log("📋 Ruiters klasses:", [...new Set(ruitersVanInschrijvingen.map(r => r.klasse))]);
-    console.log("📋 Jeugdruiters:", ruitersVanInschrijvingen.filter(r => r.klasse.includes('Jeugd')).map(r => ({ naam: r.naam, klasse: r.klasse })));
     setRuiters(ruitersVanInschrijvingen);
     
     // 5. Verzamel alle unieke klasses uit proeven (normalize alle klasses)
