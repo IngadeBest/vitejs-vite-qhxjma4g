@@ -441,17 +441,6 @@ function protocolToDoc(doc, p, items, autoTable) {
   signatureLine(doc);
 }
 
-async function makePdfBlob(protocol, items) {
-  try {
-    const doc = new jsPDF({ unit: "pt", format: "A4" });
-    protocolToDoc(doc, protocol, items, autoTable);
-    return doc.output("blob");
-  } catch (error) {
-    console.error('Error creating PDF:', error);
-    throw new Error('Kon PDF niet genereren: ' + error.message);
-  }
-}
-
 export default function ProtocolGenerator() {
   const { items: wedstrijden } = useWedstrijden(false);
   const [stap, setStap] = useState(1);
