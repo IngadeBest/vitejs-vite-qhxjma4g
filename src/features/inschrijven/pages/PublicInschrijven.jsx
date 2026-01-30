@@ -46,6 +46,8 @@ export default function PublicInschrijven() {
   const [err, setErr] = useState("");
   const [capacityLimit, setCapacityLimit] = useState(null);
   const [currentCount, setCurrentCount] = useState(null);
+  const [totaalCapacityLimit, setTotaalCapacityLimit] = useState(null);
+  const [totaalCurrentCount, setTotaalCurrentCount] = useState(null);
   const [capacityLoading, setCapacityLoading] = useState(false);
 
   const gekozenWedstrijd = useMemo(
@@ -66,10 +68,27 @@ export default function PublicInschrijven() {
     async function loadCapacity() {
       setCapacityLimit(null);
       setCurrentCount(null);
+      setTotaalCapacityLimit(null);
+      setTotaalCurrentCount(null);
       if (!gekozenWedstrijd || !form.klasse) return;
       setCapacityLoading(true);
       try {
         const cfg = gekozenWedstrijd.startlijst_config && typeof gekozenWedstrijd.startlijst_config === 'object' ? gekozenWedstrijd.startlijst_config : (gekozenWedstrijd.startlijst_config ? JSON.parse(gekozenWedstrijd.startlijst_config) : null);
+        
+        // Laad totaal capaciteit
+        if (cfg && cfg.totaalMaximum !== undefined && cfg.totaalMaximum !== null) {
+          const totaalMax = Number(cfg.totaalMaximum);
+          const { count: totaalCount, error: totaalError } = await supabase
+            .from('inschrijvingen')
+            .select('id', { count: 'exact', head: true })
+            .eq('wedstrijd_id', gekozenWedstrijd.id);
+          if (!totaalError && mounted) {
+            setTotaalCapacityLimit(totaalMax);
+            setTotaalCurrentCount(totaalCount || 0);
+          }
+        }
+        
+        // Laad per-klasse capaciteit
         const cap = cfg && cfg.capacities ? (cfg.capacities[form.klasse] ?? null) : null;
         const alternate = cfg && cfg.alternates ? (cfg.alternates[form.klasse] ?? null) : null;
         if (!mounted) return;
@@ -153,6 +172,20 @@ export default function PublicInschrijven() {
       // capacity double-check (client-side). Server should also verify to avoid race conditions.
       try {
         const cfg = gekozenWedstrijd && (gekozenWedstrijd.startlijst_config && typeof gekozenWedstrijd.startlijst_config === 'object') ? gekozenWedstrijd.startlijst_config : (gekozenWedstrijd && gekozenWedstrijd.startlijst_config ? JSON.parse(gekozenWedstrijd.startlijst_config) : null);
+        
+        // Check totaal maximum voor hele wedstrijd
+        if (cfg && cfg.totaalMaximum !== undefined && cfg.totaalMaximum !== null) {
+          const { count: totaalCount, error: totaalError } = await supabase
+            .from('inschrijvingen')
+            .select('id', { count: 'exact', head: true })
+            .eq('wedstrijd_id', payload.wedstrijd_id);
+          if (totaalError) throw totaalError;
+          if ((totaalCount || 0) >= Number(cfg.totaalMaximum)) {
+            throw new Error(`De wedstrijd is volledig volzet (${totaalCount}/${cfg.totaalMaximum} deelnemers). Neem contact op met de organisatie.`);
+          }
+        }
+        
+        // Check per-klasse capaciteit
         const cap = cfg && cfg.capacities ? (cfg.capacities[payload.klasse] ?? null) : null;
         if (cap !== undefined && cap !== null) {
           const { count, error } = await supabase
@@ -346,12 +379,24 @@ export default function PublicInschrijven() {
       
   {capacityLoading && <div style={{ marginTop: 8, color: '#666' }}>Controleren beschikbare plaatsen…</div>}
 
+  {totaalCapacityLimit !== null && totaalCurrentCount !== null && (
+    <div style={{ marginTop: 10, padding: '10px', background: '#f0f4f8', borderRadius: 6 }}>
+      {totaalCurrentCount >= totaalCapacityLimit ? (
+        <Alert type="error">De wedstrijd is volledig volzet ({totaalCurrentCount}/{totaalCapacityLimit} deelnemers).</Alert>
+      ) : (
+        <div style={{ color: '#333', fontSize: 13, fontWeight: 500 }}>
+          Wedstrijd capaciteit: {totaalCapacityLimit - totaalCurrentCount} van {totaalCapacityLimit} plaatsen beschikbaar
+        </div>
+      )}
+    </div>
+  )}
+
   {capacityLimit !== null && currentCount !== null && (
     <div style={{ marginTop: 10 }}>
       {currentCount >= capacityLimit ? (
         <Alert type="error">De geselecteerde klasse is volzet ({currentCount}/{capacityLimit}).</Alert>
       ) : (
-        <div style={{ color: '#333', fontSize: 13 }}>Beschikbare plaatsen: {capacityLimit - currentCount} van {capacityLimit} beschikbaar.</div>
+        <div style={{ color: '#333', fontSize: 13 }}>Beschikbare plaatsen in klasse: {capacityLimit - currentCount} van {capacityLimit} beschikbaar.</div>
       )}
     </div>
   )}

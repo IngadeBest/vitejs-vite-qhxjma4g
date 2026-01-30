@@ -95,6 +95,52 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: 'CATEGORIE_NOT_ALLOWED', message: 'Geselecteerde categorie niet toegestaan voor deze klasse.'});
     }
 
+    // Server-side capacity validation
+    try {
+      const cfg = wedstrijd.startlijst_config && typeof wedstrijd.startlijst_config === 'object' 
+        ? wedstrijd.startlijst_config 
+        : (wedstrijd.startlijst_config ? JSON.parse(wedstrijd.startlijst_config) : null);
+
+      // Check totaal maximum voor hele wedstrijd
+      if (cfg && cfg.totaalMaximum !== undefined && cfg.totaalMaximum !== null) {
+        const totaalClient = supabaseServer || createClient(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL, process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
+        const { count: totaalCount, error: totaalError } = await totaalClient
+          .from('inschrijvingen')
+          .select('id', { count: 'exact', head: true })
+          .eq('wedstrijd_id', wedstrijd_id);
+        
+        if (!totaalError && (totaalCount || 0) >= Number(cfg.totaalMaximum)) {
+          return res.status(400).json({ 
+            ok: false, 
+            error: 'WEDSTRIJD_VOLZET', 
+            message: `De wedstrijd is volledig volzet (${totaalCount}/${cfg.totaalMaximum} deelnemers).` 
+          });
+        }
+      }
+
+      // Check per-klasse capaciteit
+      const cap = cfg && cfg.capacities ? (cfg.capacities[b.klasse] ?? null) : null;
+      if (cap !== undefined && cap !== null) {
+        const capClient = supabaseServer || createClient(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL, process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
+        const { count, error } = await capClient
+          .from('inschrijvingen')
+          .select('id', { count: 'exact', head: true })
+          .eq('wedstrijd_id', wedstrijd_id)
+          .eq('klasse', b.klasse);
+        
+        if (!error && (count || 0) >= Number(cap)) {
+          return res.status(400).json({ 
+            ok: false, 
+            error: 'KLASSE_VOLZET', 
+            message: `De klasse is volzet (${count}/${cap} deelnemers).` 
+          });
+        }
+      }
+    } catch (capacityError) {
+      console.error('Capacity validation error:', capacityError);
+      // Don't block the registration if capacity check fails
+    }
+
     const payload = {
       wedstrijd_id,
       wedstrijd: b.wedstrijd || wedstrijd.naam || null, // denormalized name for readability
