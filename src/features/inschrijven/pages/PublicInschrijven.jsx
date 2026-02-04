@@ -184,6 +184,11 @@ export default function PublicInschrijven() {
             .eq('wedstrijd_id', payload.wedstrijd_id);
           if (totaalError) throw totaalError;
           if ((totaalCount || 0) >= Number(cfg.totaalMaximum)) {
+            // Check if wachtlijst is enabled
+            if (gekozenWedstrijd.wachtlijst_enabled) {
+              setShowWachtlijst(true);
+              throw new Error(`De wedstrijd is volledig volzet (${totaalCount}/${cfg.totaalMaximum} deelnemers). Je kunt je op de wachtlijst plaatsen.`);
+            }
             throw new Error(`De wedstrijd is volledig volzet (${totaalCount}/${cfg.totaalMaximum} deelnemers). Neem contact op met de organisatie.`);
           }
         }
@@ -198,6 +203,11 @@ export default function PublicInschrijven() {
             .eq('klasse', payload.klasse);
           if (error) throw error;
           if ((count || 0) >= Number(cap)) {
+            // Check if wachtlijst is enabled
+            if (gekozenWedstrijd.wachtlijst_enabled) {
+              setShowWachtlijst(true);
+              throw new Error(`De klasse is volzet (${count}/${cap}). Je kunt je op de wachtlijst plaatsen.`);
+            }
             // if an alternate is configured, suggest it
             const alternate = cfg.alternates ? cfg.alternates[payload.klasse] : null;
             if (alternate) {
