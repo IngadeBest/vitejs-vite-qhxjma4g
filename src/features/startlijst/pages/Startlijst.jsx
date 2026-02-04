@@ -175,7 +175,7 @@ const normalizeKlasse = (input) => {
     'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0', 'introductieklasse': 'WE0',
     'we1': 'WE1', 'we 1': 'WE1', 'we-1': 'WE1', 
     'we2': 'WE2', 'we 2': 'WE2', 'we-2': 'WE2',
-    'we2+': 'WE2+', 'we 2+': 'WE2+', 'we-2+': 'WE2+', 'we2plus': 'WE2+',
+    'we2+': 'WE2+', 'we 2+': 'WE2+', 'we-2+': 'WE2+', 'we2plus': 'WE2+', 'we2p': 'WE2+',
     'we3': 'WE3', 'we 3': 'WE3', 'we-3': 'WE3',
     'we4': 'WE4', 'we 4': 'WE4', 'we-4': 'WE4',
     'junior': 'Junioren', 'junioren': 'Junioren', 'juniors': 'Junioren',
@@ -183,6 +183,27 @@ const normalizeKlasse = (input) => {
   };
   
   return klasseMap[clean] || input.trim();
+};
+
+// Normalize klasse input to database code (e.g. we1, we2p)
+const normalizeKlasseCode = (input) => {
+  if (!input || typeof input !== 'string') return '';
+
+  const clean = input.trim().toLowerCase();
+  const stripped = clean.replace(/\s*-\s*jeugd|\s+jeugd/g, '').trim();
+
+  const klasseCodeMap = {
+    'we0': 'we0', 'we 0': 'we0', 'we-0': 'we0', 'introductieklasse': 'we0', 'introductieklasse (we0)': 'we0',
+    'we1': 'we1', 'we 1': 'we1', 'we-1': 'we1',
+    'we2': 'we2', 'we 2': 'we2', 'we-2': 'we2',
+    'we2+': 'we2p', 'we 2+': 'we2p', 'we-2+': 'we2p', 'we2plus': 'we2p', 'we2p': 'we2p',
+    'we3': 'we3', 'we 3': 'we3', 'we-3': 'we3',
+    'we4': 'we4', 'we 4': 'we4', 'we-4': 'we4',
+    'junior': 'junior', 'junioren': 'junior', 'juniors': 'junior',
+    'young rider': 'yr', 'young riders': 'yr', 'yr': 'yr'
+  };
+
+  return klasseCodeMap[stripped] || stripped;
 };
 
 // TEMP RENAMED TO AVOID CONFLICT
@@ -1505,8 +1526,11 @@ Plak je data hieronder:`);
         .from("wedstrijden")
         .select("startlijst_config")
         .eq("id", wedstrijd)
-        .single();
+        .maybeSingle();
       
+      if (wedstrijdError) {
+        console.warn("Kon startlijst_config niet laden, ga door zonder config:", wedstrijdError);
+      }
       const config = wedstrijdData?.startlijst_config || {};
       console.log("Loaded startlijst_config:", config);
       
@@ -1519,20 +1543,39 @@ Plak je data hieronder:`);
       if (config.klasseStartTimes) setKlasseStartTimes(config.klasseStartTimes);
       
       // Stap 2: Laad deelnemers (sorteer op volgorde veld indien aanwezig)
-      let query = supabase
-        .from("inschrijvingen")
-        .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde")
-        .eq("wedstrijd_id", wedstrijd);
+      const baseFilters = (q, includeRubriek = true) => {
+        let qq = q.eq("wedstrijd_id", wedstrijd);
+        const klasseCode = normalizeKlasseCode(klasse);
+        if (klasseCode) qq = qq.eq("klasse", klasseCode);
+        if (includeRubriek && rubriek) {
+          const rubriekValue = String(rubriek).trim();
+          if (/^algemeen$/i.test(rubriekValue)) {
+            qq = qq.or("rubriek.is.null,rubriek.eq.Algemeen,rubriek.eq.");
+          } else {
+            qq = qq.eq("rubriek", rubriekValue);
+          }
+        }
+        return qq;
+      };
 
-      if (klasse) {
-        query = query.eq("klasse", klasse);
+      let query = baseFilters(
+        supabase
+          .from("inschrijvingen")
+          .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde")
+      );
+
+      let { data, error } = await query;
+
+      if (error && /column .*rubriek|column .*volgorde/i.test(String(error.message || error))) {
+        console.warn("Kolom ontbreekt in inschrijvingen, fallback zonder rubriek/volgorde:", error);
+        query = baseFilters(
+          supabase
+            .from("inschrijvingen")
+            .select("id,ruiter,paard,startnummer,klasse,wedstrijd_id"),
+          false
+        );
+        ({ data, error } = await query);
       }
-
-      if (rubriek) {
-        query = query.eq("rubriek", rubriek);
-      }
-
-      const { data, error } = await query;
       console.log("🔍 DATABASE QUERY RESULT:", { 
         wedstrijd_id: wedstrijd, 
         klasse_filter: klasse,
@@ -1556,10 +1599,18 @@ Plak je data hieronder:`);
           const parsed = JSON.parse(stored);
           let filteredRows = parsed;
           if (klasse) {
-            filteredRows = filteredRows.filter(r => normalizeKlasse(r.klasse) === klasse);
+            const klasseCode = normalizeKlasseCode(klasse);
+            if (klasseCode) {
+              filteredRows = filteredRows.filter(r => normalizeKlasseCode(r.klasse) === klasseCode);
+            }
           }
           if (rubriek) {
-            filteredRows = filteredRows.filter(r => r.rubriek === rubriek);
+            const rubriekValue = String(rubriek).trim();
+            if (/^algemeen$/i.test(rubriekValue)) {
+              filteredRows = filteredRows.filter(r => !r.rubriek || String(r.rubriek).trim().toLowerCase() === "algemeen");
+            } else {
+              filteredRows = filteredRows.filter(r => String(r.rubriek || "").trim() === rubriekValue);
+            }
           }
           setRows(filteredRows);
           setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage)`);
@@ -1633,10 +1684,18 @@ Plak je data hieronder:`);
           const parsed = JSON.parse(stored);
           let filteredRows = parsed;
           if (klasse) {
-            filteredRows = filteredRows.filter(r => normalizeKlasse(r.klasse) === klasse);
+            const klasseCode = normalizeKlasseCode(klasse);
+            if (klasseCode) {
+              filteredRows = filteredRows.filter(r => normalizeKlasseCode(r.klasse) === klasseCode);
+            }
           }
           if (rubriek) {
-            filteredRows = filteredRows.filter(r => r.rubriek === rubriek);
+            const rubriekValue = String(rubriek).trim();
+            if (/^algemeen$/i.test(rubriekValue)) {
+              filteredRows = filteredRows.filter(r => !r.rubriek || String(r.rubriek).trim().toLowerCase() === "algemeen");
+            } else {
+              filteredRows = filteredRows.filter(r => String(r.rubriek || "").trim() === rubriekValue);
+            }
           }
           setRows(filteredRows);
           setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage - database niet beschikbaar)`);
@@ -1645,7 +1704,7 @@ Plak je data hieronder:`);
           setRows([]); // Lege lijst bij parse error
         }
       } else {
-        setDbMessage(`⚠️ Geen opgeslagen data gevonden voor deze wedstrijd (database niet beschikbaar)`);
+        setDbMessage(`❌ Database fout bij laden deelnemers: ${errorMsg}`);
         setRows([]); // Lege lijst als er geen data is
       }
     } finally {

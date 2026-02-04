@@ -45,6 +45,7 @@ export default function WedstrijdenBeheer() {
   const [capacitiesMap, setCapacitiesMap] = useState({});
   const [alternatesMap, setAlternatesMap] = useState({});
   const [totaalMaximum, setTotaalMaximum] = useState('');
+  const [wachtlijstEnabled, setWachtlijstEnabled] = useState(false);
   // migration SQL UI removed per user request
 
     
@@ -112,7 +113,9 @@ export default function WedstrijdenBeheer() {
         setJeugdAllowed(cfg.jeugdAllowed || {});
     setOffsetOverridesText(cfg.offsetOverrides ? JSON.stringify(cfg.offsetOverrides, null, 2) : '');
     setCapacitiesMap(cfg.capacities && typeof cfg.capacities === 'object' ? cfg.capacities : {});
-    setAlternatesMap(cfg.alternates && typeof cfg.alternates === 'object' ? cfg.alternates : {});    setTotaalMaximum(cfg.totaalMaximum !== undefined && cfg.totaalMaximum !== null ? String(cfg.totaalMaximum) : '');        // ensure proef-editor default klasse is the first allowed class for this wedstrijd
+    setAlternatesMap(cfg.alternates && typeof cfg.alternates === 'object' ? cfg.alternates : {});    setTotaalMaximum(cfg.totaalMaximum !== undefined && cfg.totaalMaximum !== null ? String(cfg.totaalMaximum) : '');        
+    setWachtlijstEnabled(!!gekozen.wachtlijst_enabled);
+    // ensure proef-editor default klasse is the first allowed class for this wedstrijd
         const allowed = Array.isArray(gekozen.allowed_klassen) && gekozen.allowed_klassen.length ? gekozen.allowed_klassen : (Array.isArray(cfg.allowed_klassen) ? cfg.allowed_klassen : []);
         if (allowed && allowed.length) {
           setCfg(s => ({ ...s, klasse: allowed[0] }));
@@ -178,6 +181,7 @@ export default function WedstrijdenBeheer() {
       const payload = {
         allowed_klassen: allowedKlassen,
         organisator_email: nieuwEmail || null,
+        wachtlijst_enabled: wachtlijstEnabled || false,
           startlijst_config: {
           dressuurStart: startlijstConfig.dressuurStart || null,
           interval: startlijstConfig.interval || 7,
@@ -321,6 +325,23 @@ export default function WedstrijdenBeheer() {
                   onChange={(e) => setTotaalMaximum(e.target.value)}
                   style={{ width: '200px', padding: '8px', borderRadius: 6, border: '1px solid #ddd', marginBottom: 16 }}
                 />
+
+                <div style={{ marginTop: 16, marginBottom: 16 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={wachtlijstEnabled} 
+                      onChange={(e) => setWachtlijstEnabled(e.target.checked)}
+                      style={{ width: 18, height: 18, cursor: 'pointer' }}
+                    />
+                    <div>
+                      <span style={{ fontWeight: 700 }}>Wachtlijst inschakelen</span>
+                      <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+                        Als deze optie is ingeschakeld kunnen mensen zich op een wachtlijst plaatsen wanneer de wedstrijd of een klasse vol is.
+                      </div>
+                    </div>
+                  </label>
+                </div>
 
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Capaciteiten & alternatieven per klasse</div>
                 <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>Voer per klasse het maximaal aantal deelnemers in en (optioneel) een alternatieve wedstrijd.</div>

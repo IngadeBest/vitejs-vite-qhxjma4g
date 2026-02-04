@@ -96,6 +96,8 @@ export default async function handler(req, res) {
     }
 
     // Server-side capacity validation
+    let shouldAutoClose = false;
+    let capacityWarnings = [];
     try {
       const cfg = wedstrijd.startlijst_config && typeof wedstrijd.startlijst_config === 'object' 
         ? wedstrijd.startlijst_config 
@@ -110,10 +112,37 @@ export default async function handler(req, res) {
           .eq('wedstrijd_id', wedstrijd_id);
         
         if (!totaalError && (totaalCount || 0) >= Number(cfg.totaalMaximum)) {
+          // Check if wachtlijst is enabled
+          if (wedstrijd.wachtlijst_enabled) {
+            return res.status(400).json({ 
+              ok: false, 
+              error: 'WEDSTRIJD_VOLZET_WACHTLIJST', 
+              message: `De wedstrijd is volledig volzet (${totaalCount}/${cfg.totaalMaximum} deelnemers). Je kunt je op de wachtlijst plaatsen.`,
+              wachtlijst_enabled: true
+            });
+          }
           return res.status(400).json({ 
             ok: false, 
             error: 'WEDSTRIJD_VOLZET', 
             message: `De wedstrijd is volledig volzet (${totaalCount}/${cfg.totaalMaximum} deelnemers).` 
+          });
+        }
+
+        // Check if we're at 90% capacity (warning threshold)
+        const percentage = (totaalCount / Number(cfg.totaalMaximum)) * 100;
+        if (percentage >= 90 && percentage < 100) {
+          capacityWarnings.push({
+            type: 'totaal_90',
+            message: `Wedstrijd is voor ${Math.round(percentage)}% vol (${totaalCount}/${cfg.totaalMaximum})`
+          });
+        }
+
+        // After this registration, check if we'll hit the limit
+        if ((totaalCount + 1) >= Number(cfg.totaalMaximum)) {
+          shouldAutoClose = true;
+          capacityWarnings.push({
+            type: 'totaal_vol',
+            message: `Wedstrijd is nu VOL (${totaalCount + 1}/${cfg.totaalMaximum})`
           });
         }
       }
@@ -129,10 +158,38 @@ export default async function handler(req, res) {
           .eq('klasse', b.klasse);
         
         if (!error && (count || 0) >= Number(cap)) {
+          // Check if wachtlijst is enabled
+          if (wedstrijd.wachtlijst_enabled) {
+            return res.status(400).json({ 
+              ok: false, 
+              error: 'KLASSE_VOLZET_WACHTLIJST', 
+              message: `De klasse is volzet (${count}/${cap} deelnemers). Je kunt je op de wachtlijst plaatsen.`,
+              wachtlijst_enabled: true
+            });
+          }
           return res.status(400).json({ 
             ok: false, 
             error: 'KLASSE_VOLZET', 
             message: `De klasse is volzet (${count}/${cap} deelnemers).` 
+          });
+        }
+
+        // Check if class is at 90% capacity
+        const classPercentage = (count / Number(cap)) * 100;
+        if (classPercentage >= 90 && classPercentage < 100) {
+          capacityWarnings.push({
+            type: 'klasse_90',
+            klasse: b.klasse,
+            message: `Klasse ${b.klasse} is voor ${Math.round(classPercentage)}% vol (${count}/${cap})`
+          });
+        }
+
+        // After this registration, check if class will be full
+        if ((count + 1) >= Number(cap)) {
+          capacityWarnings.push({
+            type: 'klasse_vol',
+            klasse: b.klasse,
+            message: `Klasse ${b.klasse} is nu VOL (${count + 1}/${cap})`
           });
         }
       }
@@ -181,6 +238,19 @@ export default async function handler(req, res) {
       }
     }
 
+    // Auto-close wedstrijd if capacity reached
+    if (shouldAutoClose && supabaseServer) {
+      try {
+        await supabaseServer
+          .from('wedstrijden')
+          .update({ status: 'gesloten' })
+          .eq('id', wedstrijd_id);
+        console.log(`Wedstrijd ${wedstrijd_id} automatically closed (capacity reached)`);
+      } catch (closeError) {
+        console.error('Failed to auto-close wedstrijd:', closeError);
+      }
+    }
+
     // send notification to organisator (reuse existing endpoint)
     try {
       const base = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '';
@@ -197,6 +267,7 @@ export default async function handler(req, res) {
         omroeper: b.omroeper,
         leeftijd_ruiter: b.leeftijd_ruiter || null,
         geslacht_paard: b.geslacht_paard || null,
+        weh_lid: b.weh_lid || false,
       };
       if (wedstrijd.organisator_email) notifyBody.organisatie_email = wedstrijd.organisator_email;
       await fetch(base + '/api/notifyOrganisator', {
@@ -204,6 +275,21 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(notifyBody),
       }).catch((e) => console.warn('notifyOrganisator forward failed:', e));
+
+      // Send capacity warnings if any
+      if (capacityWarnings.length > 0) {
+        await fetch(base + '/api/notifyOrganisator', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'capacity_warning',
+            wedstrijd_naam: wedstrijd.naam,
+            organisatie_email: wedstrijd.organisator_email,
+            warnings: capacityWarnings,
+            auto_closed: shouldAutoClose,
+          }),
+        }).catch((e) => console.warn('capacity warning notification failed:', e));
+      }
     } catch(e) {
       console.warn('notifyOrganisator error:', e);
     }

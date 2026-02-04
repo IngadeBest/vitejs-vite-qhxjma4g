@@ -49,6 +49,9 @@ export default function PublicInschrijven() {
   const [totaalCapacityLimit, setTotaalCapacityLimit] = useState(null);
   const [totaalCurrentCount, setTotaalCurrentCount] = useState(null);
   const [capacityLoading, setCapacityLoading] = useState(false);
+  const [showWachtlijst, setShowWachtlijst] = useState(false);
+  const [wachtlijstBusy, setWachtlijstBusy] = useState(false);
+  const [wachtlijstDone, setWachtlijstDone] = useState(false);
 
   const gekozenWedstrijd = useMemo(
     () => wedstrijden.find((w) => w.id === form.wedstrijd_id) || null,
@@ -214,6 +217,10 @@ export default function PublicInschrijven() {
       try { json = text ? JSON.parse(text) : {}; } catch (e) { json = { raw: text }; }
       if (!res.ok) {
         const msg = (json && json.message) ? json.message : (json.error || (json.raw ? String(json.raw) : 'Opslaan mislukt'));
+        // Check if wachtlijst is enabled for this error
+        if ((json.error === 'WEDSTRIJD_VOLZET_WACHTLIJST' || json.error === 'KLASSE_VOLZET_WACHTLIJST') && json.wachtlijst_enabled) {
+          setShowWachtlijst(true);
+        }
         throw new Error(`API ${res.status}: ${msg}`);
       }
 
@@ -226,6 +233,65 @@ export default function PublicInschrijven() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onWachtlijstSubmit(e) {
+    e.preventDefault();
+    setWachtlijstBusy(true);
+    setErr("");
+
+    const payload = {
+      wedstrijd_id: form.wedstrijd_id,
+      klasse: form.klasse,
+      weh_lid: form.weh_lid ? true : false,
+      leeftijd_ruiter: form.leeftijd_ruiter ? Number(form.leeftijd_ruiter) : null,
+      geslacht_paard: form.geslacht_paard || null,
+      ruiter: form.ruiter?.trim(),
+      paard: form.paard?.trim(),
+      email: form.email?.trim(),
+      telefoon: form.telefoon?.trim() || null,
+      opmerkingen: form.opmerkingen?.trim() || null,
+      omroeper: form.omroeper?.trim() || null,
+    };
+
+    try {
+      const res = await fetch('/api/wachtlijst', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(payload) 
+      });
+      const json = await res.json().catch(() => ({}));
+      
+      if (!res.ok) {
+        const msg = json.message || json.error || 'Toevoegen aan wachtlijst mislukt';
+        throw new Error(msg);
+      }
+
+      setWachtlijstDone(true);
+    } catch (e) {
+      setErr(e?.message || String(e));
+    } finally {
+      setWachtlijstBusy(false);
+    }
+  }
+
+  if (wachtlijstDone) {
+    return (
+      <Container maxWidth={720}>
+        <Card>
+          <h2>Je staat op de wachtlijst! 📋</h2>
+          <p>
+            Je bent toegevoegd aan de wachtlijst voor <b>{gekozenWedstrijd?.naam}</b> - klasse <b>{form.klasse}</b>.
+          </p>
+          <p>
+            Je ontvangt een e-mail als er een plek vrijkomt. De organisator kan je ook rechtstreeks contacteren.
+          </p>
+          <Button onClick={() => { setWachtlijstDone(false); setShowWachtlijst(false); setForm(f => ({ ...f, wedstrijd_id: "", klasse: "" })); }}>
+            Nieuwe inschrijving
+          </Button>
+        </Card>
+      </Container>
+    );
   }
 
   if (done) {
@@ -372,10 +438,41 @@ export default function PublicInschrijven() {
 
         <div className="full"></div>
         <div className="full" style={{ textAlign: 'right' }}>
-          <Button type="submit" disabled={busy || disabled} aria-busy={busy}>{busy ? "Verzenden..." : "Inschrijven"}</Button>
+          {showWachtlijst ? (
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
+              <Button 
+                type="button" 
+                onClick={() => setShowWachtlijst(false)}
+                style={{ background: '#888' }}
+              >
+                Annuleren
+              </Button>
+              <Button 
+                type="button" 
+                onClick={onWachtlijstSubmit} 
+                disabled={wachtlijstBusy || disabled}
+                style={{ background: '#ff9800' }}
+              >
+                {wachtlijstBusy ? "Bezig..." : "📋 Plaatsen op wachtlijst"}
+              </Button>
+            </div>
+          ) : (
+            <Button type="submit" disabled={busy || disabled} aria-busy={busy}>
+              {busy ? "Verzenden..." : "Inschrijven"}
+            </Button>
+          )}
         </div>
       </form>
     </Card>
+
+    {showWachtlijst && !wachtlijstBusy && (
+      <Alert type="info" style={{ marginTop: 16 }}>
+        <strong>📋 Wachtlijst</strong>
+        <p style={{ marginTop: 8, marginBottom: 0 }}>
+          Deze wedstrijd of klasse is vol. Je kunt je op de wachtlijst plaatsen en wordt gecontacteerd als er een plek vrijkomt.
+        </p>
+      </Alert>
+    )}
       
   {capacityLoading && <div style={{ marginTop: 8, color: '#666' }}>Controleren beschikbare plaatsen…</div>}
 

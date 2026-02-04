@@ -11,6 +11,7 @@ import ProtocolGenerator from "@/features/protocollen/pages/ProtocolGenerator";
 import Einduitslag from "@/features/einduitslag/pages/Einduitslag";
 import Contact from "@/features/public/pages/Contact";
 import WedstrijdenBeheer from "@/features/wedstrijden/pages/WedstrijdenBeheer";
+import WachtlijstBeheer from "@/features/wachtlijst/pages/WachtlijstBeheer";
 import ProefInstellingen from "@/features/proeven/pages/ProefInstellingen";
 import ScoreInvoer from "@/features/scoring/pages/ScoreInvoer";
 
@@ -61,6 +62,7 @@ function InnerApp() {
             <>
               {/* Beheer op app.*: toon Wedstrijden als start en volgorde aanpassen */}
               <NavLink to="/wedstrijden" style={navStyle}>Wedstrijden</NavLink>
+              <NavLink to="/wachtlijst" style={navStyle}>Wachtlijst</NavLink>
               <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
               <NavLink to="/deelnemers" style={navStyle}>Deelnemers</NavLink>
               <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
@@ -91,6 +93,7 @@ function InnerApp() {
   <Route path="/scores" element={<ScoreInvoer />} />
   <Route path="/uitslagen" element={<Einduitslag />} />
   <Route path="/wedstrijden" element={<WedstrijdenBeheer />} />
+  <Route path="/wachtlijst" element={<WachtlijstBeheer />} />
 
         {/* Fallback: on app.* default to wedstrijden, else formulier */}
         <Route path="*" element={<Navigate to={onApp ? "/wedstrijden" : "/formulier"} replace />} />
