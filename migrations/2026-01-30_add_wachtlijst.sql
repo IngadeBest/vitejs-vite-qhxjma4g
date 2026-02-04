@@ -4,7 +4,7 @@
 -- Create wachtlijst table
 CREATE TABLE IF NOT EXISTS wachtlijst (
   id SERIAL PRIMARY KEY,
-  wedstrijd_id INTEGER NOT NULL REFERENCES wedstrijden(id) ON DELETE CASCADE,
+  wedstrijd_id UUID NOT NULL REFERENCES wedstrijden(id) ON DELETE CASCADE,
   klasse VARCHAR(20) NOT NULL,
   ruiter VARCHAR(255) NOT NULL,
   paard VARCHAR(255) NOT NULL,

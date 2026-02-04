@@ -1648,7 +1648,18 @@ Plak je data hieronder:`);
       }));
 
       // Stap 3: Voeg pauzes weer toe op juiste positie
-      const pauses = config.pauses || [];
+      let pauses = config.pauses || [];
+      // Handle both old array format and new object format (per-klasse pauses)
+      if (pauses && typeof pauses === 'object' && !Array.isArray(pauses)) {
+        // New format: object with klasse keys
+        // Use pauses for selected klasse or __default__
+        const klasseKey = klasse || '__default__';
+        pauses = pauses[klasseKey] || pauses['__default__'] || [];
+      }
+      // Ensure pauses is an array
+      if (!Array.isArray(pauses)) {
+        pauses = [];
+      }
       const combined = [...loadedRows];
       
       pauses.forEach(pause => {
