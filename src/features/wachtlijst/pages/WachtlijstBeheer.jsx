@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 import { useWedstrijden } from '@/features/inschrijven/pages/hooks/useWedstrijden';
 import Container from '@/ui/Container';
 import { Card } from '@/ui/card';
@@ -11,6 +12,7 @@ export default function WachtlijstBeheer() {
   const [wachtlijst, setWachtlijst] = useState([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const gekozenWedstrijd = wedstrijden.find(w => w.id === selectedWedstrijdId) || null;
 
@@ -39,6 +41,105 @@ export default function WachtlijstBeheer() {
       setWachtlijst([]);
     }
   }, [selectedWedstrijdId]);
+
+  async function promoteToDeelnemer(item) {
+    if (!confirm(`${item.ruiter} met paard ${item.paard} toevoegen als deelnemer?\n\nLet op: controleer eerst of er nog ruimte is in de wedstrijd/klasse!`)) {
+      return;
+    }
+
+    setBusy(true);
+    setMsg('');
+    try {
+      // Check capaciteit voordat we toevoegen
+      const cfg = gekozenWedstrijd?.startlijst_config || {};
+      
+      // Check totaal capaciteit
+      if (cfg.totaalMaximum) {
+        const { count: totaalCount } = await supabase
+          .from('inschrijvingen')
+          .select('id', { count: 'exact', head: true })
+          .eq('wedstrijd_id', selectedWedstrijdId);
+        
+        if ((totaalCount || 0) >= Number(cfg.totaalMaximum)) {
+          throw new Error(`⚠️ Wedstrijd is nog steeds vol (${totaalCount}/${cfg.totaalMaximum}). Verhoog de limiet eerst in Wedstrijden Beheer.`);
+        }
+      }
+
+      // Check klasse capaciteit
+      if (cfg.capacities && cfg.capacities[item.klasse]) {
+        const { count } = await supabase
+          .from('inschrijvingen')
+          .select('id', { count: 'exact', head: true })
+          .eq('wedstrijd_id', selectedWedstrijdId)
+          .eq('klasse', item.klasse);
+        
+        if ((count || 0) >= Number(cfg.capacities[item.klasse])) {
+          throw new Error(`⚠️ Klasse ${item.klasse} is nog steeds vol (${count}/${cfg.capacities[item.klasse]}). Verhoog de limiet eerst.`);
+        }
+      }
+
+      // Voeg toe als deelnemer
+      const inschrijving = {
+        wedstrijd_id: selectedWedstrijdId,
+        wedstrijd: gekozenWedstrijd?.naam || null,
+        klasse: item.klasse,
+        weh_lid: item.weh_lid || false,
+        ruiter: item.ruiter,
+        paard: item.paard,
+        leeftijd_ruiter: item.leeftijd_ruiter,
+        geslacht_paard: item.geslacht_paard,
+        email: item.email,
+        opmerkingen: item.opmerkingen,
+        omroeper: item.omroeper,
+        rubriek: "Algemeen",
+      };
+
+      const { error: insertError } = await supabase
+        .from('inschrijvingen')
+        .insert(inschrijving);
+
+      if (insertError) throw insertError;
+
+      // Verwijder van wachtlijst
+      await supabase.from('wachtlijst').delete().eq('id', item.id);
+
+      setMsg(`✅ ${item.ruiter} is toegevoegd als deelnemer!`);
+      
+      // Herlaad wachtlijst
+      await loadWachtlijst();
+
+      // TODO: Optioneel - stuur email naar persoon dat er een plek is
+      
+    } catch (e) {
+      setMsg((e?.message || String(e)));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeFromWachtlijst(item) {
+    if (!confirm(`${item.ruiter} definitief verwijderen van de wachtlijst?`)) {
+      return;
+    }
+
+    setBusy(true);
+    setMsg('');
+    try {
+      const { error } = await supabase
+        .from('wachtlijst')
+        .delete()
+        .eq('id', item.id);
+
+      if (error) throw error;
+      
+      setMsg(`✅ ${item.ruiter} is verwijderd van de wachtlijst`);
+      await loadWachtlijst();
+    } catch (e) {
+      setMsg('❌ Fout: ' + (e?.message || String(e)));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // Group wachtlijst by klasse
   const groupedByKlasse = wachtlijst.reduce((acc, item) => {
@@ -114,6 +215,7 @@ export default function WachtlijstBeheer() {
                           <th style={{ padding: 10, textAlign: 'left', fontWeight: 700 }}>Telefoon</th>
                           <th style={{ padding: 10, textAlign: 'center', fontWeight: 700 }}>WEH-lid</th>
                           <th style={{ padding: 10, textAlign: 'left', fontWeight: 700 }}>Opmerkingen</th>
+                          <th style={{ padding: 10, textAlign: 'center', fontWeight: 700, minWidth: 180 }}>Acties</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -135,6 +237,34 @@ export default function WachtlijstBeheer() {
                             </td>
                             <td style={{ padding: 10, fontSize: 13, maxWidth: 200 }}>
                               {item.opmerkingen || '—'}
+                            </td>
+                            <td style={{ padding: 10, textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                                <Button 
+                                  onClick={() => promoteToDeelnemer(item)}
+                                  disabled={busy}
+                                  style={{ 
+                                    padding: '6px 12px', 
+                                    fontSize: 13, 
+                                    background: '#4caf50',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  ✓ Toevoegen
+                                </Button>
+                                <Button 
+                                  onClick={() => removeFromWachtlijst(item)}
+                                  disabled={busy}
+                                  style={{ 
+                                    padding: '6px 12px', 
+                                    fontSize: 13, 
+                                    background: '#f44336',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  ✗ Verwijder
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}

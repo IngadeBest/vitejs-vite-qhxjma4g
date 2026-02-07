@@ -1626,11 +1626,27 @@ Plak je data hieronder:`);
         }
       }
 
-      // Sorteer op volgorde indien aanwezig
+      // Sorteer op klasse (alfabetisch) en binnen klasse op tijdstip inschrijving (created_at)
       const sortedData = (data || []).sort((a, b) => {
+        // Eerst sorteren op klasse
+        const klasseA = normalizeKlasse(a.klasse || '');
+        const klasseB = normalizeKlasse(b.klasse || '');
+        if (klasseA !== klasseB) {
+          return klasseA.localeCompare(klasseB);
+        }
+        
+        // Binnen dezelfde klasse: sorteer op created_at (tijdstip inschrijving)
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (timeA !== timeB) {
+          return timeA - timeB; // Oudste eerst (eerste inschrijving eerst)
+        }
+        
+        // Als volgorde veld bestaat, gebruik dat als laatste fallback
         if (a.volgorde !== undefined && b.volgorde !== undefined) {
           return a.volgorde - b.volgorde;
         }
+        
         return 0; // behoud huidige volgorde
       });
 

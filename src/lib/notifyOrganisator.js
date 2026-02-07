@@ -6,7 +6,6 @@ export async function notifyOrganisator(payload) {
       body: JSON.stringify({
         wedstrijd_id: payload?.inschrijving?.wedstrijd_id || payload?.wedstrijd?.id || null,
         wedstrijd_naam: payload?.wedstrijd?.naam || null,
-        organisator_email: payload?.wedstrijd?.organisator_email || null,
         ...payload?.inschrijving,
       }),
     });

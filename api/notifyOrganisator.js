@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { createClient } from '@supabase/supabase-js';
 
 function bool(v, d=false){ if(v===undefined) return d; const s=String(v).trim().toLowerCase(); return s==='1'||s==='true'; }
 
@@ -9,6 +10,13 @@ const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || `WE Inschrijvingen <no-reply@workingpoint.nl>`;
 const ORGANISATOR_EMAIL_DEFAULT = process.env.ORGANISATOR_EMAIL_DEFAULT || '';
 const SMTP_TLS_REJECT_UNAUTH = bool(process.env.SMTP_TLS_REJECT_UNAUTH, true);
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+
+const supabaseServer = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  : null;
 
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
@@ -39,12 +47,33 @@ export default async function handler(req, res) {
     }
 
     const b = req.body || {};
-  const to = (b.organistor_email || b.organisateur_email || b.organizer_email || b.organisatie_email || b.organisator_email || b.organisatie_email || ORGANISATOR_EMAIL_DEFAULT || '').trim();
-  const wedstrijdNaam = b.wedstrijd_naam || b.wedstrijd || 'Wedstrijd';
+    const wedstrijdId = b.wedstrijd_id || b.wedstrijdId || null;
+    const wedstrijdNaamFallback = b.wedstrijd_naam || b.wedstrijd || 'Wedstrijd';
     const notificationType = b.type || 'nieuwe_inschrijving';
 
+    if (!wedstrijdId) {
+      return res.status(400).json({ ok: false, error: 'NO_WEDSTRIJD_ID', message: 'wedstrijd_id is required.' });
+    }
+
+    if (!supabaseServer) {
+      return res.status(500).json({ ok: false, error: 'NO_SUPABASE_SERVER', message: 'Server credentials not configured.' });
+    }
+
+    const { data: wedstrijd, error: wErr } = await supabaseServer
+      .from('wedstrijden')
+      .select('naam, organisator_email')
+      .eq('id', wedstrijdId)
+      .single();
+
+    if (wErr || !wedstrijd) {
+      return res.status(404).json({ ok: false, error: 'WEDSTRIJD_NOT_FOUND' });
+    }
+
+    const to = (wedstrijd.organisator_email || ORGANISATOR_EMAIL_DEFAULT || '').trim();
+    const wedstrijdNaam = wedstrijd.naam || wedstrijdNaamFallback;
+
     if (!to) {
-      return res.status(400).json({ ok: false, error: 'NO_TO', message: 'No organisator email configured or provided.' });
+      return res.status(400).json({ ok: false, error: 'NO_TO', message: 'No organisator email configured.' });
     }
 
     try { await transporter.verify(); }

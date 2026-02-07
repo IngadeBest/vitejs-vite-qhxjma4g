@@ -117,8 +117,8 @@ async function handleWachtlijstAdd(req, res) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'wachtlijst',
+          wedstrijd_id,
           wedstrijd_naam: wedstrijd.naam,
-          organisatie_email: wedstrijd.organisator_email,
           klasse: b.klasse,
           ruiter: b.ruiter,
           paard: b.paard,
