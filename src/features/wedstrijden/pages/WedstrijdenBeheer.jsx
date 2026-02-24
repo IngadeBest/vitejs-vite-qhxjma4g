@@ -47,6 +47,7 @@ export default function WedstrijdenBeheer() {
   const [totaalMaximum, setTotaalMaximum] = useState('');
   const [wachtlijstEnabled, setWachtlijstEnabled] = useState(false);
   const [deleteRelated, setDeleteRelated] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState("open");
   // migration SQL UI removed per user request
 
     
@@ -156,6 +157,7 @@ export default function WedstrijdenBeheer() {
     if (!gekozen) {
       setAllowedKlassen([]);
         setStartlijstConfig({ dressuurStart: '', interval: 7, stijltrailStart: '', pauses: [] });
+      setSelectedStatus("open");
       // keep the new-form collapsed when no selection
       setShowNew(false);
       return;
@@ -164,6 +166,7 @@ export default function WedstrijdenBeheer() {
   setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
     // populate organisator email if present
     setNieuwEmail(gekozen.organisator_email || "");
+    setSelectedStatus(gekozen.status || "open");
     // load startlijst_config if present
     try {
       const cfg = (gekozen.startlijst_config && typeof gekozen.startlijst_config === 'object') ? gekozen.startlijst_config : (gekozen.startlijst_config ? JSON.parse(gekozen.startlijst_config) : null);
@@ -254,6 +257,7 @@ export default function WedstrijdenBeheer() {
       const payload = {
         allowed_klassen: allowedKlassen,
         organisator_email: nieuwEmail || null,
+        status: selectedStatus || "open",
         wachtlijst_enabled: wachtlijstEnabled || false,
           startlijst_config: {
           dressuurStart: startlijstConfig.dressuurStart || null,
@@ -347,6 +351,18 @@ export default function WedstrijdenBeheer() {
                     onChange={(e)=>setNieuwEmail(e.target.value)}
                     style={{padding:6, borderRadius:6, border:'1px solid #ddd', width:'100%'}}
                   />
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <label style={{display:'block', fontSize:13, fontWeight:600, marginBottom:6}}>Status</label>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    style={{padding:6, borderRadius:6, border:'1px solid #ddd', width:'100%'}}
+                  >
+                    <option value="open">open</option>
+                    <option value="gesloten">gesloten</option>
+                    <option value="archief">archief</option>
+                  </select>
                 </div>
                 <div style={{ marginTop: 10 }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
