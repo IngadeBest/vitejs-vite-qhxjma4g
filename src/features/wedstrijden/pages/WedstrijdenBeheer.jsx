@@ -124,11 +124,15 @@ export default function WedstrijdenBeheer() {
         if (wachtlijstErr) throw wachtlijstErr;
       }
 
-      const { error: delErr } = await supabase
+      const { data: deletedRows, error: delErr } = await supabase
         .from("wedstrijden")
         .delete()
-        .eq("id", gekozen.id);
+        .eq("id", gekozen.id)
+        .select("id");
       if (delErr) throw delErr;
+      if (!deletedRows || deletedRows.length === 0) {
+        throw new Error("Geen rijen verwijderd. Controleer RLS/policies of je Supabase-omgeving.");
+      }
 
       setSelectedId("");
       setMsg("Wedstrijd verwijderd ✔️");
