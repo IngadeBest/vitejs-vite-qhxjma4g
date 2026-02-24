@@ -46,6 +46,7 @@ export default function WedstrijdenBeheer() {
   const [alternatesMap, setAlternatesMap] = useState({});
   const [totaalMaximum, setTotaalMaximum] = useState('');
   const [wachtlijstEnabled, setWachtlijstEnabled] = useState(false);
+  const [deleteRelated, setDeleteRelated] = useState(false);
   // migration SQL UI removed per user request
 
     
@@ -66,6 +67,74 @@ export default function WedstrijdenBeheer() {
       setSelectedId(data.id);
     } catch (e) {
       setMsg("Fout: " + (e?.message || String(e)));
+    }
+  }
+
+  async function deleteWedstrijd() {
+    if (!gekozen) return;
+    const confirmed = window.confirm(
+      `Weet je zeker dat je de wedstrijd "${gekozen.naam}" wilt verwijderen?${
+        deleteRelated ? "\n\nOok alle inschrijvingen, proeven en wachtlijstitems worden verwijderd." : ""
+      }`
+    );
+    if (!confirmed) return;
+
+    setMsg("");
+    try {
+      if (deleteRelated) {
+        const { data: proevenData, error: proevenErr } = await supabase
+          .from("proeven")
+          .select("id")
+          .eq("wedstrijd_id", gekozen.id);
+        if (proevenErr) throw proevenErr;
+
+        const proefIds = (proevenData || []).map((p) => p.id).filter(Boolean);
+        if (proefIds.length) {
+          const { error: itemsErr } = await supabase
+            .from("proeven_items")
+            .delete()
+            .in("proef_id", proefIds);
+          if (itemsErr) throw itemsErr;
+
+          const { error: scoresErr } = await supabase
+            .from("scores")
+            .delete()
+            .in("proef_id", proefIds);
+          if (scoresErr && !/relation .*scores.* does not exist/i.test(String(scoresErr.message || scoresErr))) {
+            throw scoresErr;
+          }
+        }
+
+        const { error: proevenDelErr } = await supabase
+          .from("proeven")
+          .delete()
+          .eq("wedstrijd_id", gekozen.id);
+        if (proevenDelErr) throw proevenDelErr;
+
+        const { error: inschrijvingenErr } = await supabase
+          .from("inschrijvingen")
+          .delete()
+          .eq("wedstrijd_id", gekozen.id);
+        if (inschrijvingenErr) throw inschrijvingenErr;
+
+        const { error: wachtlijstErr } = await supabase
+          .from("wachtlijst")
+          .delete()
+          .eq("wedstrijd_id", gekozen.id);
+        if (wachtlijstErr) throw wachtlijstErr;
+      }
+
+      const { error: delErr } = await supabase
+        .from("wedstrijden")
+        .delete()
+        .eq("id", gekozen.id);
+      if (delErr) throw delErr;
+
+      setSelectedId("");
+      setMsg("Wedstrijd verwijderd ✔️");
+      window.dispatchEvent(new Event("wedstrijden:refresh"));
+    } catch (e) {
+      setMsg("Verwijderen mislukt: " + (e?.message || String(e)));
     }
   }
 
@@ -274,6 +343,21 @@ export default function WedstrijdenBeheer() {
                     onChange={(e)=>setNieuwEmail(e.target.value)}
                     style={{padding:6, borderRadius:6, border:'1px solid #ddd', width:'100%'}}
                   />
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={deleteRelated}
+                      onChange={(e) => setDeleteRelated(e.target.checked)}
+                    />
+                    <span>Ook inschrijvingen, proeven en wachtlijst verwijderen</span>
+                  </label>
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <button onClick={deleteWedstrijd} disabled={!gekozen} style={{ background: "#d14343", color: "#fff" }}>
+                    Verwijder wedstrijd
+                  </button>
                 </div>
               </div>
             )}
