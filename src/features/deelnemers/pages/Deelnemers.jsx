@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Container from "@/ui/Container";
 
 // Inschrijfgeld tarieven (in euros)
-const TARIEVEN = {
+const DEFAULT_TARIEVEN = {
   base: {
     standaard: 45.0,
     weh_korting: 2.50  // WEH leden krijgen €2.50 korting
@@ -16,19 +16,21 @@ const TARIEVEN = {
   }
 };
 
+const TARIEVEN_STORAGE_KEY = "deelnemers_tarieven_v1";
+
 // Helper functie voor inschrijfgeld berekening
-const berekenInschrijfgeld = (deelnemer, stalToewijzingen) => {
+const berekenInschrijfgeld = (deelnemer, stalToewijzingen, tarieven) => {
   const { weh_lid } = deelnemer;
   
   // Basis tarief: €45, WEH leden krijgen €2.50 korting
-  let totaal = TARIEVEN.base.standaard;
+  let totaal = tarieven.base.standaard;
   if (weh_lid) {
-    totaal -= TARIEVEN.base.weh_korting; // €45 - €2.50 = €42.50
+    totaal -= tarieven.base.weh_korting; // €45 - €2.50 = €42.50
   }
   
   // Stal kosten - check stal toewijzing
   if (stalToewijzingen && stalToewijzingen[deelnemer.id]) {
-    totaal += TARIEVEN.stal.per_dag; // Default per dag, kan later uitgebreid worden
+    totaal += tarieven.stal.per_dag; // Default per dag, kan later uitgebreid worden
   }
   
   return totaal;
@@ -46,6 +48,29 @@ const formatOmroeper = (deelnemer) => {
   return `${ruiter || 'Ruiter'} met ${paard || 'paard'}`;
 };
 
+const loadTarieven = (wedstrijdId) => {
+  try {
+    const raw = localStorage.getItem(TARIEVEN_STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return data[wedstrijdId] || null;
+  } catch (err) {
+    console.warn("Kon tarieven niet laden", err);
+    return null;
+  }
+};
+
+const persistTarieven = (wedstrijdId, tarieven) => {
+  try {
+    const raw = localStorage.getItem(TARIEVEN_STORAGE_KEY);
+    const data = raw ? JSON.parse(raw) : {};
+    data[wedstrijdId] = tarieven;
+    localStorage.setItem(TARIEVEN_STORAGE_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.warn("Kon tarieven niet opslaan", err);
+  }
+};
+
 export default function Deelnemers() {
   const { items: wedstrijden, loading: wedstrijdenLoading } = useWedstrijden();
   const [wedstrijd, setWedstrijd] = useState(null);
@@ -55,17 +80,32 @@ export default function Deelnemers() {
   const [filterKlasse, setFilterKlasse] = useState("");
   const [filterWehLid, setFilterWehLid] = useState("");
   const [filterStal, setFilterStal] = useState("");
+  const [zoekterm, setZoekterm] = useState("");
   const [stalToewijzingen, setStalToewijzingen] = useState({});
+  const [tarieven, setTarieven] = useState(DEFAULT_TARIEVEN);
 
   // Load deelnemers when wedstrijd changes
   useEffect(() => {
     if (!wedstrijd) {
       setDeelnemers([]);
+      setTarieven(DEFAULT_TARIEVEN);
       return;
     }
 
     loadDeelnemers();
   }, [wedstrijd]);
+
+  useEffect(() => {
+    if (!wedstrijd) return;
+
+    const stored = loadTarieven(wedstrijd.id);
+    setTarieven(stored || DEFAULT_TARIEVEN);
+  }, [wedstrijd]);
+
+  useEffect(() => {
+    if (!wedstrijd) return;
+    persistTarieven(wedstrijd.id, tarieven);
+  }, [wedstrijd, tarieven]);
 
   const loadDeelnemers = async () => {
     setLoading(true);
@@ -92,8 +132,6 @@ export default function Deelnemers() {
         .order('created_at', { ascending: true });
       
       if (error) throw error;
-      
-      console.log('Loaded deelnemers data:', data?.slice(0, 2)); // Debug eerste 2 records
       setDeelnemers(data || []);
     } catch (err) {
       console.error('Fout bij laden deelnemers:', err);
@@ -105,6 +143,23 @@ export default function Deelnemers() {
 
   // Filter deelnemers
   const gefilterde = deelnemers.filter(d => {
+    const term = zoekterm.trim().toLowerCase();
+    if (term) {
+      const haystack = [
+        d.ruiter,
+        d.paard,
+        d.klasse,
+        d.email,
+        d.telefoon,
+        d.omroeper,
+        d.opmerkingen
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      if (!haystack.includes(term)) return false;
+    }
     if (filterKlasse && d.klasse !== filterKlasse) return false;
     if (filterWehLid === 'ja' && !d.weh_lid) return false;
     if (filterWehLid === 'nee' && d.weh_lid) return false;
@@ -118,7 +173,7 @@ export default function Deelnemers() {
     totaal: gefilterde.length,
     wehLeden: gefilterde.filter(d => d.weh_lid).length,
     stalVerzoeken: gefilterde.filter(d => stalToewijzingen[d.id]).length,
-    totaalInschrijfgeld: gefilterde.reduce((sum, d) => sum + berekenInschrijfgeld(d, stalToewijzingen), 0),
+    totaalInschrijfgeld: gefilterde.reduce((sum, d) => sum + berekenInschrijfgeld(d, stalToewijzingen, tarieven), 0),
   };
 
   // Unieke klassen voor filter
@@ -180,6 +235,81 @@ export default function Deelnemers() {
         </div>
 
         {wedstrijd && (
+          <div className="bg-white rounded-lg border p-4 mb-6">
+            <h2 className="text-lg font-semibold mb-3">Tarieven per wedstrijd</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Standaard</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={tarieven.base.standaard}
+                  onChange={(e) =>
+                    setTarieven(prev => ({
+                      ...prev,
+                      base: { ...prev.base, standaard: Number(e.target.value) }
+                    }))
+                  }
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">WEH korting</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={tarieven.base.weh_korting}
+                  onChange={(e) =>
+                    setTarieven(prev => ({
+                      ...prev,
+                      base: { ...prev.base, weh_korting: Number(e.target.value) }
+                    }))
+                  }
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Stal per dag</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={tarieven.stal.per_dag}
+                  onChange={(e) =>
+                    setTarieven(prev => ({
+                      ...prev,
+                      stal: { ...prev.stal, per_dag: Number(e.target.value) }
+                    }))
+                  }
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Stal per nacht</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={tarieven.stal.per_nacht}
+                  onChange={(e) =>
+                    setTarieven(prev => ({
+                      ...prev,
+                      stal: { ...prev.stal, per_nacht: Number(e.target.value) }
+                    }))
+                  }
+                  className="w-full border rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Tarieven worden lokaal opgeslagen per wedstrijd.
+            </p>
+          </div>
+        )}
+
+        {wedstrijd && (
           <>
             {/* Statistieken */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -204,7 +334,17 @@ export default function Deelnemers() {
             {/* Filters */}
             <div className="bg-white rounded-lg border p-4 mb-6">
               <h3 className="text-lg font-semibold mb-3">Filters</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Zoeken</label>
+                  <input
+                    type="text"
+                    value={zoekterm}
+                    onChange={(e) => setZoekterm(e.target.value)}
+                    placeholder="Ruiter, paard, email, tel..."
+                    className="w-full border rounded px-3 py-2 text-sm"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Klasse</label>
                   <select
@@ -287,7 +427,7 @@ export default function Deelnemers() {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Inschrijfgeld</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Omroeper</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Opmerkingen</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -355,10 +495,10 @@ export default function Deelnemers() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="font-medium text-gray-900">
-                                €{berekenInschrijfgeld(deelnemer, stalToewijzingen).toFixed(2)}
+                                €{berekenInschrijfgeld(deelnemer, stalToewijzingen, tarieven).toFixed(2)}
                               </div>
                               <div className="text-xs text-gray-500">
-                                Basis: €{TARIEVEN.base.standaard}{deelnemer.weh_lid ? ` - €${TARIEVEN.base.weh_korting} (WEH)` : ''}
+                                Basis: €{tarieven.base.standaard}{deelnemer.weh_lid ? ` - €${tarieven.base.weh_korting} (WEH)` : ''}
                                 {stalToewijzingen[deelnemer.id] && ' + stal'}
                               </div>
                             </td>
@@ -377,7 +517,16 @@ export default function Deelnemers() {
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              <div className="text-sm text-gray-900">{deelnemer.email}</div>
+                              {deelnemer.email ? (
+                                <a
+                                  href={`mailto:${deelnemer.email}`}
+                                  className="text-sm text-blue-700 hover:underline"
+                                >
+                                  {deelnemer.email}
+                                </a>
+                              ) : (
+                                <span className="text-gray-400 text-sm">Geen email</span>
+                              )}
                               {deelnemer.telefoon && (
                                 <div className="text-xs text-gray-500">{deelnemer.telefoon}</div>
                               )}
@@ -397,13 +546,13 @@ export default function Deelnemers() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <div className="font-medium text-blue-800">Inschrijfgeld:</div>
-                  <div className="text-blue-700">Standaard: €{TARIEVEN.base.standaard}</div>
-                  <div className="text-blue-700">WEH leden: €{TARIEVEN.base.standaard - TARIEVEN.base.weh_korting} (korting: €{TARIEVEN.base.weh_korting})</div>
+                  <div className="text-blue-700">Standaard: €{tarieven.base.standaard}</div>
+                  <div className="text-blue-700">WEH leden: €{tarieven.base.standaard - tarieven.base.weh_korting} (korting: €{tarieven.base.weh_korting})</div>
                 </div>
                 <div>
                   <div className="font-medium text-blue-800">Stal kosten:</div>
-                  <div className="text-blue-700">Per dag: €{TARIEVEN.stal.per_dag}</div>
-                  <div className="text-blue-700">Per nacht: €{TARIEVEN.stal.per_nacht}</div>
+                  <div className="text-blue-700">Per dag: €{tarieven.stal.per_dag}</div>
+                  <div className="text-blue-700">Per nacht: €{tarieven.stal.per_nacht}</div>
                 </div>
               </div>
             </div>
