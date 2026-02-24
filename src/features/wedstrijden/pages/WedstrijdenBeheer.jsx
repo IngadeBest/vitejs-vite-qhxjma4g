@@ -341,7 +341,7 @@ export default function WedstrijdenBeheer() {
             {gekozen && (
               <div style={{ marginTop: 12, fontSize: 13, color: '#444' }}>
                 <div><b>{gekozen.naam}</b></div>
-                <div style={{ marginTop: 6 }}><b>Datum:</b> {gekozen.datum || "—"} · <b>Status:</b> {gekozen.status}</div>
+                <div style={{ marginTop: 6 }}><b>Datum:</b> {gekozen.datum || "—"}</div>
                 <div style={{ marginTop:8 }}>
                   <label style={{display:'block', fontSize:13, fontWeight:600, marginBottom:6}}>Organisator e-mail</label>
                   <input
