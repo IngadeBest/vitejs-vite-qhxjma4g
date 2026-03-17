@@ -31,9 +31,10 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauze
     const id = row.id || index;
     
     if (row.type === 'break') {
-      // Voor pauzes: voeg pauzetijd toe aan beide tijden
-      currentDressuurTime = addMinutes(currentDressuurTime, pauzeMinuten);
-      currentTrailTime = addMinutes(currentTrailTime, pauzeMinuten);
+      // Voor pauzes: gebruik eerst rij-specifieke duur, anders globale pauzetijd
+      const breakDuration = Number(row.duration) || Number(pauzeMinuten) || 0;
+      currentDressuurTime = addMinutes(currentDressuurTime, breakDuration);
+      currentTrailTime = addMinutes(currentTrailTime, breakDuration);
       times[id] = {
         dressuur: '',
         trail: '',
@@ -77,11 +78,12 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeM
     
     if (row.type === 'break') {
       // Voor pauzes: voeg pauzetijd toe aan lopende tijden
+      const breakDuration = Number(row.duration) || Number(pauzeMinuten) || 0;
       if (currentDressuurTime) {
-        currentDressuurTime = addMinutes(currentDressuurTime, pauzeMinuten);
+        currentDressuurTime = addMinutes(currentDressuurTime, breakDuration);
       }
       if (currentTrailTime) {
-        currentTrailTime = addMinutes(currentTrailTime, pauzeMinuten);
+        currentTrailTime = addMinutes(currentTrailTime, breakDuration);
       }
       times[id] = {
         dressuur: '',
@@ -2196,6 +2198,10 @@ Plak je data hieronder:`);
                     let currentKlasse = null;
                     let klasseItemNumber = 0;
                     const seenKlasses = new Set(); // Track which class headers we've shown
+                    const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
+                    const calculatedTimes = hasKlasseStartTimes
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
                     
                     return filtered.map((row, index) => {
                       // Ensure every row has a valid ID
@@ -2217,11 +2223,6 @@ Plak je data hieronder:`);
                         klasseItemNumber++;
                       }
 
-                      // Gebruik per-klasse starttijden als deze ingesteld zijn, anders gebruik algemene tijden
-                      const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
-                      const calculatedTimes = hasKlasseStartTimes 
-                        ? calculateStartTimesPerClass(rows, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
-                        : calculateStartTimes(rows, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
                       const times = calculatedTimes[row.id || index] || {};
 
                       return (
