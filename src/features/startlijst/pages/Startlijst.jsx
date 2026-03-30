@@ -208,22 +208,6 @@ const normalizeKlasseCode = (input) => {
   return klasseCodeMap[stripped] || stripped;
 };
 
-// TEMP RENAMED TO AVOID CONFLICT
-const getStartnummerBase_OLD = (klasse) => {
-  const normalized = normalizeKlasse(klasse);
-  switch (normalized.toLowerCase()) {
-    case 'we0': return 1;
-    case 'we1': return 101;
-    case 'we2': return 201;
-    case 'we3': return 301;
-    case 'we4': return 401;
-    case 'junioren': return 501;
-    case 'young riders': return 601;
-    case 'we2+': return 701;
-    default: return 1;
-  }
-};
-
 // Groepeer rows per klasse
 const groupRowsByClass = (rows) => {
   const entries = rows.filter(r => r.type === 'entry');
@@ -262,46 +246,6 @@ const autoAssignStartnumbers = (rows) => {
   });
 };
 
-// TEMP RENAMED TO AVOID CONFLICT
-const normalizeKlasse_OLD = (input) => {
-  if (!input || typeof input !== 'string') return '';
-  
-  const clean = input.trim().toLowerCase();
-  
-  // Map common variations to standard names
-  const klasseMap = {
-    'we0': 'WE0',
-    'we 0': 'WE0', 
-    'we-0': 'WE0',
-    'introductieklasse': 'WE0',
-    'we1': 'WE1',
-    'we 1': 'WE1',
-    'we-1': 'WE1', 
-    'we2': 'WE2',
-    'we 2': 'WE2',
-    'we-2': 'WE2',
-    'we2+': 'WE2+',
-    'we 2+': 'WE2+',
-    'we-2+': 'WE2+',
-    'we2plus': 'WE2+',
-    'we3': 'WE3',
-    'we 3': 'WE3',
-    'we-3': 'WE3',
-    'we4': 'WE4',
-    'we 4': 'WE4', 
-    'we-4': 'WE4',
-    'junior': 'Junioren',
-    'junioren': 'Junioren',
-    'juniors': 'Junioren',
-    'young rider': 'Young Riders',
-    'young riders': 'Young Riders',
-    'yr': 'Young Riders',
-    'y.r.': 'Young Riders'
-  };
-  
-  return klasseMap[clean] || input.trim();
-};
-
 // Startnummer mapping per klasse
 const getStartnummerBase = (klasse) => {
   const normalizedKlasse = normalizeKlasse(klasse);
@@ -316,49 +260,6 @@ const getStartnummerBase = (klasse) => {
     case 'we2+': return 701;
     default: return 1; // fallback
   }
-};
-
-// TEMP RENAMED TO AVOID CONFLICT
-const groupRowsByClass_OLD = (rows) => {
-  const entries = rows.filter(r => r.type === 'entry');
-  const breaks = rows.filter(r => r.type === 'break');
-  
-  // Groepeer entries per klasse
-  const classGroups = {};
-  entries.forEach(entry => {
-    const klasse = normalizeKlasse(entry.klasse || '');
-    if (!classGroups[klasse]) {
-      classGroups[klasse] = [];
-    }
-    classGroups[klasse].push(entry);
-  });
-  
-  return { classGroups, breaks };
-};
-
-// TEMP RENAMED TO AVOID CONFLICT  
-const autoAssignStartnumbers_OLD2 = (rows) => {
-  const classCounts = {};
-  
-  return rows.map(row => {
-    if (row.type === 'break') return row;
-    
-    const klasse = normalizeKlasse(row.klasse || '');
-    if (!klasse) return row;
-    
-    if (!classCounts[klasse]) {
-      classCounts[klasse] = 0;
-    }
-    classCounts[klasse]++;
-    
-    const base = getStartnummerBase(klasse);
-    const nummer = base + classCounts[klasse] - 1;
-    
-    return {
-      ...row,
-      startnummer: nummer.toString().padStart(3, '0')
-    };
-  });
 };
 
 function parseCSV(text) {
@@ -489,8 +390,10 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   rows.forEach((r, i) => {
     if (r.type === "break") {
       // Pauze regel - gebruik array syntax met colspan via styles
+      const pauseLabel = r.label || "Pauze";
+      const pauseMinutes = r.duration || 0;
       body.push([
-        { content: `Pauze: ${r.duration || 0} minuten`, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
+        { content: `Pauze: ${pauseLabel} (${pauseMinutes} minuten)`, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
       ]);
     } else {
       // Voeg klasse header toe als nieuwe klasse
@@ -1846,26 +1749,6 @@ Plak je data hieronder:`);
           </div>
         </div>
 
-        {/* DEBUG INFO - Actieve filters */}
-        {wedstrijd && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
-            <div className="flex items-center gap-4 text-sm">
-              <span className="font-semibold text-yellow-900">🔍 Actief:</span>
-              <span className="text-yellow-800">
-                Wedstrijd: <strong>{wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd.slice(0, 8)}</strong>
-              </span>
-              {klasse && (
-                <span className="text-yellow-800">
-                  | Klasse filter: <strong>{klasse}</strong>
-                </span>
-              )}
-              <span className="text-yellow-800">
-                | Geladen: <strong>{rows.length} items</strong> ({rows.filter(r => r.type === 'entry').length} deelnemers)
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* Startnummer Configuratie (vereenvoudigd) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -2111,55 +1994,35 @@ Plak je data hieronder:`);
             </div>
           )}
 
-          {/* Migration helper when no data found */}
-          {wedstrijd && rows.length === 0 && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-              <p className="text-sm text-yellow-800 mb-2">
-                Geen deelnemers gevonden voor deze wedstrijd.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                  onClick={copyFromOtherWedstrijd}
-                >
-                  Kopieer van andere wedstrijd
-                </button>
-                <button
-                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                  onClick={addEmptyRow}
-                >
-                  Voeg handmatig toe
-                </button>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">Pauze toevoegen</h2>
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-600 mb-1">Pauze titel</label>
+                <input
+                  className="border rounded px-2 py-1"
+                  placeholder="Bijv. Koffiepauze"
+                  value={pauseLabel}
+                  onChange={(e) => setPauseLabel(e.target.value)}
+                />
               </div>
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-600 mb-1">Minuten</label>
+                <input
+                  className="border rounded px-2 py-1 w-24"
+                  type="number"
+                  min={1}
+                  value={pauseMin}
+                  onChange={(e) => setPauseMin(e.target.value)}
+                />
+              </div>
+              <button
+                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded font-medium transition-colors"
+                onClick={addPauseAtEnd}
+              >
+                🍕 Pauze toevoegen
+              </button>
             </div>
-          )}
-
-          <div className="flex items-end gap-2 mb-4">
-            <div className="flex flex-col">
-              <label className="text-sm text-gray-600">Pauze titel</label>
-              <input
-                className="border rounded px-2 py-1"
-                placeholder="Bijv. Koffiepauze"
-                value={pauseLabel}
-                onChange={(e) => setPauseLabel(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col">
-              <label className="text-sm text-gray-600">Minuten</label>
-              <input
-                className="border rounded px-2 py-1 w-24"
-                type="number"
-                min={1}
-                value={pauseMin}
-                onChange={(e) => setPauseMin(e.target.value)}
-              />
-            </div>
-            <button
-              className="px-3 py-2 border rounded"
-              onClick={addPauseAtEnd}
-            >
-              + Pauze toevoegen
-            </button>
           </div>
 
           {/* Eenvoudige bewerkingstabel - alle deelnemers op volgorde */}
