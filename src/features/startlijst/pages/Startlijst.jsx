@@ -392,8 +392,11 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
       // Pauze regel - gebruik array syntax met colspan via styles
       const pauseLabel = r.label || "Pauze";
       const pauseMinutes = r.duration || 0;
+      const pauseText = pauseLabel.toLowerCase() === "pauze"
+        ? `Pauze: ${pauseMinutes} minuten`
+        : `${pauseLabel}: ${pauseMinutes} minuten`;
       body.push([
-        { content: `Pauze: ${pauseLabel} (${pauseMinutes} minuten)`, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
+        { content: pauseText, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
       ]);
     } else {
       // Voeg klasse header toe als nieuwe klasse
