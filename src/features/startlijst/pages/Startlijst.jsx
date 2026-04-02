@@ -1309,36 +1309,85 @@ Plak je data hieronder:`);
         // Ga door - dit is niet kritisch
       }
       
-      // Stap 2: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
-      const { error: deleteError } = await supabase
+      // Stap 2: Upsert deelnemers, behoud extra velden (email/omroeper/etc.)
+      const { data: existingIds, error: existingError } = await supabase
         .from('inschrijvingen')
-        .delete()
+        .select('id')
         .eq('wedstrijd_id', wedstrijd);
-      
-      if (deleteError) {
-        console.error("Database delete error:", deleteError);
-        throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
+
+      if (existingError) {
+        console.error("Database fetch error:", existingError);
+        throw new Error(`Database fout bij ophalen: ${existingError.message || JSON.stringify(existingError)}`);
       }
 
-      // Stap 3: Voeg alle huidige entries toe MET volgorde
-      const entriesToInsert = entries.map((row, idx) => ({
+      const existingIdSet = new Set((existingIds || []).map(r => r.id));
+      const keepIdSet = new Set(entries.map(r => r.dbId).filter(Boolean));
+      const idsToDelete = Array.from(existingIdSet).filter(id => !keepIdSet.has(id));
+
+      if (idsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('inschrijvingen')
+          .delete()
+          .in('id', idsToDelete);
+
+        if (deleteError) {
+          console.error("Database delete error:", deleteError);
+          throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
+        }
+      }
+
+      const normalizePayload = (row) => ({
         wedstrijd_id: wedstrijd,
         ruiter: row.ruiter.trim(),
         paard: row.paard ? row.paard.trim() : null,
         startnummer: row.startnummer || null,
         klasse: normalizeKlasse(row.klasse),
-        rubriek: row.rubriek || 'Algemeen', // Gebruik rubriek van elke individuele row
-        volgorde: rows.indexOf(row) // bewaar originele positie
-      }));
+        rubriek: row.rubriek || 'Algemeen',
+        volgorde: rows.indexOf(row)
+      });
 
-      const { error: insertError } = await supabase
-        .from('inschrijvingen')
-        .insert(entriesToInsert);
-      
-      if (insertError) {
-        console.error("Database insert error:", insertError);
-        throw new Error(`Database fout bij invoegen: ${insertError.message || JSON.stringify(insertError)}`);
-      }
+      const entriesToUpsert = entries
+        .filter(row => row.dbId)
+        .map(row => ({ id: row.dbId, ...normalizePayload(row) }));
+
+      const entriesToInsert = entries
+        .filter(row => !row.dbId)
+        .map(row => normalizePayload(row));
+
+      const handleSchemaFallback = async (operation) => {
+        try {
+          return await operation(true);
+        } catch (error) {
+          if (/column .*rubriek|column .*volgorde/i.test(String(error?.message || error))) {
+            return await operation(false);
+          }
+          throw error;
+        }
+      };
+
+      await handleSchemaFallback(async (withExtras) => {
+        const payload = entriesToUpsert.map(({ rubriek, volgorde, ...rest }) => (
+          withExtras ? { ...rest, rubriek, volgorde } : rest
+        ));
+        if (payload.length === 0) return null;
+        const { error } = await supabase
+          .from('inschrijvingen')
+          .upsert(payload, { onConflict: 'id' });
+        if (error) throw error;
+        return true;
+      });
+
+      await handleSchemaFallback(async (withExtras) => {
+        const payload = entriesToInsert.map(({ rubriek, volgorde, ...rest }) => (
+          withExtras ? { ...rest, rubriek, volgorde } : rest
+        ));
+        if (payload.length === 0) return null;
+        const { error } = await supabase
+          .from('inschrijvingen')
+          .insert(payload);
+        if (error) throw error;
+        return true;
+      });
       
       // Save to localStorage as backup (after successful database save)
       // Alleen wedstrijd-specifieke key gebruiken, GEEN algemene cache meer
