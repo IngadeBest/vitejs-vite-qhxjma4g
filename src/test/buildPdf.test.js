@@ -6,6 +6,7 @@ import {
   fixture_we2_speed,
   fixture_we3_dressuur,
   fixture_jeugd_we1_stijl,
+  fixture_we1_stijl_8_obstakels,
   fixture_we2plus_dressuur,
 } from './fixtures/protocol-fixtures';
 
@@ -209,6 +210,13 @@ describe('PDF Snapshot Tests', () => {
     const pageCount = doc.internal.pages.length;
     
     expect(pageCount).toMatchSnapshot('jeugd-we1-stijl-pages');
+  });
+
+  it('WE1 stijl met 8 obstakels blijft op 1 pagina', () => {
+    const { protocol, items } = fixture_we1_stijl_8_obstakels;
+    const doc = buildProtocolPdf(protocol, items);
+
+    expect(doc.internal.pages.length).toBe(2);
   });
 
   it('WE2+ dressuur PDF structure should match snapshot', () => {

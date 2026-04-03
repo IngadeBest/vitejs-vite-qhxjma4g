@@ -112,6 +112,32 @@ export const fixture_jeugd_we1_stijl = {
   ]
 };
 
+export const fixture_we1_stijl_8_obstakels = {
+  protocol: {
+    onderdeel: "stijl",
+    klasse: "we1",
+    klasse_naam: "WE1",
+    wedstrijd_naam: "Voorjaar Stijltrail 2026",
+    datum: "2026-04-03",
+    jury: "L. van Rijn",
+    ruiter: "Mila Janssen",
+    paard: "Rocco",
+    startnummer: "188",
+    max_score: 100,
+    onderdeel_label: "Stijltrail"
+  },
+  items: [
+    "Acht om twee vaten",
+    "Brug",
+    "Parallelslalom",
+    "Slalom",
+    "3 vaten",
+    "Poort openen en sluiten",
+    "Gang met beker",
+    "Achterwaarts in L-vorm",
+  ]
+};
+
 export const fixture_we2plus_dressuur = {
   protocol: {
     onderdeel: "dressuur",

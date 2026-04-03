@@ -390,13 +390,8 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   rows.forEach((r, i) => {
     if (r.type === "break") {
       // Pauze regel - gebruik array syntax met colspan via styles
-      const pauseLabel = r.label || "Pauze";
-      const pauseMinutes = r.duration || 0;
-      const pauseText = pauseLabel.toLowerCase() === "pauze"
-        ? `Pauze: ${pauseMinutes} minuten`
-        : `${pauseLabel}: ${pauseMinutes} minuten`;
       body.push([
-        { content: pauseText, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
+        { content: `Pauze: ${r.duration || 0} minuten`, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
       ]);
     } else {
       // Voeg klasse header toe als nieuwe klasse
@@ -1309,85 +1304,36 @@ Plak je data hieronder:`);
         // Ga door - dit is niet kritisch
       }
       
-      // Stap 2: Upsert deelnemers, behoud extra velden (email/omroeper/etc.)
-      const { data: existingIds, error: existingError } = await supabase
+      // Stap 2: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
+      const { error: deleteError } = await supabase
         .from('inschrijvingen')
-        .select('id')
+        .delete()
         .eq('wedstrijd_id', wedstrijd);
-
-      if (existingError) {
-        console.error("Database fetch error:", existingError);
-        throw new Error(`Database fout bij ophalen: ${existingError.message || JSON.stringify(existingError)}`);
+      
+      if (deleteError) {
+        console.error("Database delete error:", deleteError);
+        throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
       }
 
-      const existingIdSet = new Set((existingIds || []).map(r => r.id));
-      const keepIdSet = new Set(entries.map(r => r.dbId).filter(Boolean));
-      const idsToDelete = Array.from(existingIdSet).filter(id => !keepIdSet.has(id));
-
-      if (idsToDelete.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('inschrijvingen')
-          .delete()
-          .in('id', idsToDelete);
-
-        if (deleteError) {
-          console.error("Database delete error:", deleteError);
-          throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
-        }
-      }
-
-      const normalizePayload = (row) => ({
+      // Stap 3: Voeg alle huidige entries toe MET volgorde
+      const entriesToInsert = entries.map((row, idx) => ({
         wedstrijd_id: wedstrijd,
         ruiter: row.ruiter.trim(),
         paard: row.paard ? row.paard.trim() : null,
         startnummer: row.startnummer || null,
         klasse: normalizeKlasse(row.klasse),
-        rubriek: row.rubriek || 'Algemeen',
-        volgorde: rows.indexOf(row)
-      });
+        rubriek: row.rubriek || 'Algemeen', // Gebruik rubriek van elke individuele row
+        volgorde: rows.indexOf(row) // bewaar originele positie
+      }));
 
-      const entriesToUpsert = entries
-        .filter(row => row.dbId)
-        .map(row => ({ id: row.dbId, ...normalizePayload(row) }));
-
-      const entriesToInsert = entries
-        .filter(row => !row.dbId)
-        .map(row => normalizePayload(row));
-
-      const handleSchemaFallback = async (operation) => {
-        try {
-          return await operation(true);
-        } catch (error) {
-          if (/column .*rubriek|column .*volgorde/i.test(String(error?.message || error))) {
-            return await operation(false);
-          }
-          throw error;
-        }
-      };
-
-      await handleSchemaFallback(async (withExtras) => {
-        const payload = entriesToUpsert.map(({ rubriek, volgorde, ...rest }) => (
-          withExtras ? { ...rest, rubriek, volgorde } : rest
-        ));
-        if (payload.length === 0) return null;
-        const { error } = await supabase
-          .from('inschrijvingen')
-          .upsert(payload, { onConflict: 'id' });
-        if (error) throw error;
-        return true;
-      });
-
-      await handleSchemaFallback(async (withExtras) => {
-        const payload = entriesToInsert.map(({ rubriek, volgorde, ...rest }) => (
-          withExtras ? { ...rest, rubriek, volgorde } : rest
-        ));
-        if (payload.length === 0) return null;
-        const { error } = await supabase
-          .from('inschrijvingen')
-          .insert(payload);
-        if (error) throw error;
-        return true;
-      });
+      const { error: insertError } = await supabase
+        .from('inschrijvingen')
+        .insert(entriesToInsert);
+      
+      if (insertError) {
+        console.error("Database insert error:", insertError);
+        throw new Error(`Database fout bij invoegen: ${insertError.message || JSON.stringify(insertError)}`);
+      }
       
       // Save to localStorage as backup (after successful database save)
       // Alleen wedstrijd-specifieke key gebruiken, GEEN algemene cache meer
