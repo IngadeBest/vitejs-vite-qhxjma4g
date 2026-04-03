@@ -110,7 +110,8 @@ function infoBoxesSideBySide(doc, info, autoTable) {
   return Math.max(leftY, rightY);
 }
 
-function obstaclesTable(doc, items, startY, autoTable) {
+function obstaclesTable(doc, items, startY, autoTable, options = {}) {
+  const { compact = false } = options;
   const isSpeedData = items.length > 0 && Array.isArray(items[0]);
   let head, body, colStyles;
 
@@ -141,12 +142,12 @@ function obstaclesTable(doc, items, startY, autoTable) {
     head: head,
     body: body,
     styles: { 
-      fontSize: 9, 
-      cellPadding: { top: 8, right: 3, bottom: 8, left: 3 }, 
+      fontSize: compact ? 8.5 : 9,
+      cellPadding: compact ? { top: 6, right: 3, bottom: 6, left: 3 } : { top: 8, right: 3, bottom: 8, left: 3 },
       lineColor: BORDER_COLOR, 
       lineWidth: 0.5, 
       valign: "middle",
-      minCellHeight: 50 // Ruimte voor schrijven
+      minCellHeight: compact ? 40 : 50
     },
     headStyles: { 
       fillColor: HEADER_COLOR, 
@@ -164,18 +165,19 @@ function obstaclesTable(doc, items, startY, autoTable) {
   return doc.lastAutoTable.finalY;
 }
 
-function generalPointsTable(doc, punten, startY, startIndex, autoTable) {
+function generalPointsTable(doc, punten, startY, startIndex, autoTable, options = {}) {
+  const { compact = false } = options;
   autoTable(doc, {
     startY,
     head: [["#", "Algemene punten", "Heel", "Half", "Opmerking"]],
     body: punten.map((naam, i) => [startIndex + i, naam, "", "", ""]),
     styles: { 
-      fontSize: 9, 
-      cellPadding: { top: 8, right: 3, bottom: 8, left: 3 }, 
+      fontSize: compact ? 8.5 : 9,
+      cellPadding: compact ? { top: 6, right: 3, bottom: 6, left: 3 } : { top: 8, right: 3, bottom: 8, left: 3 },
       lineColor: BORDER_COLOR, 
       lineWidth: 0.5,
       valign: "middle",
-      minCellHeight: 45 // Ook hier ruimte voor opmerkingen
+      minCellHeight: compact ? 34 : 45
     },
     headStyles: { 
       fillColor: HEADER_COLOR, 
@@ -253,9 +255,9 @@ function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntena
 function signatureLine(doc) {
   const pageH = doc.internal.pageSize.getHeight();
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text("Handtekening jury:", MARGIN.left, pageH - 42);
-  doc.line(MARGIN.left + 120, pageH - 44, doc.internal.pageSize.getWidth() - MARGIN.right, pageH - 44);
+  doc.setFontSize(9);
+  doc.text("Handtekening jury:", MARGIN.left, pageH - 24);
+  doc.line(MARGIN.left + 110, pageH - 26, doc.internal.pageSize.getWidth() - MARGIN.right, pageH - 26);
 }
 
 function protocolToDoc(doc, p, items, autoTable) {
@@ -406,10 +408,11 @@ function protocolToDoc(doc, p, items, autoTable) {
   }
   
   // STIJL & SPEED LOGICA
-  const afterItems = obstaclesTable(doc, items, infoY + 16, autoTable);
-  let afterAlg = afterItems;
   const isSpeed = p.onderdeel === "speed";
   const isStijl = p.onderdeel === "stijl";
+  const useCompactStijlLayout = isStijl && Array.isArray(items) && items.length >= 8;
+  const afterItems = obstaclesTable(doc, items, infoY + 16, autoTable, { compact: useCompactStijlLayout });
+  let afterAlg = afterItems;
 
   if (isStijl) {
     const punten = (p.klasse === "we0" || p.klasse === "we1") ? ALG_PUNTEN_WE0_WE1 : ALG_PUNTEN_WE2PLUS;
@@ -418,18 +421,18 @@ function protocolToDoc(doc, p, items, autoTable) {
     const pageHeight = doc.internal.pageSize.height;
     const spaceLeft = pageHeight - afterItems - MARGIN.bottom;
     
-    let startY = afterItems + 12;
+    let startY = afterItems + (useCompactStijlLayout ? 8 : 12);
     if (spaceLeft < 150) {
       doc.addPage();
       startY = 40;
     }
 
-    afterAlg = generalPointsTable(doc, punten, startY, items.length + 1, autoTable);
+    afterAlg = generalPointsTable(doc, punten, startY, items.length + 1, autoTable, { compact: useCompactStijlLayout });
   }
 
   totalsBox(
     doc, 
-    afterAlg + 6, 
+    afterAlg + (useCompactStijlLayout ? 4 : 6), 
     p.max_score ? Number(p.max_score) : null, 
     isSpeed ? "Tijd / Strafseconden / Totaal" : null, 
     false, // Geen puntenaftrek voor stijl en speed
