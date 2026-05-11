@@ -1496,35 +1496,59 @@ Plak je data hieronder:`);
         // Ga door - dit is niet kritisch
       }
       
-      // Stap 2: Verwijder alle bestaande inschrijvingen voor deze wedstrijd
-      const { error: deleteError } = await supabase
-        .from('inschrijvingen')
-        .delete()
-        .eq('wedstrijd_id', wedstrijd);
-      
-      if (deleteError) {
-        console.error("Database delete error:", deleteError);
-        throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
-      }
-
-      // Stap 3: Voeg alle huidige entries toe MET volgorde
-      const entriesToInsert = entries.map((row, idx) => ({
-        wedstrijd_id: wedstrijd,
-        ruiter: row.ruiter.trim(),
-        paard: row.paard ? row.paard.trim() : null,
-        startnummer: row.startnummer || null,
-        klasse: normalizeKlasse(row.klasse),
-        rubriek: row.rubriek || 'Algemeen', // Gebruik rubriek van elke individuele row
-        volgorde: rows.indexOf(row) // bewaar originele positie
+      // Stap 2: Werk bestaande inschrijvingen bij en voeg alleen nieuwe toe.
+      // Zo blijven niet-geladen kolommen op bestaande records behouden.
+      const rowsWithOrder = entries.map((row) => ({
+        ...row,
+        volgorde: rows.indexOf(row),
       }));
 
-      const { error: insertError } = await supabase
-        .from('inschrijvingen')
-        .insert(entriesToInsert);
-      
-      if (insertError) {
-        console.error("Database insert error:", insertError);
-        throw new Error(`Database fout bij invoegen: ${insertError.message || JSON.stringify(insertError)}`);
+      const existingEntries = rowsWithOrder.filter((row) => row.dbId);
+      const newEntries = rowsWithOrder.filter((row) => !row.dbId);
+
+      if (existingEntries.length > 0) {
+        const updates = existingEntries.map((row) =>
+          supabase
+            .from('inschrijvingen')
+            .update({
+              ruiter: row.ruiter.trim(),
+              paard: row.paard ? row.paard.trim() : null,
+              startnummer: row.startnummer || null,
+              klasse: normalizeKlasse(row.klasse),
+              rubriek: row.rubriek || 'Algemeen',
+              volgorde: row.volgorde,
+            })
+            .eq('id', row.dbId)
+            .eq('wedstrijd_id', wedstrijd)
+        );
+
+        const updateResults = await Promise.all(updates);
+        const updateError = updateResults.find((result) => result.error)?.error;
+        if (updateError) {
+          console.error("Database update error:", updateError);
+          throw new Error(`Database fout bij bijwerken: ${updateError.message || JSON.stringify(updateError)}`);
+        }
+      }
+
+      if (newEntries.length > 0) {
+        const entriesToInsert = newEntries.map((row) => ({
+          wedstrijd_id: wedstrijd,
+          ruiter: row.ruiter.trim(),
+          paard: row.paard ? row.paard.trim() : null,
+          startnummer: row.startnummer || null,
+          klasse: normalizeKlasse(row.klasse),
+          rubriek: row.rubriek || 'Algemeen',
+          volgorde: row.volgorde,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('inschrijvingen')
+          .insert(entriesToInsert);
+
+        if (insertError) {
+          console.error("Database insert error:", insertError);
+          throw new Error(`Database fout bij invoegen: ${insertError.message || JSON.stringify(insertError)}`);
+        }
       }
       
       // Save to localStorage as backup (after successful database save)

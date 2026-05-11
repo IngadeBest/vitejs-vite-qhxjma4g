@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { padStartnummer, lookupOffset } from '@/lib/startnummer';
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
@@ -11,7 +11,6 @@ import { buildProtocolPdf, generatePdfBlob, KLASSEN as PDF_KLASSEN, ONDERDELEN a
 /* Klassen & Onderdelen - gebruik de geëxporteerde constanten uit buildPdf */
 const KLASSEN = PDF_KLASSEN;
 const ONDERDELEN = PDF_ONDERDELEN;
-const JURY_LS_KEY = "wp_protocol_jury_v1";
 
 /* Backwards compatible wrapper voor makePdfBlob */
 async function makePdfBlob(protocol, items) {
@@ -31,20 +30,6 @@ function resolveTemplateByKlasse(templateGroup, klasseKey) {
     return templateGroup[klasseKey.replace("PLUS", "+")] || null;
   }
   return null;
-}
-
-function getMaxObstakelsForKlasse(klasseCode) {
-  if (!klasseCode) return null;
-  return KLASSEN.find((k) => k.code === klasseCode)?.max ?? null;
-}
-
-function clampStijlItems(onderdeelCode, klasseCode, nextItems) {
-  if (onderdeelCode !== "stijl") return { items: nextItems, max: null, truncated: false };
-  const max = getMaxObstakelsForKlasse(klasseCode);
-  if (!max || !Array.isArray(nextItems) || nextItems.length <= max) {
-    return { items: nextItems, max, truncated: false };
-  }
-  return { items: nextItems.slice(0, max), max, truncated: true };
 }
 
 /* Algemene punten (Stijltrail) */
@@ -77,7 +62,7 @@ const COL_WIDTHS = {
   EXERCISE: 140,
   HEEL: 35,
   HALF: 35,
-  PENALTY: 35,
+  PENALTY: 50,
   NOTE: 190
 };
 
@@ -123,7 +108,6 @@ function infoBoxesSideBySide(doc, info, autoTable) {
     columnStyles: { 0: { cellWidth: 100, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
   });
   const leftY = doc.lastAutoTable.finalY;
-
   autoTable(doc, {
     startY,
     head: [],
@@ -131,33 +115,17 @@ function infoBoxesSideBySide(doc, info, autoTable) {
       ["Ruiter", info.ruiter || ""],
       ["Paard", info.paard || ""],
       ["Startnummer", info.startnummer || ""],
+      ["Percentage", ""],
+      ["Plaatsing", ""],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left + 280, right: MARGIN.right },
     tableWidth: "auto",
-    columnStyles: { 0: { cellWidth: 98, fontStyle: "bold" }, 1: { cellWidth: 140 } },
+    columnStyles: { 0: { cellWidth: 90, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
   });
-  const rightTopY = doc.lastAutoTable.finalY;
-
-  autoTable(doc, {
-    startY: rightTopY + 2,
-    head: [],
-    body: [
-      ["Percentage", "Plaatsing"],
-      ["", ""],
-    ],
-    styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5 },
-    theme: "grid",
-    margin: { left: MARGIN.left + 280, right: MARGIN.right },
-    tableWidth: "auto",
-    columnStyles: {
-      0: { cellWidth: 119, fontStyle: "bold" },
-      1: { cellWidth: 119, fontStyle: "bold" },
-    },
-  });
-  const rightBottomY = doc.lastAutoTable.finalY;
-  return Math.max(leftY, rightBottomY);
+  const rightY = doc.lastAutoTable.finalY;
+  return Math.max(leftY, rightY);
 }
 
 function obstaclesTable(doc, items, startY, autoTable, options = {}) {
@@ -566,20 +534,12 @@ function protocolToDoc(doc, p, items, autoTable) {
 export default function ProtocolGenerator() {
   const { items: wedstrijden } = useWedstrijden(false);
   const [stap, setStap] = useState(1);
-  const [config, setConfig] = useState(() => {
-    let savedJury = "";
-    try {
-      savedJury = localStorage.getItem(JURY_LS_KEY) || "";
-    } catch {
-      savedJury = "";
-    }
-    return {
-      wedstrijd_id: "",
-      klasse: "",
-      onderdeel: "",
-      datum: new Date().toISOString().split("T")[0],
-      jury: savedJury,
-    };
+  const [config, setConfig] = useState({
+    wedstrijd_id: "",
+    klasse: "",
+    onderdeel: "", 
+    datum: new Date().toISOString().split("T")[0],
+    jury: ""
   });
   const selectedWedstrijd = useMemo(
     () => wedstrijden.find(w => w.id === config.wedstrijd_id) || null,
@@ -598,14 +558,6 @@ export default function ProtocolGenerator() {
     }
   }, [config.klasse, config.onderdeel]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(JURY_LS_KEY, config.jury || "");
-    } catch {
-      // negeer localStorage fouten
-    }
-  }, [config.jury]);
-
   const [dbMsg, setDbMsg] = useState("");
   const [dbMax, setDbMax] = useState(null);
   const [items, setItems] = useState([]);
@@ -617,19 +569,6 @@ export default function ProtocolGenerator() {
   const [pdfUrl, setPdfUrl] = useState(null);
   const draggedItem = useRef(null);
   const draggedFromAvailable = useRef(false);
-
-  const maxStijlObstakels = useMemo(
-    () => getMaxObstakelsForKlasse(config.klasse),
-    [config.klasse]
-  );
-
-  const applyStijlItemLimit = useCallback((nextItems) => {
-    const limited = clampStijlItems(config.onderdeel, config.klasse, nextItems);
-    if (limited.truncated && limited.max) {
-      setDbMsg(`⚠️ Maximaal ${limited.max} obstakels toegestaan voor ${config.klasse?.toUpperCase()}.`);
-    }
-    setItems(limited.items || []);
-  }, [config.onderdeel, config.klasse]);
 
   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
 
@@ -708,14 +647,9 @@ export default function ProtocolGenerator() {
         const saved = localStorage.getItem(key);
         if (saved) {
           const parsedItems = JSON.parse(saved);
-          const limited = clampStijlItems(config.onderdeel, config.klasse, parsedItems);
-          setItems(limited.items || []);
+          setItems(parsedItems);
           setDbMax(proef.max_score || null);
-          setDbMsg(
-            limited.truncated && limited.max
-              ? `⚠️ Opgeslagen configuratie ingekort naar ${limited.max} items voor ${config.klasse?.toUpperCase()}`
-              : `✅ Opgeslagen configuratie geladen: ${parsedItems.length} items`
-          );
+          setDbMsg(`✅ Opgeslagen configuratie geladen: ${parsedItems.length} items`);
           return;
         }
 
@@ -724,15 +658,9 @@ export default function ProtocolGenerator() {
         if (e2) throw e2;
         if (!alive) return;
         
-        const loadedItems = (its || []).map(it => it.omschrijving);
-        const limited = clampStijlItems(config.onderdeel, config.klasse, loadedItems);
-        setItems(limited.items || []);
+        setItems((its || []).map(it => it.omschrijving));
         setDbMax(proef.max_score || null);
-        setDbMsg(
-          limited.truncated && limited.max
-            ? `⚠️ Proef geladen en ingekort naar ${limited.max} onderdelen voor ${config.klasse?.toUpperCase()}`
-            : `Proef geladen: ${proef.naam} (${(its||[]).length} onderdelen)`
-        );
+        setDbMsg(`Proef geladen: ${proef.naam} (${(its||[]).length} onderdelen)`);
       } catch (e) {
         if (!alive) return;
         setDbMsg("Kon proeven niet laden: " + e.message);
@@ -970,13 +898,13 @@ export default function ProtocolGenerator() {
         const n = [...items];
         if (targetItem) n.splice(items.indexOf(targetItem), 0, draggedObstakel);
         else n.push(draggedObstakel);
-        applyStijlItemLimit(n);
+        setItems(n);
       } else {
         if (targetItem && draggedObstakel !== targetItem) {
           const n = [...items];
           n.splice(items.indexOf(draggedObstakel), 1);
           n.splice(n.indexOf(targetItem), 0, draggedObstakel);
-          applyStijlItemLimit(n);
+          setItems(n);
         }
       }
     }
@@ -1065,7 +993,7 @@ export default function ProtocolGenerator() {
               <div style={{ fontWeight: 600, marginBottom: 8, color: '#6b7280', fontSize: 13 }}>📋 BESCHIKBAAR ({availableObstakels.length})</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {availableObstakels.map((o, i) => (
-                  <div key={i} draggable onDragStart={(e) => handleDragStart(e, o, true)} onClick={() => applyStijlItemLimit([...items, o])}
+                  <div key={i} draggable onDragStart={(e) => handleDragStart(e, o, true)} onClick={() => setItems([...items, o])}
                     style={{ padding: '8px 12px', background: 'white', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'grab', fontSize: 13 }}>{o}</div>
                 ))}
               </div>
@@ -1083,14 +1011,9 @@ export default function ProtocolGenerator() {
                 ))}
               </div>
               <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <button onClick={() => applyStijlItemLimit(availableObstakels)} style={{ fontSize: 12, padding: '6px 12px' }}>Alles</button>
+                <button onClick={() => setItems(availableObstakels)} style={{ fontSize: 12, padding: '6px 12px' }}>Alles</button>
                 <button onClick={() => setItems([])} style={{ fontSize: 12, padding: '6px 12px' }}>Wis</button>
               </div>
-              {maxStijlObstakels ? (
-                <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
-                  Maximaal {maxStijlObstakels} obstakels voor {config.klasse?.toUpperCase()}
-                </div>
-              ) : null}
             </div>
           </div>
         </div>
@@ -1158,22 +1081,17 @@ export default function ProtocolGenerator() {
       <Header />
       <div style={{ maxWidth: 1100, margin: "24px auto" }}>
         <h2>Overzicht & export</h2>
-        <div style={{ margin: "8px 0 16px", display: "grid", gap: 10 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button onClick={downloadBatch}>Download batch PDF</button>
-            <div style={{ marginLeft: "auto" }}>
-              <a href="#/startlijst"><button>Terug naar Startlijst</button></a>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <select value={selectIndex} onChange={(e)=>setSelectIndex(Number(e.target.value))} style={{ flex: "1 1 280px", minWidth: 220 }}>
+        <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", margin:"8px 0 16px" }}>
+          <button onClick={downloadBatch}>Download batch PDF</button>
+          <span style={{ display:"inline-flex", gap:8, alignItems:"center" }}>
+            <select value={selectIndex} onChange={(e)=>setSelectIndex(Number(e.target.value))}>
               {protocollen.map((p,i)=>(<option key={i} value={i}>{p.startnummer} – {p.ruiter} – {p.paard}</option>))}
             </select>
             <button onClick={downloadSingle}>Download gekozen protocol</button>
             <button onClick={previewPdf}>Bekijk in pagina</button>
             <button onClick={openNewTab}>Open in nieuw tabblad</button>
-          </div>
+          </span>
+          <a href="#/startlijst"><button>Terug naar Startlijst</button></a>
         </div>
         {pdfUrl && <iframe src={pdfUrl} title="PDF preview" style={{ width:"100%", height:"680px", border:"1px solid #ccc", borderRadius:8 }} />}
       </div>

@@ -46,7 +46,7 @@ const COL_WIDTHS = {
   EXERCISE: 140,
   HEEL: 35,
   HALF: 35,
-  PENALTY: 35,
+  PENALTY: 50,
   NOTE: 190
 };
 
@@ -92,7 +92,7 @@ function infoBoxesSideBySide(doc, info) {
     columnStyles: { 0: { cellWidth: 100, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
   });
   const leftY = doc.lastAutoTable.finalY;
-
+  
   autoTable(doc, {
     startY,
     head: [],
@@ -100,33 +100,17 @@ function infoBoxesSideBySide(doc, info) {
       ["Ruiter", info.ruiter || ""],
       ["Paard", info.paard || ""],
       ["Startnummer", info.startnummer || ""],
+      ["Percentage", ""],
+      ["Plaatsing", ""],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER_COLOR, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left + 280, right: MARGIN.right },
     tableWidth: "auto",
-    columnStyles: { 0: { cellWidth: 98, fontStyle: "bold" }, 1: { cellWidth: 140 } },
+    columnStyles: { 0: { cellWidth: 90, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
   });
-  const rightTopY = doc.lastAutoTable.finalY;
-
-  autoTable(doc, {
-    startY: rightTopY + 2,
-    head: [],
-    body: [
-      ["Percentage", "Plaatsing"],
-      ["", ""],
-    ],
-    styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER_COLOR, lineWidth: 0.5 },
-    theme: "grid",
-    margin: { left: MARGIN.left + 280, right: MARGIN.right },
-    tableWidth: "auto",
-    columnStyles: {
-      0: { cellWidth: 119, fontStyle: "bold" },
-      1: { cellWidth: 119, fontStyle: "bold" },
-    },
-  });
-  const rightBottomY = doc.lastAutoTable.finalY;
-  return Math.max(leftY, rightBottomY);
+  const rightY = doc.lastAutoTable.finalY;
+  return Math.max(leftY, rightY);
 }
 
 function obstaclesTable(doc, items, startY, options = {}) {
