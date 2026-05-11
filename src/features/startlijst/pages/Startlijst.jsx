@@ -1846,16 +1846,42 @@ Plak je data hieronder:`);
     }
   }, [wedstrijd, loadDeelnemersFromDB]);
 
+  const hasKlasseStartTimes = useMemo(
+    () => Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail),
+    [klasseStartTimes]
+  );
+
+  const calculatedTimesForView = useMemo(
+    () => hasKlasseStartTimes
+      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd, dressuurStarttijd, trailStarttijd)
+      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd),
+    [
+      hasKlasseStartTimes,
+      filtered,
+      klasseStartTimes,
+      tussenPauze,
+      pauzeMinuten,
+      trailOmbouwtijd,
+      dressuurStarttijd,
+      trailStarttijd,
+    ]
+  );
+
+  const fieldClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+  const cardClass = "bg-white rounded-xl shadow-sm border border-gray-200";
+  const primaryBtnClass = "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors";
+  const secondaryBtnClass = "px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors";
+
   return (
     <Container>
-      <div className="max-w-7xl mx-auto py-6">
+      <div className="max-w-7xl mx-auto py-6 space-y-6">
         {/* Header sectie */}
-        <div className="mb-6">
+        <div>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Startlijst Management</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Startlijst</h1>
               <p className="text-gray-600 mt-2">
-                Beheer startlijsten, startnummers en deelnemer volgorde
+                Beheer deelnemers, volgorde, pauzes en export op een plek.
               </p>
             </div>
             
@@ -1863,9 +1889,9 @@ Plak je data hieronder:`);
             <div className="flex gap-2">
               <Link
                 to="/deelnemers"
-                className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm font-medium"
+                className="px-3 py-2 border border-blue-200 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors text-sm font-medium"
               >
-                👥 Naar Deelnemers
+                Naar deelnemers
               </Link>
             </div>
           </div>
@@ -1876,8 +1902,8 @@ Plak je data hieronder:`);
         {/* Main editing area (links) - nu 65% van de ruimte */}
         <div className="flex-1 max-w-4xl">
         {/* Filters sectie */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters & Zoekopdrachten</h2>
+        <div className={`${cardClass} p-6`}>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters en zoeken</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div className="space-y-2">
@@ -1885,7 +1911,7 @@ Plak je data hieronder:`);
                 Wedstrijd:
               </label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={fieldClass}
                 value={wedstrijd}
                 onChange={(e) => setWedstrijd(e.target.value)}
               >
@@ -1906,7 +1932,7 @@ Plak je data hieronder:`);
                 Klasse:
               </label>
               <input
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={fieldClass}
                 placeholder="Klasse (WE0–WE4)"
                 value={klasse}
                 onChange={(e) => setKlasse(e.target.value)}
@@ -1918,7 +1944,7 @@ Plak je data hieronder:`);
                 Rubriek:
               </label>
               <input
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={fieldClass}
                 placeholder="Rubriek"
                 value={rubriek}
                 onChange={(e) => setRubriek(e.target.value)}
@@ -1930,7 +1956,7 @@ Plak je data hieronder:`);
                 Zoeken:
               </label>
               <input
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={fieldClass}
                 placeholder="ruiter/paard/startnr/tijd/pauze"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -1940,7 +1966,7 @@ Plak je data hieronder:`);
         </div>
 
         {/* Startnummer Configuratie (vereenvoudigd) */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div className={`${cardClass} p-4`}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-4 flex-wrap">
               <h2 className="text-lg font-semibold text-gray-900">Starttijden</h2>
@@ -1973,23 +1999,23 @@ Plak je data hieronder:`);
             </div>
             <div className="flex gap-2">
               <button
-                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
                 onClick={() => {
                   const updatedRows = autoAssignStartnumbers(rows);
                   setRows(updatedRows);
                 }}
                 disabled={!rows.filter(r => r.type === 'entry').length}
               >
-                🔢 Auto Nummers
+                Auto startnummers
               </button>
               
               <button
-                className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                className="px-3 py-1 bg-slate-700 text-white rounded-md text-sm hover:bg-slate-800"
                 onClick={sortRowsByClass}
                 disabled={!rows.filter(r => r.type === 'entry').length}
                 title="Sorteer alle klassen op volgorde: WE0, WE1, WE2, WE3, WE4, Junioren, Young Riders, WE2+"
               >
-                📋 Sorteer Klassen
+                Sorteer klassen
               </button>
             </div>
           </div>
@@ -1997,7 +2023,7 @@ Plak je data hieronder:`);
           {/* Trail ombouwtijd */}
           <div className="border-t pt-3">
             <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-700">🔧 Trail ombouwtijd:</label>
+              <label className="text-sm font-medium text-gray-700">Trail ombouwtijd:</label>
               <input
                 type="number"
                 min="0"
@@ -2019,10 +2045,10 @@ Plak je data hieronder:`);
 
         {/* Per-klasse starttijden configuratie */}
         {classOrder.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className={`${cardClass} p-4`}>
             <h3 className="text-md font-semibold text-gray-900 mb-3">Per klasse starttijden (optioneel)</h3>
             <p className="text-sm text-gray-600 mb-3">
-              ⏱️ <strong>Automatisch doornummeren:</strong> Vul een starttijd in voor de eerste klasse. Alle klassen erna nummeren automatisch door, 
+              <strong>Automatisch doornummeren:</strong> Vul een starttijd in voor de eerste klasse. Alle klassen erna nummeren automatisch door, 
               tenzij je voor een volgende klasse een nieuwe starttijd invult - dan begint vanaf daar weer een nieuwe reeks.
             </p>
             <p className="text-sm text-gray-500 mb-3">
@@ -2077,13 +2103,13 @@ Plak je data hieronder:`);
         )}
 
         {/* Actieknoppen sectie (vereenvoudigd) */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div className={`${cardClass} p-4`}>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Data laden</h2>
             
             <div className="flex items-center gap-3">
               <label className="cursor-pointer px-3 py-2 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors text-sm">
-                📁 CSV Upload
+                CSV upload
                 <input
                   type="file"
                   accept=".csv,text/csv"
@@ -2093,15 +2119,15 @@ Plak je data hieronder:`);
               </label>
 
               <button
-                className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
+                className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
                 onClick={loadDeelnemersFromDB}
                 disabled={!wedstrijd || loadingFromDB}
               >
-                {loadingFromDB ? "⏳ Laden..." : "🔄 DB Laden"}
+                {loadingFromDB ? "Laden..." : "Laden uit database"}
               </button>
               
               <button
-                className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                className="px-3 py-2 border border-red-300 text-red-700 bg-red-50 rounded-md hover:bg-red-100 transition-colors text-sm"
                 onClick={() => {
                   // Toon alle startlijst-gerelateerde localStorage keys
                   const keys = Object.keys(localStorage).filter(k => k.includes('startlijst') || k.includes('wp_'));
@@ -2121,7 +2147,7 @@ Plak je data hieronder:`);
                 }}
                 title="Debug: wis alle lokale cache"
               >
-                🗑️ Cache Wissen
+                Cache wissen
               </button>
             </div>
           </div>
@@ -2161,22 +2187,22 @@ Plak je data hieronder:`);
                   </p>
                   <div className="flex gap-3 flex-wrap">
                     <button
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
                       onClick={copyFromOtherWedstrijd}
                     >
-                      📋 Kopieer van andere wedstrijd
+                      Kopieer van andere wedstrijd
                     </button>
                     <button
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
                       onClick={addEmptyRow}
                     >
-                      ➕ Nieuwe deelnemer
+                      Nieuwe deelnemer
                     </button>
                     <button
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm font-medium"
                       onClick={showManualRecoveryForm}
                     >
-                      📝 Bulk import
+                      Bulk import
                     </button>
                   </div>
                 </div>
@@ -2184,7 +2210,7 @@ Plak je data hieronder:`);
             </div>
           )}
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className={`${cardClass} p-4`}>
             <h2 className="text-lg font-semibold text-gray-900 mb-3">Pauze toevoegen</h2>
             <div className="flex items-end gap-3 flex-wrap">
               <div className="flex flex-col">
@@ -2207,21 +2233,21 @@ Plak je data hieronder:`);
                 />
               </div>
               <button
-                className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded font-medium transition-colors"
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-md font-medium transition-colors"
                 onClick={addPauseAtEnd}
               >
-                🍕 Pauze toevoegen
+                Pauze toevoegen
               </button>
             </div>
           </div>
 
           {/* Eenvoudige bewerkingstabel - alle deelnemers op volgorde */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className={cardClass}>
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Startlijst Bewerken</h2>
-                  <p className="text-xs text-gray-500 mt-1">💡 Sleep rijen (inclusief pauzes) om volgorde aan te passen</p>
+                  <p className="text-xs text-gray-500 mt-1">Sleep rijen (ook pauzes) om de volgorde aan te passen</p>
                 </div>
                 <div className="text-sm text-gray-600">
                   {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
@@ -2251,11 +2277,6 @@ Plak je data hieronder:`);
                     let currentKlasse = null;
                     let klasseItemNumber = 0;
                     const seenKlasses = new Set(); // Track which class headers we've shown
-                    const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
-                    const calculatedTimes = hasKlasseStartTimes
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd, dressuurStarttijd, trailStarttijd)
-                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
-                    
                     return filtered.map((row, index) => {
                       // Ensure every row has a valid ID
                       if (!row.id) {
@@ -2276,7 +2297,7 @@ Plak je data hieronder:`);
                         klasseItemNumber++;
                       }
 
-                      const times = calculatedTimes[row.id || index] || {};
+                      const times = calculatedTimesForView[row.id || index] || {};
 
                       return (
                         <React.Fragment key={`${row.id || index}-${rowKlasse}`}>
@@ -2286,8 +2307,8 @@ Plak je data hieronder:`);
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
                                     {row.type === 'break' ? 
-                                      '🍕 Pauzes' : 
-                                      `📋 Klasse ${rowKlasse} ${row.type !== 'break' ? `(startnrs vanaf ${getStartnummerBase(rowKlasse).toString().padStart(3, '0')})` : ''}`
+                                      'Pauzes' : 
+                                      `Klasse ${rowKlasse} ${row.type !== 'break' ? `(startnrs vanaf ${getStartnummerBase(rowKlasse).toString().padStart(3, '0')})` : ''}`
                                     }
                                   </div>
                                   {row.type !== 'break' && isFirstHeaderForClass && (
@@ -2545,25 +2566,25 @@ Plak je data hieronder:`);
             )}
           </div>
 
-          <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-3">
+          <div className={`mt-6 ${cardClass} p-4`}>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex gap-3 flex-wrap">
                 <button
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors font-medium"
+                  className={primaryBtnClass}
                   onClick={() => addEmptyRow(setRows, klasse)}
                 >
                   + Nieuwe deelnemer
                 </button>
                 
                 <button
-                  className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
+                  className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors"
                   onClick={() => addBreak(setRows)}
                 >
-                  🍕 + Pauze
+                  + Pauze
                 </button>
 
-                <label className="cursor-pointer px-4 py-2 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                  📁 CSV Upload
+                <label className="cursor-pointer px-4 py-2 border-2 border-dashed border-gray-300 rounded-md hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                  CSV upload
                   <input
                     type="file"
                     accept=".csv,text/csv"
@@ -2573,45 +2594,37 @@ Plak je data hieronder:`);
                 </label>
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <button
-                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  className={secondaryBtnClass}
                   onClick={loadDeelnemersFromDB}
                   disabled={!wedstrijd || loadingFromDB}
                 >
-                  {loadingFromDB ? "⏳ Laden..." : "🔄 DB Laden"}
+                  {loadingFromDB ? "Laden..." : "Database herladen"}
                 </button>
 
                 <button
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                   onClick={() => {
-                    const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
-                    const calculatedTimes = hasKlasseStartTimes 
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd, dressuurStarttijd, trailStarttijd)
-                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
-                    exportToExcel(filtered, meta, calculatedTimes);
+                    exportToExcel(filtered, meta, calculatedTimesForView);
                   }}
                   disabled={!filtered.length}
                 >
-                  📊 Excel Export
+                  Excel export
                 </button>
 
                 <button
-                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                   onClick={async () => {
                     try {
-                      const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
-                      const calculatedTimes = hasKlasseStartTimes
-                        ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd, dressuurStarttijd, trailStarttijd)
-                        : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
-                      await exportToImage(filtered, meta, calculatedTimes);
+                      await exportToImage(filtered, meta, calculatedTimesForView);
                     } catch (e) {
                       alert('Fout bij afbeelding export: ' + (e?.message || String(e)));
                     }
                   }}
                   disabled={!filtered.length}
                 >
-                  🖼️ Afbeelding Export
+                  Afbeelding export
                 </button>
                 
                 <button
@@ -2630,9 +2643,9 @@ Plak je data hieronder:`);
         {/* Simpele samenvatting sidebar (rechts) */}
         <div className="w-80 flex-shrink-0">
           <div className="sticky top-4 space-y-4">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className={`${cardClass} p-4`}>
               <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                📊 Overzicht
+                Overzicht
               </h3>
               
               <div className="space-y-3">
@@ -2695,7 +2708,7 @@ Plak je data hieronder:`);
             </div>
 
             {/* Quick actions */}
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <h4 className="font-medium text-gray-700 mb-3">Snelle acties</h4>
               <div className="space-y-2">
                 <button
@@ -2703,17 +2716,14 @@ Plak je data hieronder:`);
                   onClick={makeBatchPDF}
                   disabled={!filtered.length}
                 >
-                  📄 Download PDF
+                  Download PDF
                 </button>
                 <button
                   className="w-full px-3 py-2 text-sm bg-white border rounded hover:bg-gray-50 text-left"
                   onClick={() => {
                     // Open een nieuw venster met de volledige startlijst
                     const printWindow = window.open('', '_blank');
-                    const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
-                    const calculatedTimes = hasKlasseStartTimes 
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd, dressuurStarttijd, trailStarttijd)
-                      : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
+                    const calculatedTimes = calculatedTimesForView;
                     
                     const htmlContent = `
                       <!DOCTYPE html>
@@ -2786,7 +2796,7 @@ Plak je data hieronder:`);
                   }}
                   disabled={!filtered.length}
                 >
-                  👁️ Volledig overzicht
+                  Volledig overzicht
                 </button>
               </div>
             </div>

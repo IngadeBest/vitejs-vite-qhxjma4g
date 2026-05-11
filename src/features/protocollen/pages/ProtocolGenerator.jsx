@@ -130,8 +130,14 @@ function infoBoxesSideBySide(doc, info, autoTable) {
       ["Ruiter", info.ruiter || "", "", ""],
       ["Paard", info.paard || "", "", ""],
       ["Startnummer", info.startnummer || "", "", ""],
-      ["Percentage", "", "Plaatsing", ""],
-      ["", "", "", ""],
+      [
+        { content: "Percentage", colSpan: 2, styles: { fontStyle: "bold" } },
+        { content: "Plaatsing", colSpan: 2, styles: { fontStyle: "bold" } },
+      ],
+      [
+        { content: "", colSpan: 2 },
+        { content: "", colSpan: 2 },
+      ],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
