@@ -2753,71 +2753,63 @@ Plak je data hieronder:`);
           </div>
         </div>
 
-        {/* Simpele samenvatting sidebar (rechts) */}
         <div className="w-80 flex-shrink-0">
           <div className="sticky top-4 space-y-4">
             <div className={`${cardClass} p-4`}>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                Overzicht
-              </h3>
-              
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Overzicht</h3>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
                   <div className="text-xs uppercase tracking-wide text-blue-600">Deelnemers</div>
                   <div className="mt-1 text-xl font-bold text-blue-800">{entryCount}</div>
                 </div>
-
                 <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
                   <div className="text-xs uppercase tracking-wide text-amber-600">Pauzes</div>
                   <div className="mt-1 text-xl font-bold text-amber-800">{breakCount}</div>
                 </div>
               </div>
 
-                {(() => {
-                  const klassen = {};
-                  filtered.filter(r => r.type === 'entry').forEach(r => {
-                    const kl = normalizeKlasse(r.klasse) || 'Geen klasse';
-                    klassen[kl] = (klassen[kl] || 0) + 1;
-                  });
-                  
-                  return Object.keys(klassen).length > 0 && (
-                    <div className="border-t pt-3 mt-3">
-                      <div className="text-sm font-medium text-gray-700 mb-2">Per klasse</div>
-                      <div className="space-y-1">
-                        {Object.entries(klassen)
-                          .sort(([a], [b]) => a.localeCompare(b))
-                          .map(([klasse, count]) => (
-                            <div key={klasse} className="flex justify-between items-center text-sm">
-                              <span className="text-gray-600">{klasse}:</span>
-                              <span className="font-medium">{count}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  );
-                })()}
+              {(() => {
+                const klassen = {};
+                filtered.filter((r) => r.type === 'entry').forEach((r) => {
+                  const kl = normalizeKlasse(r.klasse) || 'Geen klasse';
+                  klassen[kl] = (klassen[kl] || 0) + 1;
+                });
 
-                {wedstrijd && (
+                if (Object.keys(klassen).length === 0) return null;
+
+                return (
                   <div className="border-t pt-3 mt-3">
-                    <div className="text-xs text-gray-500">
-                      <div>Wedstrijd: {wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd}</div>
-                      {klasse && <div>Filter klasse: {klasse}</div>}
-                      {rubriek && <div>Rubriek: {rubriek}</div>}
+                    <div className="text-sm font-medium text-gray-700 mb-2">Per klasse</div>
+                    <div className="space-y-1">
+                      {Object.entries(klassen)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([klasseNaam, count]) => (
+                          <div key={klasseNaam} className="flex justify-between items-center text-sm">
+                            <span className="text-gray-600">{klasseNaam}:</span>
+                            <span className="font-medium">{count}</span>
+                          </div>
+                        ))}
                     </div>
                   </div>
-                )}
+                );
+              })()}
 
-                <div className="border-t pt-3 mt-3">
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <div>Dressuur start: <span className="font-mono">{dressuurStarttijd}</span></div>
-                    <div>Trail start: <span className="font-mono">{trailStarttijd}</span></div>
-                    <div>Interval: {tussenPauze} minuten</div>
-                  </div>
+              {wedstrijd && (
+                <div className="border-t pt-3 mt-3 text-xs text-gray-500">
+                  <div>Wedstrijd: {wedstrijden?.find((w) => w.id === wedstrijd)?.naam || wedstrijd}</div>
+                  {klasse && <div>Filter klasse: {klasse}</div>}
+                  {rubriek && <div>Rubriek: {rubriek}</div>}
                 </div>
+              )}
+
+              <div className="border-t pt-3 mt-3 text-xs text-gray-500 space-y-1">
+                <div>Dressuur start: <span className="font-mono">{dressuurStarttijd}</span></div>
+                <div>Trail start: <span className="font-mono">{trailStarttijd}</span></div>
+                <div>Interval: {tussenPauze} minuten</div>
               </div>
             </div>
 
-            {/* Quick actions */}
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <h4 className="font-medium text-gray-700 mb-3">Snelle acties</h4>
               <div className="space-y-2">
