@@ -2754,6 +2754,34 @@ Plak je data hieronder:`);
                     // Open een nieuw venster met de volledige startlijst
                     const printWindow = window.open('', '_blank');
                     const calculatedTimes = calculatedTimesForView;
+                    const printRowsHtml = filtered.map((row, index) => {
+                      const times = calculatedTimes[row.id || index] || {};
+                      if (row.type === 'break') {
+                        return (
+                          '<tr class="break-row">' +
+                            '<td>' + (index + 1) + '</td>' +
+                            '<td>PAUZE</td>' +
+                            '<td class="dressuur">' + formatBreakWindow(times.dressuur, times.dressuurEnd) + '</td>' +
+                            '<td class="trail">' + formatBreakWindow(times.trail, times.trailEnd) + '</td>' +
+                            '<td></td>' +
+                            '<td>' + (row.label || 'Pauze') + '</td>' +
+                            '<td>' + (row.duration || 0) + ' minuten</td>' +
+                          '</tr>'
+                        );
+                      }
+
+                      return (
+                        '<tr>' +
+                          '<td>' + (index + 1) + '</td>' +
+                          '<td>' + (normalizeKlasse(row.klasse) || 'Geen klasse') + '</td>' +
+                          '<td class="dressuur">' + (times.dressuur || '--:--') + '</td>' +
+                          '<td class="trail">' + (times.trail || '--:--') + '</td>' +
+                          '<td>' + (row.startnummer || '') + '</td>' +
+                          '<td>' + (row.ruiter || '') + '</td>' +
+                          '<td>' + (row.paard || '') + '</td>' +
+                        '</tr>'
+                      );
+                    }).join('');
                     
                     const htmlContent = `
                       <!DOCTYPE html>
@@ -2787,29 +2815,7 @@ Plak je data hieronder:`);
                             <th>Ruiter</th>
                             <th>Paard</th>
                           </tr>
-                          ${filtered.map((row, index) => {
-                            const times = calculatedTimes[row.id || index] || {};
-                            if (row.type === 'break') {
-                              return `<tr class="break-row">
-                                <td>${index + 1}</td>
-                                <td>🍕 PAUZE</td>
-                                <td class="dressuur">${formatBreakWindow(times.dressuur, times.dressuurEnd)}</td>
-                                <td class="trail">${formatBreakWindow(times.trail, times.trailEnd)}</td>
-                                <td></td>
-                                <td>${row.label || 'Pauze'}</td>
-                                <td>${row.duration || 0} minuten</td>
-                              </tr>`;
-                            }
-                            return `<tr>
-                              <td>${index + 1}</td>
-                              <td>${normalizeKlasse(row.klasse) || 'Geen klasse'}</td>
-                              <td class="dressuur">${times.dressuur || '--:--'}</td>
-                              <td class="trail">${times.trail || '--:--'}</td>
-                              <td>${row.startnummer || ''}</td>
-                              <td>${row.ruiter || ''}</td>
-                              <td>${row.paard || ''}</td>
-                            </tr>`;
-                          }).join('')}
+                          ${printRowsHtml}
                         </table>
                         
                         <script>
