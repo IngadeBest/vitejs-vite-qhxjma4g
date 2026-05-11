@@ -46,7 +46,7 @@ const COL_WIDTHS = {
   EXERCISE: 140,
   HEEL: 35,
   HALF: 35,
-  PENALTY: 50,
+  PENALTY: 35,
   NOTE: 190
 };
 

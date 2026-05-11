@@ -77,7 +77,7 @@ const COL_WIDTHS = {
   EXERCISE: 140,
   HEEL: 35,
   HALF: 35,
-  PENALTY: 50,
+  PENALTY: 35,
   NOTE: 190
 };
 
@@ -1158,17 +1158,22 @@ export default function ProtocolGenerator() {
       <Header />
       <div style={{ maxWidth: 1100, margin: "24px auto" }}>
         <h2>Overzicht & export</h2>
-        <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", margin:"8px 0 16px" }}>
-          <button onClick={downloadBatch}>Download batch PDF</button>
-          <span style={{ display:"inline-flex", gap:8, alignItems:"center" }}>
-            <select value={selectIndex} onChange={(e)=>setSelectIndex(Number(e.target.value))}>
+        <div style={{ margin: "8px 0 16px", display: "grid", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button onClick={downloadBatch}>Download batch PDF</button>
+            <div style={{ marginLeft: "auto" }}>
+              <a href="#/startlijst"><button>Terug naar Startlijst</button></a>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <select value={selectIndex} onChange={(e)=>setSelectIndex(Number(e.target.value))} style={{ flex: "1 1 280px", minWidth: 220 }}>
               {protocollen.map((p,i)=>(<option key={i} value={i}>{p.startnummer} – {p.ruiter} – {p.paard}</option>))}
             </select>
             <button onClick={downloadSingle}>Download gekozen protocol</button>
             <button onClick={previewPdf}>Bekijk in pagina</button>
             <button onClick={openNewTab}>Open in nieuw tabblad</button>
-          </span>
-          <a href="#/startlijst"><button>Terug naar Startlijst</button></a>
+          </div>
         </div>
         {pdfUrl && <iframe src={pdfUrl} title="PDF preview" style={{ width:"100%", height:"680px", border:"1px solid #ccc", borderRadius:8 }} />}
       </div>

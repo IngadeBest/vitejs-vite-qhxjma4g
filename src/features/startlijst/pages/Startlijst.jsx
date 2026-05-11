@@ -1914,47 +1914,44 @@ Plak je data hieronder:`);
       );
     }).join('');
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Startlijst Volledig Overzicht</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; font-weight: bold; }
-          .class-header { background-color: #e3f2fd; font-weight: bold; }
-          .break-row { background-color: #fff3e0; font-weight: bold; }
-          .dressuur { color: #1976d2; }
-          .trail { color: #388e3c; }
-          @media print { body { margin: 0; } }
-        </style>
-      </head>
-      <body>
-        <h1>Startlijst ${wedstrijdNaam || 'Wedstrijd'}</h1>
-        <p>Gegenereerd op: ${new Date().toLocaleString()}</p>
-        <p>Dressuur start: ${dressuurStarttijd} | Trail start: ${trailStarttijd} | Interval: ${tussenPauze} min</p>
-        <table>
-          <tr>
-            <th>#</th>
-            <th>Klasse</th>
-            <th>Dressuur</th>
-            <th>Trail</th>
-            <th>Startnr</th>
-            <th>Ruiter</th>
-            <th>Paard</th>
-          </tr>
-          ${printRowsHtml}
-        </table>
-        <script>
-          window.onload = function() {
-            window.print();
-          }
-        </script>
-      </body>
-      </html>
-    `;
+    const htmlContent =
+      '<!DOCTYPE html>' +
+      '<html>' +
+      '<head>' +
+      '<title>Startlijst Volledig Overzicht</title>' +
+      '<style>' +
+      'body { font-family: Arial, sans-serif; margin: 20px; }' +
+      'table { width: 100%; border-collapse: collapse; margin-top: 20px; }' +
+      'th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }' +
+      'th { background-color: #f2f2f2; font-weight: bold; }' +
+      '.class-header { background-color: #e3f2fd; font-weight: bold; }' +
+      '.break-row { background-color: #fff3e0; font-weight: bold; }' +
+      '.dressuur { color: #1976d2; }' +
+      '.trail { color: #388e3c; }' +
+      '@media print { body { margin: 0; } }' +
+      '</style>' +
+      '</head>' +
+      '<body>' +
+      '<h1>Startlijst ' + (wedstrijdNaam || 'Wedstrijd') + '</h1>' +
+      '<p>Gegenereerd op: ' + new Date().toLocaleString() + '</p>' +
+      '<p>Dressuur start: ' + (dressuurStarttijd || '--:--') + ' | Trail start: ' + (trailStarttijd || '--:--') + ' | Interval: ' + tussenPauze + ' min</p>' +
+      '<table>' +
+      '<tr>' +
+      '<th>#</th>' +
+      '<th>Klasse</th>' +
+      '<th>Dressuur</th>' +
+      '<th>Trail</th>' +
+      '<th>Startnr</th>' +
+      '<th>Ruiter</th>' +
+      '<th>Paard</th>' +
+      '</tr>' +
+      printRowsHtml +
+      '</table>' +
+      '<script>' +
+      'window.onload = function() { window.print(); };' +
+      '</script>' +
+      '</body>' +
+      '</html>';
 
     printWindow.document.write(htmlContent);
     printWindow.document.close();
