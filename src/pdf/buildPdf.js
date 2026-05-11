@@ -97,9 +97,11 @@ function infoBoxesSideBySide(doc, info) {
     startY,
     head: [],
     body: [
-      ["Ruiter", info.ruiter || "", "Paard", info.paard || ""],
+      ["Ruiter", info.ruiter || "", "", ""],
+      ["Paard", info.paard || "", "", ""],
       ["Startnummer", info.startnummer || "", "", ""],
       ["Percentage", "", "Plaatsing", ""],
+      ["", "", "", ""],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER_COLOR, lineWidth: 0.5 },
     theme: "grid",
