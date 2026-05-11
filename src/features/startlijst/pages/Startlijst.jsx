@@ -1078,7 +1078,7 @@ export default function Startlijst() {
   };
 
   // Starttijd systeem state
-  const [dressuurStarttijd, setDressuurStarttijd] = useState("09:00");
+  const [dressuurStarttijd, setDressuurStarttijd] = useState("");
   const [trailStarttijd, setTrailStarttijd] = useState("13:00");
   const [tussenPauze, setTussenPauze] = useState(6); // minuten tussen deelnemers
   const [trailOmbouwtijd, setTrailOmbouwtijd] = useState(0); // extra tijd voor ombouwen trail (0-15 min)
@@ -1630,7 +1630,7 @@ Plak je data hieronder:`);
       console.log("Loaded startlijst_config:", config);
       
       // Herstel instellingen
-      if (config.dressuurStart) setDressuurStarttijd(config.dressuurStart);
+      setDressuurStarttijd(config.dressuurStart ?? "");
       if (config.trailStart) setTrailStarttijd(config.trailStart);
       if (config.interval) setTussenPauze(config.interval);
       if (config.trailOmbouwtijd !== undefined) setTrailOmbouwtijd(config.trailOmbouwtijd);
@@ -1867,6 +1867,14 @@ Plak je data hieronder:`);
     ]
   );
 
+  const entryCount = filtered.filter((r) => r.type === 'entry').length;
+  const breakCount = filtered.filter((r) => r.type === 'break').length;
+  const classCount = new Set(
+    filtered
+      .filter((r) => r.type === 'entry')
+      .map((r) => normalizeKlasse(r.klasse) || 'Geen klasse')
+  ).size;
+
   const fieldClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
   const cardClass = "bg-white rounded-xl shadow-sm border border-gray-200";
   const primaryBtnClass = "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors";
@@ -1895,6 +1903,27 @@ Plak je data hieronder:`);
               </Link>
             </div>
           </div>
+        </div>
+
+        <div className={`${cardClass} px-4 py-3 flex flex-wrap items-center gap-3`}>
+          <div className="px-3 py-2 rounded-lg bg-blue-50 text-blue-800 text-sm font-medium">
+            {wedstrijd ? `Wedstrijd: ${wedstrijdNaam || 'geselecteerd'}` : 'Geen wedstrijd geselecteerd'}
+          </div>
+          <div className="px-3 py-2 rounded-lg bg-emerald-50 text-emerald-800 text-sm font-medium">
+            {entryCount} deelnemers
+          </div>
+          <div className="px-3 py-2 rounded-lg bg-amber-50 text-amber-800 text-sm font-medium">
+            {breakCount} pauzes
+          </div>
+          <div className="px-3 py-2 rounded-lg bg-slate-50 text-slate-700 text-sm font-medium">
+            {classCount} klassen
+          </div>
+          {(klasse || rubriek) && (
+            <div className="ml-auto flex flex-wrap gap-2">
+              {klasse && <span className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm">Klasse: {klasse}</span>}
+              {rubriek && <span className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm">Rubriek: {rubriek}</span>}
+            </div>
+          )}
         </div>
 
       {/* Flex layout - links bewerkingstabel, rechts preview */}
@@ -1971,7 +2000,7 @@ Plak je data hieronder:`);
             <div className="flex items-center gap-4 flex-wrap">
               <h2 className="text-lg font-semibold text-gray-900">Starttijden</h2>
               <div className="flex items-center gap-2 text-sm">
-                <label className="text-gray-600">Dressuur:</label>
+                <label className="text-gray-600">Dressuur (optioneel):</label>
                 <input
                   type="time"
                   className="border rounded px-2 py-1 text-sm"
@@ -2243,7 +2272,7 @@ Plak je data hieronder:`);
 
           {/* Eenvoudige bewerkingstabel - alle deelnemers op volgorde */}
           <div className={cardClass}>
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/60 rounded-t-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Startlijst Bewerken</h2>
@@ -2255,7 +2284,7 @@ Plak je data hieronder:`);
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-b-xl">
               <table className="min-w-full">
                 <thead className="bg-gray-50">
                   <tr>
@@ -2567,7 +2596,11 @@ Plak je data hieronder:`);
           </div>
 
           <div className={`mt-6 ${cardClass} p-4`}>
-            <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Acties</h2>
+                <p className="text-sm text-gray-500">Voeg deelnemers, pauzes en exports toe vanuit deze balk.</p>
+              </div>
               <div className="flex gap-3 flex-wrap">
                 <button
                   className={primaryBtnClass}
@@ -2648,20 +2681,17 @@ Plak je data hieronder:`);
                 Overzicht
               </h3>
               
-              <div className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded">
-                  <span className="text-sm text-blue-700">Totaal deelnemers:</span>
-                  <span className="font-bold text-blue-800">
-                    {filtered.filter(r => r.type === 'entry').length}
-                  </span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                  <div className="text-xs uppercase tracking-wide text-blue-600">Deelnemers</div>
+                  <div className="mt-1 text-xl font-bold text-blue-800">{entryCount}</div>
                 </div>
 
-                <div className="flex justify-between items-center p-3 bg-yellow-50 rounded">
-                  <span className="text-sm text-yellow-700">Pauzes:</span>
-                  <span className="font-bold text-yellow-800">
-                    {filtered.filter(r => r.type === 'break').length}
-                  </span>
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <div className="text-xs uppercase tracking-wide text-amber-600">Pauzes</div>
+                  <div className="mt-1 text-xl font-bold text-amber-800">{breakCount}</div>
                 </div>
+              </div>
 
                 {(() => {
                   const klassen = {};
@@ -2671,8 +2701,8 @@ Plak je data hieronder:`);
                   });
                   
                   return Object.keys(klassen).length > 0 && (
-                    <div className="border-t pt-3">
-                      <div className="text-sm font-medium text-gray-700 mb-2">Per klasse:</div>
+                    <div className="border-t pt-3 mt-3">
+                      <div className="text-sm font-medium text-gray-700 mb-2">Per klasse</div>
                       <div className="space-y-1">
                         {Object.entries(klassen)
                           .sort(([a], [b]) => a.localeCompare(b))
@@ -2688,7 +2718,7 @@ Plak je data hieronder:`);
                 })()}
 
                 {wedstrijd && (
-                  <div className="border-t pt-3">
+                  <div className="border-t pt-3 mt-3">
                     <div className="text-xs text-gray-500">
                       <div>Wedstrijd: {wedstrijden?.find(w => w.id === wedstrijd)?.naam || wedstrijd}</div>
                       {klasse && <div>Filter klasse: {klasse}</div>}
@@ -2697,7 +2727,7 @@ Plak je data hieronder:`);
                   </div>
                 )}
 
-                <div className="border-t pt-3">
+                <div className="border-t pt-3 mt-3">
                   <div className="text-xs text-gray-500 space-y-1">
                     <div>Dressuur start: <span className="font-mono">{dressuurStarttijd}</span></div>
                     <div>Trail start: <span className="font-mono">{trailStarttijd}</span></div>
