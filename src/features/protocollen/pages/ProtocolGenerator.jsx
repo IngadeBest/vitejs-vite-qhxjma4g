@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { padStartnummer, lookupOffset } from '@/lib/startnummer';
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
@@ -11,6 +11,7 @@ import { buildProtocolPdf, generatePdfBlob, KLASSEN as PDF_KLASSEN, ONDERDELEN a
 /* Klassen & Onderdelen - gebruik de geëxporteerde constanten uit buildPdf */
 const KLASSEN = PDF_KLASSEN;
 const ONDERDELEN = PDF_ONDERDELEN;
+const JURY_LS_KEY = "wp_protocol_jury_v1";
 
 /* Backwards compatible wrapper voor makePdfBlob */
 async function makePdfBlob(protocol, items) {
@@ -30,6 +31,20 @@ function resolveTemplateByKlasse(templateGroup, klasseKey) {
     return templateGroup[klasseKey.replace("PLUS", "+")] || null;
   }
   return null;
+}
+
+function getMaxObstakelsForKlasse(klasseCode) {
+  if (!klasseCode) return null;
+  return KLASSEN.find((k) => k.code === klasseCode)?.max ?? null;
+}
+
+function clampStijlItems(onderdeelCode, klasseCode, nextItems) {
+  if (onderdeelCode !== "stijl") return { items: nextItems, max: null, truncated: false };
+  const max = getMaxObstakelsForKlasse(klasseCode);
+  if (!max || !Array.isArray(nextItems) || nextItems.length <= max) {
+    return { items: nextItems, max, truncated: false };
+  }
+  return { items: nextItems.slice(0, max), max, truncated: true };
 }
 
 /* Algemene punten (Stijltrail) */
@@ -112,17 +127,20 @@ function infoBoxesSideBySide(doc, info, autoTable) {
     startY,
     head: [],
     body: [
-      ["Ruiter", info.ruiter || ""],
-      ["Paard", info.paard || ""],
-      ["Startnummer", info.startnummer || ""],
-      ["Percentage", ""],
-      ["Plaatsing", ""],
+      ["Ruiter", info.ruiter || "", "Paard", info.paard || ""],
+      ["Startnummer", info.startnummer || "", "", ""],
+      ["Percentage", "", "Plaatsing", ""],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left + 280, right: MARGIN.right },
     tableWidth: "auto",
-    columnStyles: { 0: { cellWidth: 90, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+    columnStyles: {
+      0: { cellWidth: 72, fontStyle: "bold" },
+      1: { cellWidth: 72 },
+      2: { cellWidth: 72, fontStyle: "bold" },
+      3: { cellWidth: "auto" },
+    },
   });
   const rightY = doc.lastAutoTable.finalY;
   return Math.max(leftY, rightY);
@@ -534,12 +552,20 @@ function protocolToDoc(doc, p, items, autoTable) {
 export default function ProtocolGenerator() {
   const { items: wedstrijden } = useWedstrijden(false);
   const [stap, setStap] = useState(1);
-  const [config, setConfig] = useState({
-    wedstrijd_id: "",
-    klasse: "",
-    onderdeel: "", 
-    datum: new Date().toISOString().split("T")[0],
-    jury: ""
+  const [config, setConfig] = useState(() => {
+    let savedJury = "";
+    try {
+      savedJury = localStorage.getItem(JURY_LS_KEY) || "";
+    } catch {
+      savedJury = "";
+    }
+    return {
+      wedstrijd_id: "",
+      klasse: "",
+      onderdeel: "",
+      datum: new Date().toISOString().split("T")[0],
+      jury: savedJury,
+    };
   });
   const selectedWedstrijd = useMemo(
     () => wedstrijden.find(w => w.id === config.wedstrijd_id) || null,
@@ -558,6 +584,14 @@ export default function ProtocolGenerator() {
     }
   }, [config.klasse, config.onderdeel]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(JURY_LS_KEY, config.jury || "");
+    } catch {
+      // negeer localStorage fouten
+    }
+  }, [config.jury]);
+
   const [dbMsg, setDbMsg] = useState("");
   const [dbMax, setDbMax] = useState(null);
   const [items, setItems] = useState([]);
@@ -569,6 +603,19 @@ export default function ProtocolGenerator() {
   const [pdfUrl, setPdfUrl] = useState(null);
   const draggedItem = useRef(null);
   const draggedFromAvailable = useRef(false);
+
+  const maxStijlObstakels = useMemo(
+    () => getMaxObstakelsForKlasse(config.klasse),
+    [config.klasse]
+  );
+
+  const applyStijlItemLimit = useCallback((nextItems) => {
+    const limited = clampStijlItems(config.onderdeel, config.klasse, nextItems);
+    if (limited.truncated && limited.max) {
+      setDbMsg(`⚠️ Maximaal ${limited.max} obstakels toegestaan voor ${config.klasse?.toUpperCase()}.`);
+    }
+    setItems(limited.items || []);
+  }, [config.onderdeel, config.klasse]);
 
   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
 
@@ -647,9 +694,14 @@ export default function ProtocolGenerator() {
         const saved = localStorage.getItem(key);
         if (saved) {
           const parsedItems = JSON.parse(saved);
-          setItems(parsedItems);
+          const limited = clampStijlItems(config.onderdeel, config.klasse, parsedItems);
+          setItems(limited.items || []);
           setDbMax(proef.max_score || null);
-          setDbMsg(`✅ Opgeslagen configuratie geladen: ${parsedItems.length} items`);
+          setDbMsg(
+            limited.truncated && limited.max
+              ? `⚠️ Opgeslagen configuratie ingekort naar ${limited.max} items voor ${config.klasse?.toUpperCase()}`
+              : `✅ Opgeslagen configuratie geladen: ${parsedItems.length} items`
+          );
           return;
         }
 
@@ -658,9 +710,15 @@ export default function ProtocolGenerator() {
         if (e2) throw e2;
         if (!alive) return;
         
-        setItems((its || []).map(it => it.omschrijving));
+        const loadedItems = (its || []).map(it => it.omschrijving);
+        const limited = clampStijlItems(config.onderdeel, config.klasse, loadedItems);
+        setItems(limited.items || []);
         setDbMax(proef.max_score || null);
-        setDbMsg(`Proef geladen: ${proef.naam} (${(its||[]).length} onderdelen)`);
+        setDbMsg(
+          limited.truncated && limited.max
+            ? `⚠️ Proef geladen en ingekort naar ${limited.max} onderdelen voor ${config.klasse?.toUpperCase()}`
+            : `Proef geladen: ${proef.naam} (${(its||[]).length} onderdelen)`
+        );
       } catch (e) {
         if (!alive) return;
         setDbMsg("Kon proeven niet laden: " + e.message);
@@ -898,13 +956,13 @@ export default function ProtocolGenerator() {
         const n = [...items];
         if (targetItem) n.splice(items.indexOf(targetItem), 0, draggedObstakel);
         else n.push(draggedObstakel);
-        setItems(n);
+        applyStijlItemLimit(n);
       } else {
         if (targetItem && draggedObstakel !== targetItem) {
           const n = [...items];
           n.splice(items.indexOf(draggedObstakel), 1);
           n.splice(n.indexOf(targetItem), 0, draggedObstakel);
-          setItems(n);
+          applyStijlItemLimit(n);
         }
       }
     }
@@ -993,7 +1051,7 @@ export default function ProtocolGenerator() {
               <div style={{ fontWeight: 600, marginBottom: 8, color: '#6b7280', fontSize: 13 }}>📋 BESCHIKBAAR ({availableObstakels.length})</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {availableObstakels.map((o, i) => (
-                  <div key={i} draggable onDragStart={(e) => handleDragStart(e, o, true)} onClick={() => setItems([...items, o])}
+                  <div key={i} draggable onDragStart={(e) => handleDragStart(e, o, true)} onClick={() => applyStijlItemLimit([...items, o])}
                     style={{ padding: '8px 12px', background: 'white', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'grab', fontSize: 13 }}>{o}</div>
                 ))}
               </div>
@@ -1011,9 +1069,14 @@ export default function ProtocolGenerator() {
                 ))}
               </div>
               <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <button onClick={() => setItems(availableObstakels)} style={{ fontSize: 12, padding: '6px 12px' }}>Alles</button>
+                <button onClick={() => applyStijlItemLimit(availableObstakels)} style={{ fontSize: 12, padding: '6px 12px' }}>Alles</button>
                 <button onClick={() => setItems([])} style={{ fontSize: 12, padding: '6px 12px' }}>Wis</button>
               </div>
+              {maxStijlObstakels ? (
+                <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
+                  Maximaal {maxStijlObstakels} obstakels voor {config.klasse?.toUpperCase()}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

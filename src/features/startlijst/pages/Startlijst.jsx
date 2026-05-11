@@ -130,10 +130,11 @@ const calculateStartTimesPerClass = (
       // Check of klasse wijzigt en of er een specifieke starttijd is
       if (klasse !== lastKlasse) {
         const klasseConfig = klasseStartTimes[klasse] || {};
+        const hasTimelineFromPreviousRows = lastKlasse === null && index > 0 && (currentDressuurTime || currentTrailTime);
         
         // Als er een specifieke starttijd is voor deze klasse, gebruik die
         // Anders blijf doornummeren vanaf vorige tijd
-        if (klasseConfig.dressuur) {
+        if (klasseConfig.dressuur && !hasTimelineFromPreviousRows) {
           currentDressuurTime = createTimeFromHHMM(klasseConfig.dressuur);
         } else if (!currentDressuurTime) {
           // Geen tijd ingesteld en geen lopende tijd: laat leeg
@@ -141,7 +142,7 @@ const calculateStartTimesPerClass = (
         }
         // Anders: blijf doornummeren (currentDressuurTime blijft behouden)
         
-        if (klasseConfig.trail) {
+        if (klasseConfig.trail && !hasTimelineFromPreviousRows) {
           currentTrailTime = createTimeFromHHMM(klasseConfig.trail);
         } else if (!currentTrailTime) {
           currentTrailTime = null;
@@ -635,6 +636,157 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
       "startlijst.csv"
     );
   }
+}
+
+async function exportToImage(rows, meta = {}, calculatedTimes = {}) {
+  const wedstrijdNaam = meta.wedstrijdNaam || 'Wedstrijd';
+  const datum = meta.datum || new Date().toISOString().split('T')[0];
+  const klasse = meta.klasse || 'Alle klassen';
+  const rubriek = meta.rubriek || 'Alle rubrieken';
+
+  const entries = [];
+  let currentKlasse = null;
+  let itemNr = 0;
+
+  rows.forEach((r, idx) => {
+    if (r.type === 'break') {
+      const times = calculatedTimes[r.id || idx] || {};
+      entries.push({
+        kind: 'break',
+        nr: '—',
+        klasse: 'PAUZE',
+        dressuur: formatBreakWindow(times.dressuur, times.dressuurEnd),
+        trail: formatBreakWindow(times.trail, times.trailEnd),
+        startnummer: '',
+        ruiter: `PAUZE: ${r.label || 'Pauze'}`,
+        paard: `${r.duration || 0} minuten`,
+      });
+      return;
+    }
+
+    const rowKlasse = normalizeKlasse(r.klasse) || 'Geen klasse';
+    if (rowKlasse !== currentKlasse) {
+      currentKlasse = rowKlasse;
+      itemNr = 0;
+      entries.push({ kind: 'class-header', label: `Klasse ${rowKlasse}` });
+    }
+
+    itemNr += 1;
+    const times = calculatedTimes[r.id || idx] || {};
+    entries.push({
+      kind: 'entry',
+      nr: itemNr,
+      klasse: rowKlasse,
+      dressuur: times.dressuur || '--:--',
+      trail: times.trail || '--:--',
+      startnummer: r.startnummer || '',
+      ruiter: r.ruiter || '',
+      paard: r.paard || '',
+    });
+  });
+
+  const width = 1600;
+  const padding = 36;
+  const headerH = 120;
+  const tableHeadH = 42;
+  const rowH = 34;
+  const footerH = 44;
+  const height = headerH + tableHeadH + Math.max(1, entries.length) * rowH + footerH;
+
+  const canvas = document.createElement('canvas');
+  const scale = 2;
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context niet beschikbaar');
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  const grad = ctx.createLinearGradient(0, 0, width, 0);
+  grad.addColorStop(0, '#102754');
+  grad.addColorStop(1, '#1d4a9e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, width, headerH);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 34px Arial';
+  ctx.fillText('Working Point - Startlijst', padding, 46);
+  ctx.font = '500 19px Arial';
+  ctx.fillText(`${wedstrijdNaam} | ${datum}`, padding, 76);
+  ctx.font = '500 16px Arial';
+  ctx.fillText(`Klasse: ${klasse} | Rubriek: ${rubriek}`, padding, 100);
+
+  const cols = [
+    { key: 'nr', label: '#', x: padding, w: 60 },
+    { key: 'klasse', label: 'Klasse', x: padding + 64, w: 160 },
+    { key: 'dressuur', label: 'Dressuur', x: padding + 230, w: 180 },
+    { key: 'trail', label: 'Trail', x: padding + 420, w: 180 },
+    { key: 'startnummer', label: 'Startnr', x: padding + 610, w: 110 },
+    { key: 'ruiter', label: 'Ruiter', x: padding + 728, w: 420 },
+    { key: 'paard', label: 'Paard', x: padding + 1155, w: 390 },
+  ];
+
+  let y = headerH;
+  ctx.fillStyle = '#f3f6fb';
+  ctx.fillRect(0, y, width, tableHeadH);
+  ctx.strokeStyle = '#d9e1ee';
+  ctx.beginPath();
+  ctx.moveTo(0, y + tableHeadH);
+  ctx.lineTo(width, y + tableHeadH);
+  ctx.stroke();
+
+  ctx.fillStyle = '#1f2937';
+  ctx.font = '700 15px Arial';
+  cols.forEach((c) => ctx.fillText(c.label, c.x, y + 27));
+  y += tableHeadH;
+
+  ctx.font = '500 14px Arial';
+  entries.forEach((row, i) => {
+    if (row.kind === 'class-header') {
+      ctx.fillStyle = '#e8f0fe';
+      ctx.fillRect(0, y, width, rowH);
+      ctx.fillStyle = '#1e40af';
+      ctx.font = '700 14px Arial';
+      ctx.fillText(row.label, padding, y + 22);
+      ctx.font = '500 14px Arial';
+      y += rowH;
+      return;
+    }
+
+    if (row.kind === 'break') {
+      ctx.fillStyle = '#fff7db';
+      ctx.fillRect(0, y, width, rowH);
+    } else if (i % 2 === 0) {
+      ctx.fillStyle = '#fafcff';
+      ctx.fillRect(0, y, width, rowH);
+    }
+
+    ctx.fillStyle = '#111827';
+    cols.forEach((c) => {
+      const value = row[c.key] ?? '';
+      ctx.fillText(String(value), c.x, y + 22, c.w);
+    });
+
+    ctx.strokeStyle = '#eef2f8';
+    ctx.beginPath();
+    ctx.moveTo(0, y + rowH);
+    ctx.lineTo(width, y + rowH);
+    ctx.stroke();
+    y += rowH;
+  });
+
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '500 12px Arial';
+  ctx.fillText(`Gegenereerd op ${new Date().toLocaleString('nl-NL')}`, padding, height - 14);
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('Afbeelding kon niet worden aangemaakt');
+
+  const safeName = (str) => String(str).replace(/[^a-zA-Z0-9-]/g, '_').replace(/_+/g, '_');
+  const filename = `Startlijst_${safeName(wedstrijdNaam)}_${datum}.png`;
+  downloadBlob(blob, filename);
 }
 
 // ======= Component =======
@@ -2442,6 +2594,24 @@ Plak je data hieronder:`);
                   disabled={!filtered.length}
                 >
                   📊 Excel Export
+                </button>
+
+                <button
+                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  onClick={async () => {
+                    try {
+                      const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
+                      const calculatedTimes = hasKlasseStartTimes
+                        ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd, dressuurStarttijd, trailStarttijd)
+                        : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
+                      await exportToImage(filtered, meta, calculatedTimes);
+                    } catch (e) {
+                      alert('Fout bij afbeelding export: ' + (e?.message || String(e)));
+                    }
+                  }}
+                  disabled={!filtered.length}
+                >
+                  🖼️ Afbeelding Export
                 </button>
                 
                 <button

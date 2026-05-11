@@ -97,17 +97,20 @@ function infoBoxesSideBySide(doc, info) {
     startY,
     head: [],
     body: [
-      ["Ruiter", info.ruiter || ""],
-      ["Paard", info.paard || ""],
-      ["Startnummer", info.startnummer || ""],
-      ["Percentage", ""],
-      ["Plaatsing", ""],
+      ["Ruiter", info.ruiter || "", "Paard", info.paard || ""],
+      ["Startnummer", info.startnummer || "", "", ""],
+      ["Percentage", "", "Plaatsing", ""],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER_COLOR, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left + 280, right: MARGIN.right },
     tableWidth: "auto",
-    columnStyles: { 0: { cellWidth: 90, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+    columnStyles: {
+      0: { cellWidth: 72, fontStyle: "bold" },
+      1: { cellWidth: 72 },
+      2: { cellWidth: 72, fontStyle: "bold" },
+      3: { cellWidth: "auto" },
+    },
   });
   const rightY = doc.lastAutoTable.finalY;
   return Math.max(leftY, rightY);
