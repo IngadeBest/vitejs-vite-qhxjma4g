@@ -46,7 +46,8 @@ const COL_WIDTHS = {
   EXERCISE: 140,
   HEEL: 35,
   HALF: 35,
-  NOTE: 240
+  PENALTY: 50,
+  NOTE: 190
 };
 
 const COL_WIDTHS_SPEED = {
@@ -99,6 +100,8 @@ function infoBoxesSideBySide(doc, info) {
       ["Ruiter", info.ruiter || ""],
       ["Paard", info.paard || ""],
       ["Startnummer", info.startnummer || ""],
+      ["Percentage", ""],
+      ["Plaatsing", ""],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER_COLOR, lineWidth: 0.5 },
     theme: "grid",
@@ -126,14 +129,15 @@ function obstaclesTable(doc, items, startY, options = {}) {
       4: { cellWidth: COL_WIDTHS_SPEED.NOTE }
     };
   } else {
-    head = [["#", "Onderdeel / obstakel", "Heel", "Half", "Opmerking"]];
-    body = items.map((o, i) => [i + 1, o, "", "", ""]);
+    head = [["#", "Onderdeel / obstakel", "Heel", "Half", "Correctie", "Opmerking"]];
+    body = items.map((o, i) => [i + 1, o, "", "", "", ""]);
     colStyles = {
       0: { cellWidth: COL_WIDTHS.NUM, halign: "center" },
       1: { cellWidth: COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE },
       2: { cellWidth: COL_WIDTHS.HEEL, halign: "center" },
       3: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
-      4: { cellWidth: COL_WIDTHS.NOTE }
+      4: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" },
+      5: { cellWidth: COL_WIDTHS.NOTE }
     };
   }
 
@@ -167,10 +171,18 @@ function obstaclesTable(doc, items, startY, options = {}) {
 
 function generalPointsTable(doc, punten, startY, startIndex, options = {}) {
   const { compact = false } = options;
+  const rows = punten.map((naam, i) => {
+    const text = String(naam || "").trim();
+    const m = text.match(/^([A-E])\s+[\-–:]?\s*(.+)$/i);
+    if (m) {
+      return [m[1].toUpperCase(), m[2], "", "", ""];
+    }
+    return [startIndex + i, naam, "", "", ""];
+  });
   autoTable(doc, {
     startY,
-    head: [["#", "Algemene punten", "Heel", "Half", "Opmerking"]],
-    body: punten.map((naam, i) => [startIndex + i, naam, "", "", ""]),
+    head: [["#", "Algemene punten", "Heel", "Half", "Correctie", "Opmerking"]],
+    body: rows,
     styles: {
       fontSize: compact ? 8.5 : 9,
       cellPadding: compact ? { top: 6, right: 3, bottom: 6, left: 3 } : { top: 8, right: 3, bottom: 8, left: 3 },
@@ -195,7 +207,8 @@ function generalPointsTable(doc, punten, startY, startIndex, options = {}) {
       1: { cellWidth: COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE },
       2: { cellWidth: COL_WIDTHS.HEEL, halign: "center" },
       3: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
-      4: { cellWidth: COL_WIDTHS.NOTE },
+      4: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" },
+      5: { cellWidth: COL_WIDTHS.NOTE },
     },
   });
   return doc.lastAutoTable.finalY;
@@ -219,18 +232,19 @@ function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntena
     };
   } else {
     const totalLabel = maxPoints ? `Totaal (max. ${maxPoints})` : "Totaal";
-    bodyRows.push(["Subtotaal", "", "", ""]);
+    bodyRows.push(["Subtotaal", "", "", "", ""]);
     if (showPuntenaftrek) {
-      bodyRows.push(["Puntenaftrek en reden", "", "", ""]);
+      bodyRows.push(["Puntenaftrek en reden", "", "", "", ""]);
     }
-    bodyRows.push([extraLabel || totalLabel, "", "", ""]);
+    bodyRows.push([extraLabel || totalLabel, "", "", "", ""]);
 
     const labelWidth = COL_WIDTHS.NUM + COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE;
     colStyles = {
       0: { cellWidth: labelWidth, halign: "left" },
       1: { cellWidth: COL_WIDTHS.HEEL, halign: "center" },
       2: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
-      3: { cellWidth: COL_WIDTHS.NOTE }
+      3: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" },
+      4: { cellWidth: COL_WIDTHS.NOTE }
     };
   }
 
@@ -258,6 +272,59 @@ function signatureLine(doc) {
   doc.setFontSize(9);
   doc.text("Handtekening jury:", MARGIN.left, pageH - 24);
   doc.line(MARGIN.left + 110, pageH - 26, doc.internal.pageSize.getWidth() - MARGIN.right, pageH - 26);
+}
+
+function isGeneralDressuurPunt(text) {
+  const t = String(text || "").toLowerCase();
+  return (
+    t.includes("gangen") ||
+    t.includes("impuls") ||
+    t.includes("gehoorzaamheid") ||
+    t.includes("harmonie") ||
+    t.includes("submission") ||
+    t.includes("rijden op zit") ||
+    t.includes("presentatie") ||
+    t.includes("ruiter") ||
+    t.includes("artistiek")
+  );
+}
+
+function shouldAppendDressuurLine(currentGroup, letter, beoordeling, oefening) {
+  if (!currentGroup || letter || beoordeling) return false;
+  const trimmed = String(oefening || "").trim();
+  if (!trimmed) return false;
+
+  // Vervolgregels zijn in de praktijk gekoppeld aan een regel met letter of beoordeling.
+  if (currentGroup.hasAnchor) return true;
+
+  // Zonder anker alleen korte vervolgfragmenten samenvoegen (bijv. "met overgang ...").
+  const firstChar = trimmed[0] || "";
+  const startsAsContinuation = firstChar === "(" || firstChar === "," || (firstChar >= "a" && firstChar <= "z");
+  return startsAsContinuation;
+}
+
+function alignedDressuurLetterText(doc, letters, oefeningen) {
+  const maxLen = Math.max(letters.length, oefeningen.length);
+  const letterLines = [];
+
+  // Match autoTable content width for the Oefening column (cellWidth 140, padding 3+3).
+  const oefeningTextWidth = COL_WIDTHS.EXERCISE - 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+
+  for (let i = 0; i < maxLen; i++) {
+    const letter = letters[i] ?? "";
+    const oefening = oefeningen[i] ?? "";
+    letterLines.push(letter);
+
+    if (i < maxLen - 1) {
+      const wrapped = doc.splitTextToSize(String(oefening), oefeningTextWidth);
+      const visualLines = Array.isArray(wrapped) ? Math.max(1, wrapped.length) : 1;
+      for (let j = 1; j < visualLines; j++) letterLines.push("");
+    }
+  }
+
+  return letterLines.join("\n");
 }
 
 /**
@@ -291,16 +358,7 @@ export function buildProtocolPdf(protocol, items) {
         const oefening = item[1] || "";
         const beoordeling = item[3] || item[2] || "";
 
-        if (!letter && !beoordeling && (
-          oefening.toLowerCase().includes("gangen") ||
-          oefening.toLowerCase().includes("impuls") ||
-          oefening.toLowerCase().includes("gehoorzaamheid") ||
-          oefening.toLowerCase().includes("harmonie") ||
-          oefening.toLowerCase().includes("rijden op zit") ||
-          oefening.toLowerCase().includes("presentatie") ||
-          oefening.toLowerCase().includes("ruiter") ||
-          oefening.toLowerCase().includes("artistiek")
-        )) {
+        if (!letter && !beoordeling && isGeneralDressuurPunt(oefening)) {
           inAlgemenePunten = true;
           currentGroup = null;
         }
@@ -321,10 +379,11 @@ export function buildProtocolPdf(protocol, items) {
             beoordeling: beoordeling,
             puntenHeel: "",
             puntenHalf: "",
-            isHeader: false
+            isHeader: false,
+            hasAnchor: Boolean(letter || beoordeling)
           };
           tableData.push(currentGroup);
-        } else if (!letter && oefening && currentGroup) {
+        } else if (shouldAppendDressuurLine(currentGroup, letter, beoordeling, oefening)) {
           currentGroup.letters.push("");
           currentGroup.oefeningen.push(oefening);
         } else if (letter && !beoordeling) {
@@ -336,7 +395,21 @@ export function buildProtocolPdf(protocol, items) {
             beoordeling: "",
             puntenHeel: "",
             puntenHalf: "",
-            isHeader: false
+            isHeader: false,
+            hasAnchor: Boolean(letter || beoordeling)
+          };
+          tableData.push(currentGroup);
+        } else if (oefening) {
+          groupNumber++;
+          currentGroup = {
+            nummer: groupNumber.toString(),
+            letters: [letter],
+            oefeningen: [oefening],
+            beoordeling: beoordeling,
+            puntenHeel: "",
+            puntenHalf: "",
+            isHeader: false,
+            hasAnchor: Boolean(letter || beoordeling)
           };
           tableData.push(currentGroup);
         }
@@ -345,16 +418,17 @@ export function buildProtocolPdf(protocol, items) {
 
     const formattedData = tableData.map(group => [
       group.nummer,
-      group.letters.join("\n"),
+      alignedDressuurLetterText(doc, group.letters, group.oefeningen),
       group.oefeningen.join("\n"),
       group.puntenHeel,
       group.puntenHalf,
+      "",
       group.beoordeling
     ]);
 
     autoTable(doc, {
       startY: infoY + 16,
-      head: [["#", "Letter", "Oefening", "Heel", "Half", "Beoordeling/Opmerkingen"]],
+      head: [["#", "Letter", "Oefening", "Heel", "Half", "Correctie", "Beoordeling/Opmerkingen"]],
       body: formattedData,
       styles: {
         fontSize: 9,
@@ -383,7 +457,8 @@ export function buildProtocolPdf(protocol, items) {
         2: { cellWidth: COL_WIDTHS.EXERCISE, halign: "left" },
         3: { cellWidth: COL_WIDTHS.HEEL, halign: "center" },
         4: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
-        5: { cellWidth: COL_WIDTHS.NOTE }
+        5: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" },
+        6: { cellWidth: COL_WIDTHS.NOTE }
       }
     });
 

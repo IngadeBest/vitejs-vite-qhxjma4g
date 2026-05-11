@@ -17,6 +17,21 @@ async function makePdfBlob(protocol, items) {
   return generatePdfBlob(protocol, items);
 }
 
+function resolveTemplateByKlasse(templateGroup, klasseKey) {
+  if (!templateGroup || !klasseKey) return null;
+  const direct = templateGroup[klasseKey];
+  if (direct) return direct;
+
+  // Ondersteun zowel WE2+ als WE2PLUS keys in templates.
+  if (klasseKey.includes("+")) {
+    return templateGroup[klasseKey.replace("+", "PLUS")] || null;
+  }
+  if (klasseKey.includes("PLUS")) {
+    return templateGroup[klasseKey.replace("PLUS", "+")] || null;
+  }
+  return null;
+}
+
 /* Algemene punten (Stijltrail) */
 const ALG_PUNTEN_WE0_WE1 = [
   "Zuiverheid van de gangen en regelmatigheid van de bewegingen van het paard",
@@ -47,7 +62,8 @@ const COL_WIDTHS = {
   EXERCISE: 140,
   HEEL: 35,
   HALF: 35,
-  NOTE: 240
+  PENALTY: 50,
+  NOTE: 190
 };
 
 // SPEEDTRAIL INDELING
@@ -99,6 +115,8 @@ function infoBoxesSideBySide(doc, info, autoTable) {
       ["Ruiter", info.ruiter || ""],
       ["Paard", info.paard || ""],
       ["Startnummer", info.startnummer || ""],
+      ["Percentage", ""],
+      ["Plaatsing", ""],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
@@ -126,14 +144,15 @@ function obstaclesTable(doc, items, startY, autoTable, options = {}) {
       4: { cellWidth: COL_WIDTHS_SPEED.NOTE }
     };
   } else {
-    head = [["#", "Onderdeel / obstakel", "Heel", "Half", "Opmerking"]];
-    body = items.map((o, i) => [i + 1, o, "", "", ""]);
+    head = [["#", "Onderdeel / obstakel", "Heel", "Half", "Correctie", "Opmerking"]];
+    body = items.map((o, i) => [i + 1, o, "", "", "", ""]);
     colStyles = {
       0: { cellWidth: COL_WIDTHS.NUM, halign: "center" },
       1: { cellWidth: COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE },
       2: { cellWidth: COL_WIDTHS.HEEL, halign: "center" },
       3: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
-      4: { cellWidth: COL_WIDTHS.NOTE }
+      4: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" },
+      5: { cellWidth: COL_WIDTHS.NOTE }
     };
   }
 
@@ -167,10 +186,18 @@ function obstaclesTable(doc, items, startY, autoTable, options = {}) {
 
 function generalPointsTable(doc, punten, startY, startIndex, autoTable, options = {}) {
   const { compact = false } = options;
+  const rows = punten.map((naam, i) => {
+    const text = String(naam || "").trim();
+    const m = text.match(/^([A-E])\s+[\-–:]?\s*(.+)$/i);
+    if (m) {
+      return [m[1].toUpperCase(), m[2], "", "", ""];
+    }
+    return [startIndex + i, naam, "", "", ""];
+  });
   autoTable(doc, {
     startY,
-    head: [["#", "Algemene punten", "Heel", "Half", "Opmerking"]],
-    body: punten.map((naam, i) => [startIndex + i, naam, "", "", ""]),
+    head: [["#", "Algemene punten", "Heel", "Half", "Correctie", "Opmerking"]],
+    body: rows,
     styles: { 
       fontSize: compact ? 8.5 : 9,
       cellPadding: compact ? { top: 6, right: 3, bottom: 6, left: 3 } : { top: 8, right: 3, bottom: 8, left: 3 },
@@ -195,7 +222,8 @@ function generalPointsTable(doc, punten, startY, startIndex, autoTable, options 
       1: { cellWidth: COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE },
       2: { cellWidth: COL_WIDTHS.HEEL,    halign: "center" },
       3: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
-      4: { cellWidth: COL_WIDTHS.NOTE },
+      4: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" },
+      5: { cellWidth: COL_WIDTHS.NOTE },
     },
   });
   return doc.lastAutoTable.finalY;
@@ -219,18 +247,19 @@ function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntena
     };
   } else {
     const totalLabel = maxPoints ? `Totaal (max. ${maxPoints})` : "Totaal";
-    bodyRows.push(["Subtotaal", "", "", ""]);
+    bodyRows.push(["Subtotaal", "", "", "", ""]);
     if (showPuntenaftrek) {
-      bodyRows.push(["Puntenaftrek en reden", "", "", ""]);
+      bodyRows.push(["Puntenaftrek en reden", "", "", "", ""]);
     }
-    bodyRows.push([extraLabel || totalLabel, "", "", ""]);
+    bodyRows.push([extraLabel || totalLabel, "", "", "", ""]);
 
     const labelWidth = COL_WIDTHS.NUM + COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE;
     colStyles = { 
       0: { cellWidth: labelWidth, halign: "left" },
       1: { cellWidth: COL_WIDTHS.HEEL, halign: "center" },
       2: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
-      3: { cellWidth: COL_WIDTHS.NOTE }
+      3: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" },
+      4: { cellWidth: COL_WIDTHS.NOTE }
     };
   }
   
@@ -260,6 +289,56 @@ function signatureLine(doc) {
   doc.line(MARGIN.left + 110, pageH - 26, doc.internal.pageSize.getWidth() - MARGIN.right, pageH - 26);
 }
 
+function isGeneralDressuurPunt(text) {
+  const t = String(text || "").toLowerCase();
+  return (
+    t.includes("gangen") ||
+    t.includes("impuls") ||
+    t.includes("gehoorzaamheid") ||
+    t.includes("harmonie") ||
+    t.includes("submission") ||
+    t.includes("rijden op zit") ||
+    t.includes("presentatie") ||
+    t.includes("ruiter") ||
+    t.includes("artistiek")
+  );
+}
+
+function shouldAppendDressuurLine(currentGroup, letter, beoordeling, oefening) {
+  if (!currentGroup || letter || beoordeling) return false;
+  const trimmed = String(oefening || "").trim();
+  if (!trimmed) return false;
+
+  if (currentGroup.hasAnchor) return true;
+
+  const firstChar = trimmed[0] || "";
+  const startsAsContinuation = firstChar === "(" || firstChar === "," || (firstChar >= "a" && firstChar <= "z");
+  return startsAsContinuation;
+}
+
+function alignedDressuurLetterText(doc, letters, oefeningen) {
+  const maxLen = Math.max(letters.length, oefeningen.length);
+  const letterLines = [];
+
+  const oefeningTextWidth = COL_WIDTHS.EXERCISE - 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+
+  for (let i = 0; i < maxLen; i++) {
+    const letter = letters[i] ?? "";
+    const oefening = oefeningen[i] ?? "";
+    letterLines.push(letter);
+
+    if (i < maxLen - 1) {
+      const wrapped = doc.splitTextToSize(String(oefening), oefeningTextWidth);
+      const visualLines = Array.isArray(wrapped) ? Math.max(1, wrapped.length) : 1;
+      for (let j = 1; j < visualLines; j++) letterLines.push("");
+    }
+  }
+
+  return letterLines.join("\n");
+}
+
 function protocolToDoc(doc, p, items, autoTable) {
   const title = p.onderdeel === "dressuur" ? "Working Point • Dressuurprotocol"
                : p.onderdeel === "stijl" ? "Working Point • Stijltrail Protocol"
@@ -283,16 +362,7 @@ function protocolToDoc(doc, p, items, autoTable) {
         
         // Detecteer algemene punten (o.a. 'Gangen', 'Impuls', etc)
         // Als letter en beoordeling leeg zijn, en oefening bevat trefwoorden
-        if (!letter && !beoordeling && (
-          oefening.toLowerCase().includes("gangen") ||
-          oefening.toLowerCase().includes("impuls") ||
-          oefening.toLowerCase().includes("gehoorzaamheid") ||
-          oefening.toLowerCase().includes("harmonie") ||
-          oefening.toLowerCase().includes("rijden op zit") ||
-          oefening.toLowerCase().includes("presentatie") ||
-          oefening.toLowerCase().includes("ruiter") ||
-          oefening.toLowerCase().includes("artistiek")
-        )) {
+        if (!letter && !beoordeling && isGeneralDressuurPunt(oefening)) {
           inAlgemenePunten = true;
           currentGroup = null;
         }
@@ -315,10 +385,11 @@ function protocolToDoc(doc, p, items, autoTable) {
             beoordeling: beoordeling,
             puntenHeel: "",
             puntenHalf: "",
-            isHeader: false
+            isHeader: false,
+            hasAnchor: Boolean(letter || beoordeling)
           };
           tableData.push(currentGroup);
-        } else if (!letter && oefening && currentGroup) {
+        } else if (shouldAppendDressuurLine(currentGroup, letter, beoordeling, oefening)) {
           // Vervolgregel binnen een oefening
           currentGroup.letters.push("");
           currentGroup.oefeningen.push(oefening);
@@ -332,7 +403,21 @@ function protocolToDoc(doc, p, items, autoTable) {
             beoordeling: "",
             puntenHeel: "",
             puntenHalf: "",
-            isHeader: false
+            isHeader: false,
+            hasAnchor: Boolean(letter || beoordeling)
+          };
+          tableData.push(currentGroup);
+        } else if (oefening) {
+          groupNumber++;
+          currentGroup = {
+            nummer: groupNumber.toString(),
+            letters: [letter],
+            oefeningen: [oefening],
+            beoordeling: beoordeling,
+            puntenHeel: "",
+            puntenHalf: "",
+            isHeader: false,
+            hasAnchor: Boolean(letter || beoordeling)
           };
           tableData.push(currentGroup);
         }
@@ -341,16 +426,17 @@ function protocolToDoc(doc, p, items, autoTable) {
     
     const formattedData = tableData.map(group => [
       group.nummer,
-      group.letters.join("\n"),
+      alignedDressuurLetterText(doc, group.letters, group.oefeningen),
       group.oefeningen.join("\n"),
       group.puntenHeel,
       group.puntenHalf,
+      "",
       group.beoordeling
     ]);
     
     autoTable(doc, {
       startY: infoY + 16,
-      head: [["#", "Letter", "Oefening", "Heel", "Half", "Beoordeling/Opmerkingen"]],
+      head: [["#", "Letter", "Oefening", "Heel", "Half", "Correctie", "Beoordeling/Opmerkingen"]],
       body: formattedData,
       styles: { 
         fontSize: 9, 
@@ -379,7 +465,8 @@ function protocolToDoc(doc, p, items, autoTable) {
         2: { cellWidth: COL_WIDTHS.EXERCISE, halign: "left" }, 
         3: { cellWidth: COL_WIDTHS.HEEL, halign: "center" }, 
         4: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, 
-        5: { cellWidth: COL_WIDTHS.NOTE } 
+        5: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" }, 
+        6: { cellWidth: COL_WIDTHS.NOTE } 
       }
     });
     
@@ -528,7 +615,7 @@ export default function ProtocolGenerator() {
           };
           const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
           const templateType = config.onderdeel === "dressuur" ? "dressuur" : "speed";
-          const template = defaultTemplates[templateType]?.[normalizedKlasse];
+          const template = resolveTemplateByKlasse(defaultTemplates[templateType], normalizedKlasse);
           
           if (template && template.sections && template.sections[0]) {
             const section = template.sections[0];
@@ -645,6 +732,45 @@ export default function ProtocolGenerator() {
         setDbMsg('❌ Database error en geen lokale data');
       }
     }
+  }
+
+  function loadTestDeelnemers() {
+    if (!config.klasse) {
+      setDbMsg('⚠️ Selecteer eerst een klasse');
+      return;
+    }
+
+    const basis = lookupOffset(
+      config.klasse,
+      selectedRubriek || 'senior',
+      selectedWedstrijd?.startlijst_config
+    );
+
+    const testRows = [
+      {
+        ruiter: 'Test Ruiter 1',
+        paard: 'Test Paard 1',
+        rubriek: selectedRubriek || 'senior',
+        startnummer: String(basis),
+      },
+      {
+        ruiter: 'Test Ruiter 2',
+        paard: 'Test Paard 2',
+        rubriek: selectedRubriek || 'senior',
+        startnummer: String(basis + 1),
+      },
+      {
+        ruiter: 'Test Ruiter 3',
+        paard: 'Test Paard 3',
+        rubriek: selectedRubriek || 'senior',
+        startnummer: String(basis + 2),
+      },
+    ];
+
+    setDbRows(testRows);
+    setCsvRows([]);
+    setDbHint('');
+    setDbMsg(`✅ 3 testdeelnemers geladen voor ${config.klasse.toUpperCase()}`);
   }
 
   function csvToRows(text) {
@@ -916,6 +1042,7 @@ export default function ProtocolGenerator() {
               <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                 <input type="file" accept=".csv,text/csv" onChange={(e)=>onCSV(e.target.files?.[0])}/>
                 <button onClick={loadDeelnemersFromDB}>Laad deelnemers uit DB</button>
+                <button onClick={loadTestDeelnemers}>Laad testdeelnemers</button>
               </div>
             </div>
           </div>

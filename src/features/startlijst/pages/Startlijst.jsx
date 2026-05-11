@@ -14,10 +14,22 @@ import Container from "@/ui/Container";
 const LS_KEY = "wp_startlijst_cache_v1";
 
 // Helper functie voor automatische starttijd berekening
+const createTimeFromHHMM = (timeValue) => {
+  if (!timeValue || typeof timeValue !== 'string' || !/^\d{2}:\d{2}$/.test(timeValue)) {
+    return null;
+  }
+  return new Date(`1970-01-01T${timeValue}:00`);
+};
+
+const formatBreakWindow = (startTime, endTime) => {
+  if (startTime && endTime) return `${startTime}-${endTime}`;
+  return startTime || endTime || '--:--';
+};
+
 const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0) => {
   const times = {};
-  let currentDressuurTime = new Date(`1970-01-01T${dressuurStart}:00`);
-  let currentTrailTime = new Date(`1970-01-01T${trailStart}:00`);
+  let currentDressuurTime = createTimeFromHHMM(dressuurStart);
+  let currentTrailTime = createTimeFromHHMM(trailStart);
   
   const addMinutes = (date, minutes) => {
     return new Date(date.getTime() + minutes * 60000);
@@ -33,25 +45,36 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauze
     if (row.type === 'break') {
       // Voor pauzes: gebruik eerst rij-specifieke duur, anders globale pauzetijd
       const breakDuration = Number(row.duration) || Number(pauzeMinuten) || 0;
-      currentDressuurTime = addMinutes(currentDressuurTime, breakDuration);
-      currentTrailTime = addMinutes(currentTrailTime, breakDuration);
+      const breakStartDressuur = currentDressuurTime ? formatTime(currentDressuurTime) : '';
+      const breakStartTrail = currentTrailTime ? formatTime(currentTrailTime) : '';
+      const nextDressuurTime = currentDressuurTime ? addMinutes(currentDressuurTime, breakDuration) : null;
+      const nextTrailTime = currentTrailTime ? addMinutes(currentTrailTime, breakDuration) : null;
+
+      currentDressuurTime = nextDressuurTime;
+      currentTrailTime = nextTrailTime;
       times[id] = {
-        dressuur: '',
-        trail: '',
+        dressuur: breakStartDressuur,
+        trail: breakStartTrail,
+        dressuurEnd: nextDressuurTime ? formatTime(nextDressuurTime) : '',
+        trailEnd: nextTrailTime ? formatTime(nextTrailTime) : '',
         type: 'break'
       };
     } else {
       // Voor deelnemers: bereken beide tijden
       times[id] = {
-        dressuur: formatTime(currentDressuurTime),
-        trail: formatTime(currentTrailTime),
+        dressuur: currentDressuurTime ? formatTime(currentDressuurTime) : '',
+        trail: currentTrailTime ? formatTime(currentTrailTime) : '',
         type: 'entry'
       };
       
       // Voeg interval toe voor volgende deelnemer
-      currentDressuurTime = addMinutes(currentDressuurTime, tussenPauze);
+      if (currentDressuurTime) {
+        currentDressuurTime = addMinutes(currentDressuurTime, tussenPauze);
+      }
       // Trail krijgt extra ombouwtijd
-      currentTrailTime = addMinutes(currentTrailTime, tussenPauze + trailOmbouwtijd);
+      if (currentTrailTime) {
+        currentTrailTime = addMinutes(currentTrailTime, tussenPauze + trailOmbouwtijd);
+      }
     }
   });
   
@@ -59,10 +82,18 @@ const calculateStartTimes = (rows, dressuurStart, trailStart, tussenPauze, pauze
 };
 
 // Per-klasse starttijd berekening - automatisch doornummeren
-const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd = 0) => {
+const calculateStartTimesPerClass = (
+  rows,
+  klasseStartTimes,
+  tussenPauze,
+  pauzeMinuten,
+  trailOmbouwtijd = 0,
+  defaultDressuurStart = '',
+  defaultTrailStart = ''
+) => {
   const times = {};
-  let currentDressuurTime = null;
-  let currentTrailTime = null;
+  let currentDressuurTime = createTimeFromHHMM(defaultDressuurStart);
+  let currentTrailTime = createTimeFromHHMM(defaultTrailStart);
   let lastKlasse = null;
   
   const addMinutes = (date, minutes) => {
@@ -79,15 +110,18 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeM
     if (row.type === 'break') {
       // Voor pauzes: voeg pauzetijd toe aan lopende tijden
       const breakDuration = Number(row.duration) || Number(pauzeMinuten) || 0;
-      if (currentDressuurTime) {
-        currentDressuurTime = addMinutes(currentDressuurTime, breakDuration);
-      }
-      if (currentTrailTime) {
-        currentTrailTime = addMinutes(currentTrailTime, breakDuration);
-      }
+      const breakStartDressuur = currentDressuurTime ? formatTime(currentDressuurTime) : '';
+      const breakStartTrail = currentTrailTime ? formatTime(currentTrailTime) : '';
+      const nextDressuurTime = currentDressuurTime ? addMinutes(currentDressuurTime, breakDuration) : null;
+      const nextTrailTime = currentTrailTime ? addMinutes(currentTrailTime, breakDuration) : null;
+
+      currentDressuurTime = nextDressuurTime;
+      currentTrailTime = nextTrailTime;
       times[id] = {
-        dressuur: '',
-        trail: '',
+        dressuur: breakStartDressuur,
+        trail: breakStartTrail,
+        dressuurEnd: nextDressuurTime ? formatTime(nextDressuurTime) : '',
+        trailEnd: nextTrailTime ? formatTime(nextTrailTime) : '',
         type: 'break'
       };
     } else {
@@ -100,7 +134,7 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeM
         // Als er een specifieke starttijd is voor deze klasse, gebruik die
         // Anders blijf doornummeren vanaf vorige tijd
         if (klasseConfig.dressuur) {
-          currentDressuurTime = new Date(`1970-01-01T${klasseConfig.dressuur}:00`);
+          currentDressuurTime = createTimeFromHHMM(klasseConfig.dressuur);
         } else if (!currentDressuurTime) {
           // Geen tijd ingesteld en geen lopende tijd: laat leeg
           currentDressuurTime = null;
@@ -108,7 +142,7 @@ const calculateStartTimesPerClass = (rows, klasseStartTimes, tussenPauze, pauzeM
         // Anders: blijf doornummeren (currentDressuurTime blijft behouden)
         
         if (klasseConfig.trail) {
-          currentTrailTime = new Date(`1970-01-01T${klasseConfig.trail}:00`);
+          currentTrailTime = createTimeFromHHMM(klasseConfig.trail);
         } else if (!currentTrailTime) {
           currentTrailTime = null;
         }
@@ -389,9 +423,13 @@ async function generateSimplePDF(title, rows, calculatedTimes = {}, wedstrijdInf
   
   rows.forEach((r, i) => {
     if (r.type === "break") {
-      // Pauze regel - gebruik array syntax met colspan via styles
+      const times = calculatedTimes[r.id || i] || {};
       body.push([
-        { content: `Pauze: ${r.duration || 0} minuten`, colSpan: 5, styles: { fontStyle: "bold", fillColor: [255, 243, 224], halign: "center", fontSize: 10 } }
+        { content: formatBreakWindow(times.dressuur, times.dressuurEnd), styles: { fontStyle: "bold", fillColor: [255, 243, 224], textColor: [25, 118, 210] } },
+        { content: formatBreakWindow(times.trail, times.trailEnd), styles: { fontStyle: "bold", fillColor: [255, 243, 224], textColor: [56, 142, 60] } },
+        { content: "", styles: { fillColor: [255, 243, 224] } },
+        { content: `PAUZE: ${r.label || "Pauze"}`, styles: { fontStyle: "bold", fillColor: [255, 243, 224] } },
+        { content: `${r.duration || 0} minuten`, styles: { fontStyle: "bold", fillColor: [255, 243, 224] } }
       ]);
     } else {
       // Voeg klasse header toe als nieuwe klasse
@@ -458,12 +496,13 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
     
     rows.forEach((r, idx) => {
       if (r.type === 'break') {
+        const times = calculatedTimes[r.id || idx] || {};
         // Pauze toevoegen - zonder emoji voor betere compatibiliteit
         grouped.push({
           Volgorde: '',
           Klasse: '',
-          Dressuur: '',
-          Trail: '',
+          Dressuur: formatBreakWindow(times.dressuur, times.dressuurEnd),
+          Trail: formatBreakWindow(times.trail, times.trailEnd),
           Startnummer: '',
           Ruiter: `PAUZE: ${r.label || 'Pauze'}`,
           Paard: `${r.duration || 0} minuten`,
@@ -548,11 +587,12 @@ async function exportToExcel(rows, meta = {}, calculatedTimes = {}) {
     
     rows.forEach((r, idx) => {
       if (r.type === 'break') {
+        const times = calculatedTimes[r.id || idx] || {};
         lines.push([
           '',
           '',
-          '',
-          '',
+          formatBreakWindow(times.dressuur, times.dressuurEnd),
+          formatBreakWindow(times.trail, times.trailEnd),
           '',
           `PAUZE: ${r.label || 'Pauze'}`,
           `${r.duration || 0} minuten`
@@ -1376,7 +1416,7 @@ Plak je data hieronder:`);
       console.log('Starting PDF generation...');
       const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
       const calculatedTimes = hasKlasseStartTimes 
-        ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+        ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd, dressuurStarttijd, trailStarttijd)
         : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
       
       const wedstrijdInfo = {
@@ -2061,7 +2101,7 @@ Plak je data hieronder:`);
                     const seenKlasses = new Set(); // Track which class headers we've shown
                     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                     const calculatedTimes = hasKlasseStartTimes
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd, dressuurStarttijd, trailStarttijd)
                       : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
                     
                     return filtered.map((row, index) => {
@@ -2203,12 +2243,16 @@ Plak je data hieronder:`);
                             </td>
                             <td className="px-4 py-3">
                               <div className="text-sm font-mono text-blue-600">
-                                {row.type === 'break' ? '—' : (times.dressuur || '--:--')}
+                                {row.type === 'break'
+                                  ? formatBreakWindow(times.dressuur, times.dressuurEnd)
+                                  : (times.dressuur || '--:--')}
                               </div>
                             </td>
                             <td className="px-4 py-3">
                               <div className="text-sm font-mono text-green-600">
-                                {row.type === 'break' ? '—' : (times.trail || '--:--')}
+                                {row.type === 'break'
+                                  ? formatBreakWindow(times.trail, times.trailEnd)
+                                  : (times.trail || '--:--')}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -2391,7 +2435,7 @@ Plak je data hieronder:`);
                   onClick={() => {
                     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                     const calculatedTimes = hasKlasseStartTimes 
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd, dressuurStarttijd, trailStarttijd)
                       : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
                     exportToExcel(filtered, meta, calculatedTimes);
                   }}
@@ -2498,7 +2542,7 @@ Plak je data hieronder:`);
                     const printWindow = window.open('', '_blank');
                     const hasKlasseStartTimes = Object.keys(klasseStartTimes).some(k => klasseStartTimes[k]?.dressuur || klasseStartTimes[k]?.trail);
                     const calculatedTimes = hasKlasseStartTimes 
-                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd)
+                      ? calculateStartTimesPerClass(filtered, klasseStartTimes, tussenPauze, pauzeMinuten, trailOmbouwtijd, dressuurStarttijd, trailStarttijd)
                       : calculateStartTimes(filtered, dressuurStarttijd, trailStarttijd, tussenPauze, pauzeMinuten, trailOmbouwtijd);
                     
                     const htmlContent = `
@@ -2538,7 +2582,10 @@ Plak je data hieronder:`);
                             if (row.type === 'break') {
                               return `<tr class="break-row">
                                 <td>${index + 1}</td>
-                                <td colspan="4">🍕 PAUZE</td>
+                                <td>🍕 PAUZE</td>
+                                <td class="dressuur">${formatBreakWindow(times.dressuur, times.dressuurEnd)}</td>
+                                <td class="trail">${formatBreakWindow(times.trail, times.trailEnd)}</td>
+                                <td></td>
                                 <td>${row.label || 'Pauze'}</td>
                                 <td>${row.duration || 0} minuten</td>
                               </tr>`;
