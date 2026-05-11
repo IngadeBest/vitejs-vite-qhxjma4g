@@ -1880,6 +1880,86 @@ Plak je data hieronder:`);
   const primaryBtnClass = "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors";
   const secondaryBtnClass = "px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors";
 
+  const openFullOverview = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const calculatedTimes = calculatedTimesForView;
+    const printRowsHtml = filtered.map((row, index) => {
+      const times = calculatedTimes[row.id || index] || {};
+      if (row.type === 'break') {
+        return (
+          '<tr class="break-row">' +
+            '<td>' + (index + 1) + '</td>' +
+            '<td>PAUZE</td>' +
+            '<td class="dressuur">' + formatBreakWindow(times.dressuur, times.dressuurEnd) + '</td>' +
+            '<td class="trail">' + formatBreakWindow(times.trail, times.trailEnd) + '</td>' +
+            '<td></td>' +
+            '<td>' + (row.label || 'Pauze') + '</td>' +
+            '<td>' + (row.duration || 0) + ' minuten</td>' +
+          '</tr>'
+        );
+      }
+
+      return (
+        '<tr>' +
+          '<td>' + (index + 1) + '</td>' +
+          '<td>' + (normalizeKlasse(row.klasse) || 'Geen klasse') + '</td>' +
+          '<td class="dressuur">' + (times.dressuur || '--:--') + '</td>' +
+          '<td class="trail">' + (times.trail || '--:--') + '</td>' +
+          '<td>' + (row.startnummer || '') + '</td>' +
+          '<td>' + (row.ruiter || '') + '</td>' +
+          '<td>' + (row.paard || '') + '</td>' +
+        '</tr>'
+      );
+    }).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Startlijst Volledig Overzicht</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; font-weight: bold; }
+          .class-header { background-color: #e3f2fd; font-weight: bold; }
+          .break-row { background-color: #fff3e0; font-weight: bold; }
+          .dressuur { color: #1976d2; }
+          .trail { color: #388e3c; }
+          @media print { body { margin: 0; } }
+        </style>
+      </head>
+      <body>
+        <h1>Startlijst ${wedstrijdNaam || 'Wedstrijd'}</h1>
+        <p>Gegenereerd op: ${new Date().toLocaleString()}</p>
+        <p>Dressuur start: ${dressuurStarttijd} | Trail start: ${trailStarttijd} | Interval: ${tussenPauze} min</p>
+        <table>
+          <tr>
+            <th>#</th>
+            <th>Klasse</th>
+            <th>Dressuur</th>
+            <th>Trail</th>
+            <th>Startnr</th>
+            <th>Ruiter</th>
+            <th>Paard</th>
+          </tr>
+          ${printRowsHtml}
+        </table>
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   return (
     <Container>
       <div className="max-w-7xl mx-auto py-6 space-y-6">
@@ -2750,86 +2830,7 @@ Plak je data hieronder:`);
                 </button>
                 <button
                   className="w-full px-3 py-2 text-sm bg-white border rounded hover:bg-gray-50 text-left"
-                  onClick={() => {
-                    // Open een nieuw venster met de volledige startlijst
-                    const printWindow = window.open('', '_blank');
-                    const calculatedTimes = calculatedTimesForView;
-                    const printRowsHtml = filtered.map((row, index) => {
-                      const times = calculatedTimes[row.id || index] || {};
-                      if (row.type === 'break') {
-                        return (
-                          '<tr class="break-row">' +
-                            '<td>' + (index + 1) + '</td>' +
-                            '<td>PAUZE</td>' +
-                            '<td class="dressuur">' + formatBreakWindow(times.dressuur, times.dressuurEnd) + '</td>' +
-                            '<td class="trail">' + formatBreakWindow(times.trail, times.trailEnd) + '</td>' +
-                            '<td></td>' +
-                            '<td>' + (row.label || 'Pauze') + '</td>' +
-                            '<td>' + (row.duration || 0) + ' minuten</td>' +
-                          '</tr>'
-                        );
-                      }
-
-                      return (
-                        '<tr>' +
-                          '<td>' + (index + 1) + '</td>' +
-                          '<td>' + (normalizeKlasse(row.klasse) || 'Geen klasse') + '</td>' +
-                          '<td class="dressuur">' + (times.dressuur || '--:--') + '</td>' +
-                          '<td class="trail">' + (times.trail || '--:--') + '</td>' +
-                          '<td>' + (row.startnummer || '') + '</td>' +
-                          '<td>' + (row.ruiter || '') + '</td>' +
-                          '<td>' + (row.paard || '') + '</td>' +
-                        '</tr>'
-                      );
-                    }).join('');
-                    
-                    const htmlContent = `
-                      <!DOCTYPE html>
-                      <html>
-                      <head>
-                        <title>Startlijst Volledig Overzicht</title>
-                        <style>
-                          body { font-family: Arial, sans-serif; margin: 20px; }
-                          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                          th { background-color: #f2f2f2; font-weight: bold; }
-                          .class-header { background-color: #e3f2fd; font-weight: bold; }
-                          .break-row { background-color: #fff3e0; font-weight: bold; }
-                          .dressuur { color: #1976d2; }
-                          .trail { color: #388e3c; }
-                          @media print { body { margin: 0; } }
-                        </style>
-                      </head>
-                      <body>
-                        <h1>Startlijst ${wedstrijdNaam || 'Wedstrijd'}</h1>
-                        <p>Gegenereerd op: ${new Date().toLocaleString()}</p>
-                        <p>Dressuur start: ${dressuurStarttijd} | Trail start: ${trailStarttijd} | Interval: ${tussenPauze} min</p>
-                        
-                        <table>
-                          <tr>
-                            <th>#</th>
-                            <th>Klasse</th>
-                            <th>Dressuur</th>
-                            <th>Trail</th>
-                            <th>Startnr</th>
-                            <th>Ruiter</th>
-                            <th>Paard</th>
-                          </tr>
-                          ${printRowsHtml}
-                        </table>
-                        
-                        <script>
-                          window.onload = function() {
-                            window.print();
-                          }
-                        </script>
-                      </body>
-                      </html>
-                    `;
-                    
-                    printWindow.document.write(htmlContent);
-                    printWindow.document.close();
-                  }}
+                  onClick={openFullOverview}
                   disabled={!filtered.length}
                 >
                   Volledig overzicht
