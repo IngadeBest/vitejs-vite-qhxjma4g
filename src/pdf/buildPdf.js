@@ -92,36 +92,40 @@ function infoBoxesSideBySide(doc, info) {
     columnStyles: { 0: { cellWidth: 100, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
   });
   const leftY = doc.lastAutoTable.finalY;
-  
+
   autoTable(doc, {
     startY,
     head: [],
     body: [
-      ["Ruiter", info.ruiter || "", "", ""],
-      ["Paard", info.paard || "", "", ""],
-      ["Startnummer", info.startnummer || "", "", ""],
-      ["Percentage", "", "Plaatsing", ""],
-      ["", "", "", ""],
+      ["Ruiter", info.ruiter || ""],
+      ["Paard", info.paard || ""],
+      ["Startnummer", info.startnummer || ""],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER_COLOR, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left + 280, right: MARGIN.right },
     tableWidth: "auto",
     columnStyles: {
-      0: { cellWidth: 58, fontStyle: "bold" },
-      1: { cellWidth: 52 },
-      2: { cellWidth: 58, fontStyle: "bold" },
-      3: { cellWidth: 52 },
-    },
-    didParseCell: (data) => {
-      if (data.row.index < 3 && (data.column.index === 2 || data.column.index === 3)) {
-        data.cell.styles.lineWidth = 0;
-      }
-      if (data.row.index === 4) {
-        data.cell.styles.minCellHeight = 18;
-      }
+      0: { cellWidth: 90, fontStyle: "bold" },
+      1: { cellWidth: "auto" },
     },
   });
+
+  autoTable(doc, {
+    startY: doc.lastAutoTable.finalY,
+    head: [["Percentage", "Plaatsing"]],
+    body: [["", ""]],
+    styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER_COLOR, lineWidth: 0.5, minCellHeight: 18 },
+    headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: "bold" },
+    theme: "grid",
+    margin: { left: MARGIN.left + 280, right: MARGIN.right },
+    tableWidth: "auto",
+    columnStyles: {
+      0: { cellWidth: 90 },
+      1: { cellWidth: 90 },
+    },
+  });
+
   const rightY = doc.lastAutoTable.finalY;
   return Math.max(leftY, rightY);
 }
