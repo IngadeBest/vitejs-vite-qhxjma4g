@@ -9,7 +9,28 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || `WE Inschrijvingen <no-reply@workingpoint.nl>`;
 const ORGANISATOR_EMAIL_DEFAULT = process.env.ORGANISATOR_EMAIL_DEFAULT || '';
+const WORKING_POINT_BACKUP_EMAIL = process.env.WORKING_POINT_BACKUP_EMAIL || '';
 const SMTP_TLS_REJECT_UNAUTH = bool(process.env.SMTP_TLS_REJECT_UNAUTH, true);
+
+function parseEmails(value) {
+  return String(value || '')
+    .split(/[;,]/)
+    .map((email) => email.trim())
+    .filter(Boolean);
+}
+
+function uniqueEmails(...groups) {
+  const seen = new Set();
+  const out = [];
+  for (const email of groups.flat()) {
+    const key = String(email).toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(email);
+    }
+  }
+  return out;
+}
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
@@ -38,6 +59,7 @@ export default async function handler(req, res) {
           user: !!SMTP_USER,
           from: !!SMTP_FROM,
           default_to: !!ORGANISATOR_EMAIL_DEFAULT,
+          backup_to: !!WORKING_POINT_BACKUP_EMAIL,
         },
       });
     }
@@ -69,10 +91,13 @@ export default async function handler(req, res) {
       return res.status(404).json({ ok: false, error: 'WEDSTRIJD_NOT_FOUND' });
     }
 
-    const to = (wedstrijd.organisator_email || ORGANISATOR_EMAIL_DEFAULT || '').trim();
+    const toList = uniqueEmails(
+      parseEmails(wedstrijd.organisator_email || ORGANISATOR_EMAIL_DEFAULT),
+      parseEmails(WORKING_POINT_BACKUP_EMAIL),
+    );
     const wedstrijdNaam = wedstrijd.naam || wedstrijdNaamFallback;
 
-    if (!to) {
+    if (toList.length === 0) {
       return res.status(400).json({ ok: false, error: 'NO_TO', message: 'No organisator email configured.' });
     }
 
@@ -129,7 +154,7 @@ export default async function handler(req, res) {
       `;
     }
 
-    const info = await transporter.sendMail({ from: SMTP_FROM, to, subject, html });
+    const info = await transporter.sendMail({ from: SMTP_FROM, to: toList, subject, html });
     return res.status(200).json({ ok: true, messageId: info.messageId });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'SEND_FAIL', message: e?.message || String(e) });

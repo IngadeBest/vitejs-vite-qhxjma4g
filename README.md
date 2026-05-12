@@ -7,6 +7,7 @@ Los formulier om ruiters te laten inschrijven, met opslag in Supabase en e-mail 
 Maak `.env` gebaseerd op `.env.example` (voor Vite) en zet in Vercel project:
 - `RESEND_API_KEY`
 - `ORGANISATOR_EMAIL_DEFAULT` (optioneel)
+- `WORKING_POINT_BACKUP_EMAIL` (optioneel, extra back-up ontvanger voor inschrijvingsmails)
 
 ## SQL
 Voer `SQL/006_wedstrijden_organisator_email.sql` uit als je per-wedstrijd een organiser-email wilt opslaan.
