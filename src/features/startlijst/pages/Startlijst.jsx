@@ -201,6 +201,24 @@ const addBreak = (setRows) => {
   ]);
 };
 
+const KLASSE_OPTIONS = ["WE0", "WE1", "WE2", "WE3", "WE4", "Junioren", "Young Riders", "WE2+"];
+const RUBRIEK_OPTIONS = ["Algemeen", "Senior", "Jeugd"];
+
+const getRowsSignature = (rows) =>
+  JSON.stringify(
+    (rows || []).map((row) => ({
+      id: row.id || "",
+      type: row.type || "entry",
+      klasse: row.klasse || "",
+      rubriek: row.rubriek || "",
+      startnummer: row.startnummer || "",
+      ruiter: row.ruiter || "",
+      paard: row.paard || "",
+      label: row.label || "",
+      duration: row.duration || 0,
+    }))
+  );
+
 // Normalize klasse names to consistent format
 const normalizeKlasse = (input) => {
   if (!input || typeof input !== 'string') return '';
@@ -1082,8 +1100,10 @@ export default function Startlijst() {
   const [trailStarttijd, setTrailStarttijd] = useState("13:00");
   const [tussenPauze, setTussenPauze] = useState(6); // minuten tussen deelnemers
   const [trailOmbouwtijd, setTrailOmbouwtijd] = useState(0); // extra tijd voor ombouwen trail (0-15 min)
+  const [showAdvancedTiming, setShowAdvancedTiming] = useState(false);
   const [pauzeMinuten, setPauzeMinuten] = useState(15); // minuten voor een pauze
   const [saving, setSaving] = useState(false);
+  const [savedRowsSignature, setSavedRowsSignature] = useState(getRowsSignature([]));
   
   // Per-klasse starttijden state
   const [klasseStartTimes, setKlasseStartTimes] = useState({});
@@ -1555,6 +1575,7 @@ Plak je data hieronder:`);
       // Alleen wedstrijd-specifieke key gebruiken, GEEN algemene cache meer
       const storageKey = `startlijst_${wedstrijd}`;
       localStorage.setItem(storageKey, JSON.stringify(rows));
+      setSavedRowsSignature(getRowsSignature(rows));
       
       setDbMessage(`✅ ${entries.length} deelnemers + ${breaks.length} pauzes opgeslagen`);
       
@@ -1732,6 +1753,7 @@ Plak je data hieronder:`);
             }
           }
           setRows(filteredRows);
+          setSavedRowsSignature(getRowsSignature(filteredRows));
           setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage)`);
           setLoadingFromDB(false);
           return;
@@ -1739,6 +1761,7 @@ Plak je data hieronder:`);
           // Geen data voor deze wedstrijd - lege lijst
           console.log("No data found for this wedstrijd");
           setRows([]);
+          setSavedRowsSignature(getRowsSignature([]));
           setDbMessage("ℹ️ Geen deelnemers gevonden voor deze wedstrijd");
           setLoadingFromDB(false);
           return;
@@ -1815,6 +1838,7 @@ Plak je data hieronder:`);
       });
 
       setRows(combined);
+      setSavedRowsSignature(getRowsSignature(combined));
       setDbMessage(`✅ ${loadedRows.length} deelnemers + ${pauses.length} pauzes geladen`);
       console.log("Loaded rows with pauses:", combined);
     } catch (e) {
@@ -1844,23 +1868,27 @@ Plak je data hieronder:`);
             }
           }
           setRows(filteredRows);
+          setSavedRowsSignature(getRowsSignature(filteredRows));
           setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage - database niet beschikbaar)`);
         } catch (parseErr) {
           setDbMessage(`❌ Fout bij laden: ${errorMsg}`);
           setRows([]); // Lege lijst bij parse error
+          setSavedRowsSignature(getRowsSignature([]));
         }
       } else {
         setDbMessage(`❌ Database fout bij laden deelnemers: ${errorMsg}`);
         setRows([]); // Lege lijst als er geen data is
+        setSavedRowsSignature(getRowsSignature([]));
       }
     } finally {
       setLoadingFromDB(false);
     }
-  }, [wedstrijd, klasse]);
+  }, [wedstrijd, klasse, rubriek]);
 
   // Wis rows ONMIDDELLIJK wanneer wedstrijd verandert (voordat nieuwe data wordt geladen)
   useEffect(() => {
     setRows([]);
+    setSavedRowsSignature(getRowsSignature([]));
     setDbMessage(""); // Wis ook oude berichten
   }, [wedstrijd]);
 
@@ -1898,11 +1926,12 @@ Plak je data hieronder:`);
       .filter((r) => r.type === 'entry')
       .map((r) => normalizeKlasse(r.klasse) || 'Geen klasse')
   ).size;
+  const rowsSignature = useMemo(() => getRowsSignature(rows), [rows]);
+  const hasUnsavedChanges = rowsSignature !== savedRowsSignature;
 
   const fieldClass = "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
   const cardClass = "bg-white rounded-xl shadow-sm border border-gray-200";
   const primaryBtnClass = "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors";
-  const secondaryBtnClass = "px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors";
 
   const openFullOverview = () => {
     const printWindow = window.open('', '_blank');
@@ -2019,6 +2048,9 @@ Plak je data hieronder:`);
           <div className="px-3 py-2 rounded-lg bg-slate-50 text-slate-700 text-sm font-medium">
             {classCount} klassen
           </div>
+          <div className={`px-3 py-2 rounded-lg text-sm font-medium ${hasUnsavedChanges ? 'bg-orange-50 text-orange-800' : 'bg-emerald-50 text-emerald-800'}`}>
+            {hasUnsavedChanges ? 'Niet opgeslagen wijzigingen' : 'Alles opgeslagen'}
+          </div>
           {(klasse || rubriek) && (
             <div className="ml-auto flex flex-wrap gap-2">
               {klasse && <span className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm">Klasse: {klasse}</span>}
@@ -2061,24 +2093,32 @@ Plak je data hieronder:`);
               <label className="block text-sm font-medium text-gray-700">
                 Klasse:
               </label>
-              <input
+              <select
                 className={fieldClass}
-                placeholder="Klasse (WE0–WE4)"
                 value={klasse}
                 onChange={(e) => setKlasse(e.target.value)}
-              />
+              >
+                <option value="">Alle klassen</option>
+                {KLASSE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Rubriek:
               </label>
-              <input
+              <select
                 className={fieldClass}
-                placeholder="Rubriek"
                 value={rubriek}
                 onChange={(e) => setRubriek(e.target.value)}
-              />
+              >
+                <option value="">Alle rubrieken</option>
+                {RUBRIEK_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">
@@ -2150,31 +2190,40 @@ Plak je data hieronder:`);
             </div>
           </div>
           
-          {/* Trail ombouwtijd */}
+          {/* Geavanceerde timing */}
           <div className="border-t pt-3">
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-700">Trail ombouwtijd:</label>
-              <input
-                type="number"
-                min="0"
-                max="15"
-                className="border rounded px-2 py-1 w-16 text-sm"
-                value={trailOmbouwtijd}
-                onChange={(e) => setTrailOmbouwtijd(Number(e.target.value))}
-              />
-              <span className="text-sm text-gray-600">minuten extra (0-15)</span>
-              <span className="text-xs text-gray-500 ml-2">
-                {trailOmbouwtijd > 0 
-                  ? `Trail interval wordt ${tussenPauze + trailOmbouwtijd} min (${tussenPauze} + ${trailOmbouwtijd})`
-                  : 'Trail gebruikt zelfde interval als dressuur'
-                }
-              </span>
-            </div>
+            <button
+              type="button"
+              className="text-sm font-medium text-blue-700 hover:text-blue-800"
+              onClick={() => setShowAdvancedTiming((prev) => !prev)}
+            >
+              {showAdvancedTiming ? 'Verberg geavanceerde timing' : 'Toon geavanceerde timing'}
+            </button>
+            {showAdvancedTiming && (
+              <div className="mt-3 flex items-center gap-3 flex-wrap">
+                <label className="text-sm font-medium text-gray-700">Trail ombouwtijd:</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="15"
+                  className="border rounded px-2 py-1 w-16 text-sm"
+                  value={trailOmbouwtijd}
+                  onChange={(e) => setTrailOmbouwtijd(Number(e.target.value))}
+                />
+                <span className="text-sm text-gray-600">minuten extra (0-15)</span>
+                <span className="text-xs text-gray-500 ml-2">
+                  {trailOmbouwtijd > 0
+                    ? `Trail interval wordt ${tussenPauze + trailOmbouwtijd} min (${tussenPauze} + ${trailOmbouwtijd})`
+                    : 'Trail gebruikt zelfde interval als dressuur'
+                  }
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Per-klasse starttijden configuratie */}
-        {classOrder.length > 0 && (
+        {showAdvancedTiming && classOrder.length > 0 && (
           <div className={`${cardClass} p-4`}>
             <h3 className="text-md font-semibold text-gray-900 mb-3">Per klasse starttijden (optioneel)</h3>
             <p className="text-sm text-gray-600 mb-3">
@@ -2387,7 +2436,7 @@ Plak je data hieronder:`);
 
             <div className="overflow-x-auto rounded-b-xl">
               <table className="min-w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 sticky top-0 z-20">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Klasse</th>
@@ -2478,7 +2527,7 @@ Plak je data hieronder:`);
                             onDrop={(e) => handleDrop(e, row)}
                             title="Sleep om rij te verplaatsen"
                           >
-                            <td className="px-4 py-3 text-sm text-gray-600">
+                            <td className="px-4 py-4 text-sm text-gray-600">
                               <div className="flex items-center gap-2">
                                 <span className="cursor-move text-gray-400 hover:text-gray-600" title="Sleep hier om rij te verplaatsen">
                                   ⋮⋮
@@ -2486,7 +2535,7 @@ Plak je data hieronder:`);
                                 {row.type === 'break' ? '—' : klasseItemNumber}
                               </div>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-4">
                               {row.type === 'break' ? (
                                 <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
                                   PAUZE
@@ -2519,7 +2568,7 @@ Plak je data hieronder:`);
                                 </select>
                               )}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-4">
                               {row.type === 'break' ? (
                                 <span className="text-gray-400">—</span>
                               ) : (
@@ -2544,21 +2593,21 @@ Plak je data hieronder:`);
                                 </select>
                               )}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-4">
                               <div className="text-sm font-mono text-blue-600">
                                 {row.type === 'break'
                                   ? formatBreakWindow(times.dressuur, times.dressuurEnd)
                                   : (times.dressuur || '--:--')}
                               </div>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-4">
                               <div className="text-sm font-mono text-green-600">
                                 {row.type === 'break'
                                   ? formatBreakWindow(times.trail, times.trailEnd)
                                   : (times.trail || '--:--')}
                               </div>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-4">
                               {row.type === 'break' ? (
                                 <span className="text-gray-400">—</span>
                               ) : (
@@ -2580,7 +2629,7 @@ Plak je data hieronder:`);
                                 />
                               )}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-4">
                               {row.type === 'break' ? (
                                 <input
                                   className="border rounded px-2 py-1 text-sm font-medium"
@@ -2617,7 +2666,7 @@ Plak je data hieronder:`);
                                 />
                               )}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-4">
                               {row.type === 'break' ? (
                                 <div className="flex items-center space-x-1">
                                   <input
@@ -2658,7 +2707,7 @@ Plak je data hieronder:`);
                                 />
                               )}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-4">
                               <div className="flex items-center space-x-1">
                                 <button
                                   className="px-2 py-1 text-xs border rounded hover:bg-red-50 text-red-600"
@@ -2700,7 +2749,7 @@ Plak je data hieronder:`);
             <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Acties</h2>
-                <p className="text-sm text-gray-500">Voeg deelnemers, pauzes en exports toe vanuit deze balk.</p>
+                <p className="text-sm text-gray-500">Bewerken, exporteren en opslaan.</p>
               </div>
               <div className="flex gap-3 flex-wrap">
                 <button
@@ -2716,27 +2765,9 @@ Plak je data hieronder:`);
                 >
                   + Pauze
                 </button>
-
-                <label className="cursor-pointer px-4 py-2 border-2 border-dashed border-gray-300 rounded-md hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                  CSV upload
-                  <input
-                    type="file"
-                    accept=".csv,text/csv"
-                    className="hidden"
-                    onChange={onCSV}
-                  />
-                </label>
               </div>
               
               <div className="flex items-center gap-3 flex-wrap">
-                <button
-                  className={secondaryBtnClass}
-                  onClick={loadDeelnemersFromDB}
-                  disabled={!wedstrijd || loadingFromDB}
-                >
-                  {loadingFromDB ? "Laden..." : "Database herladen"}
-                </button>
-
                 <button
                   className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                   onClick={() => {

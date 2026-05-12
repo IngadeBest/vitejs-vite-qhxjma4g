@@ -97,17 +97,22 @@ function infoBoxesSideBySide(doc, info) {
     startY,
     head: [],
     body: [
-      ["Ruiter", info.ruiter || ""],
-      ["Paard", info.paard || ""],
-      ["Startnummer", info.startnummer || ""],
-      ["Percentage", ""],
-      ["Plaatsing", ""],
+      [{ content: "Ruiter", styles: { fontStyle: "bold" } }, { content: info.ruiter || "", colSpan: 3 }],
+      [{ content: "Paard", styles: { fontStyle: "bold" } }, { content: info.paard || "", colSpan: 3 }],
+      [{ content: "Startnummer", styles: { fontStyle: "bold" } }, { content: info.startnummer || "", colSpan: 3 }],
+      [{ content: "Percentage", colSpan: 2, styles: { fontStyle: "bold" } }, { content: "Plaatsing", colSpan: 2, styles: { fontStyle: "bold" } }],
+      [{ content: "", colSpan: 2, styles: { minCellHeight: 18 } }, { content: "", colSpan: 2, styles: { minCellHeight: 18 } }],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER_COLOR, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left + 280, right: MARGIN.right },
     tableWidth: "auto",
-    columnStyles: { 0: { cellWidth: 90, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+    columnStyles: {
+      0: { cellWidth: 58 },
+      1: { cellWidth: 52 },
+      2: { cellWidth: 58 },
+      3: { cellWidth: "auto" },
+    },
   });
   const rightY = doc.lastAutoTable.finalY;
   return Math.max(leftY, rightY);

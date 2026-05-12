@@ -112,17 +112,22 @@ function infoBoxesSideBySide(doc, info, autoTable) {
     startY,
     head: [],
     body: [
-      ["Ruiter", info.ruiter || ""],
-      ["Paard", info.paard || ""],
-      ["Startnummer", info.startnummer || ""],
-      ["Percentage", ""],
-      ["Plaatsing", ""],
+      [{ content: "Ruiter", styles: { fontStyle: "bold" } }, { content: info.ruiter || "", colSpan: 3 }],
+      [{ content: "Paard", styles: { fontStyle: "bold" } }, { content: info.paard || "", colSpan: 3 }],
+      [{ content: "Startnummer", styles: { fontStyle: "bold" } }, { content: info.startnummer || "", colSpan: 3 }],
+      [{ content: "Percentage", colSpan: 2, styles: { fontStyle: "bold" } }, { content: "Plaatsing", colSpan: 2, styles: { fontStyle: "bold" } }],
+      [{ content: "", colSpan: 2, styles: { minCellHeight: 18 } }, { content: "", colSpan: 2, styles: { minCellHeight: 18 } }],
     ],
     styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5 },
     theme: "grid",
     margin: { left: MARGIN.left + 280, right: MARGIN.right },
     tableWidth: "auto",
-    columnStyles: { 0: { cellWidth: 90, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+    columnStyles: {
+      0: { cellWidth: 58 },
+      1: { cellWidth: 52 },
+      2: { cellWidth: 58 },
+      3: { cellWidth: "auto" },
+    },
   });
   const rightY = doc.lastAutoTable.finalY;
   return Math.max(leftY, rightY);
@@ -685,7 +690,9 @@ export default function ProtocolGenerator() {
         if (filtered.length === 0) return null;
         return filtered.map((r, i) => ({
           ruiter: r.ruiter || '', paard: r.paard || '', rubriek: r.rubriek || selectedRubriek || 'senior',
-          startnummer: r.startnummer || String(lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i)
+          startnummer: r.startnummer || String(lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i),
+          percentage: r.percentage || '',
+          plaatsing: r.plaatsing || ''
         }));
       } catch { return null; }
     };
@@ -710,7 +717,9 @@ export default function ProtocolGenerator() {
       if (data && data.length > 0) {
         setDbRows(data.map((r, i) => ({
           ruiter: r.ruiter || '', paard: r.paard || '', rubriek: r.rubriek || selectedRubriek || 'senior',
-          startnummer: (r.startnummer != null && r.startnummer !== '') ? String(r.startnummer) : String(lookupOffset(config.klasse, r.rubriek || selectedRubriek || 'senior', selectedWedstrijd?.startlijst_config) + i)
+          startnummer: (r.startnummer != null && r.startnummer !== '') ? String(r.startnummer) : String(lookupOffset(config.klasse, r.rubriek || selectedRubriek || 'senior', selectedWedstrijd?.startlijst_config) + i),
+          percentage: '',
+          plaatsing: ''
         })));
         setDbMsg(`✅ ${data.length} deelnemers geladen uit database`);
         return;
@@ -803,10 +812,18 @@ export default function ProtocolGenerator() {
         const low = headers.map((h) => h.toLowerCase().trim());
         if (!req.every((x) => low.includes(x))) { alert("CSV moet kolommen bevatten: ruiter, paard, startnummer."); return; }
         const idx = Object.fromEntries(low.map((h, i) => [h, i]));
+        const pick = (row, key) => {
+          const i = idx[key];
+          if (i === undefined) return "";
+          const header = headers[i];
+          return row[header] || row[key] || "";
+        };
         const norm = rows.map(row => ({
-          ruiter: row[headers[idx["ruiter"]]] || row["ruiter"] || "",
-          paard: row[headers[idx["paard"]]] || row["paard"] || "",
-          startnummer: row[headers[idx["startnummer"]]] || row["startnummer"] || "",
+          ruiter: pick(row, "ruiter"),
+          paard: pick(row, "paard"),
+          startnummer: pick(row, "startnummer"),
+          percentage: pick(row, "percentage"),
+          plaatsing: pick(row, "plaatsing"),
         })).filter(x => x.ruiter || x.paard);
         setCsvRows(norm);
       } catch { alert("Kon CSV niet lezen."); }
@@ -828,6 +845,8 @@ export default function ProtocolGenerator() {
       startnummer: padStartnummer(d.startnummer || String( (dbRows && dbRows.length) ? (Number(d.startnummer) || String( lookupOffset(config.klasse, d.rubriek || selectedRubriek || 'senior', selectedWedstrijd?.startlijst_config) + idx )) : String(idx + 1) )),
       ruiter: d.ruiter || "",
       paard: d.paard || "",
+      percentage: d.percentage || "",
+      plaatsing: d.plaatsing || "",
       max_score: dbMax,
       onderdeel_label: ONDERDELEN.find(o=>o.code===config.onderdeel)?.label || config.onderdeel
     }));
