@@ -1076,6 +1076,17 @@ export default function Startlijst() {
     draggedRow.current = null;
   };
 
+  const moveRowByOffset = (row, offset) => {
+    setRows((prev) => {
+      const from = prev.indexOf(row);
+      const to = from + offset;
+      if (from < 0 || to < 0 || to >= prev.length) return prev;
+      const next = prev.slice();
+      [next[from], next[to]] = [next[to], next[from]];
+      return next;
+    });
+  };
+
 
 
   // Pauze toevoegen
@@ -2426,13 +2437,103 @@ Plak je data hieronder:`);
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Startlijst Bewerken</h2>
-                  <p className="text-xs text-gray-500 mt-1">Sleep rijen (ook pauzes) om de volgorde aan te passen</p>
+                  <p className="text-xs text-gray-500 mt-1">Kaartweergave voor snel werken. Geavanceerde tabel staat hieronder inklapbaar.</p>
                 </div>
                 <div className="text-sm text-gray-600">
                   {filtered.length} {filtered.length === 1 ? 'item' : 'items'}
                 </div>
               </div>
             </div>
+
+            <div className="p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white rounded-b-xl">
+              {filtered.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 bg-white border border-dashed border-gray-300 rounded-xl">
+                  <div className="text-3xl mb-2">🏇</div>
+                  <p className="text-lg mb-1">Nog geen deelnemers zichtbaar</p>
+                  <p className="text-sm">Selecteer een wedstrijd en laad deelnemers.</p>
+                </div>
+              ) : (
+                filtered.map((row, index) => {
+                  const rowKlasse = row.type === 'break' ? 'PAUZE' : (normalizeKlasse(row.klasse) || 'Geen klasse');
+                  const times = calculatedTimesForView[row.id || index] || {};
+                  return (
+                    <div
+                      key={`card-${row.id || index}`}
+                      className={`rounded-xl border p-4 shadow-sm ${row.type === 'break' ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-200'}`}
+                    >
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${row.type === 'break' ? 'bg-amber-200 text-amber-900' : 'bg-blue-100 text-blue-800'}`}>
+                            {row.type === 'break' ? 'Pauze' : rowKlasse}
+                          </span>
+                          {row.type !== 'break' && (
+                            <span className="text-sm text-gray-700 font-medium">
+                              #{row.startnummer || getStartnummerBase(rowKlasse).toString().padStart(3, '0')} • {row.ruiter || 'Ruiter onbekend'}
+                            </span>
+                          )}
+                          {row.type === 'break' && (
+                            <span className="text-sm text-amber-900 font-medium">{row.label || 'Pauze'} ({row.duration || 0} min)</span>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            className="px-2 py-1 text-xs border rounded hover:bg-gray-50"
+                            onClick={() => moveRowByOffset(row, -1)}
+                            title="Omhoog"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            className="px-2 py-1 text-xs border rounded hover:bg-gray-50"
+                            onClick={() => moveRowByOffset(row, 1)}
+                            title="Omlaag"
+                          >
+                            ▼
+                          </button>
+                          <button
+                            className="px-2 py-1 text-xs border rounded hover:bg-red-50 text-red-600"
+                            onClick={() => {
+                              const realIndex = rows.indexOf(row);
+                              if (realIndex >= 0) {
+                                setRows((prev) => prev.filter((_, i) => i !== realIndex));
+                              }
+                            }}
+                            title="Verwijderen"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                        <div className="px-3 py-2 rounded bg-slate-50 border border-slate-200">
+                          <div className="text-xs text-gray-500">Dressuur</div>
+                          <div className="font-mono text-blue-700">
+                            {row.type === 'break' ? formatBreakWindow(times.dressuur, times.dressuurEnd) : (times.dressuur || '--:--')}
+                          </div>
+                        </div>
+                        <div className="px-3 py-2 rounded bg-slate-50 border border-slate-200">
+                          <div className="text-xs text-gray-500">Trail</div>
+                          <div className="font-mono text-green-700">
+                            {row.type === 'break' ? formatBreakWindow(times.trail, times.trailEnd) : (times.trail || '--:--')}
+                          </div>
+                        </div>
+                        <div className="px-3 py-2 rounded bg-slate-50 border border-slate-200">
+                          <div className="text-xs text-gray-500">Paard</div>
+                          <div className="text-gray-800">{row.type === 'break' ? '—' : (row.paard || '-')}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <details className="border-t border-gray-200">
+              <summary className="px-6 py-3 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Geavanceerde tabelweergave
+              </summary>
 
             <div className="overflow-x-auto rounded-b-xl">
               <table className="min-w-full">
@@ -2743,6 +2844,7 @@ Plak je data hieronder:`);
                 <p className="text-sm mb-4">Selecteer een wedstrijd en laad deelnemers</p>
               </div>
             )}
+            </details>
           </div>
 
           <div className={`mt-6 ${cardClass} p-4`}>
