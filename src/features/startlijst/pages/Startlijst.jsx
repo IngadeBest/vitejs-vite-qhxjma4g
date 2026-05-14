@@ -1521,6 +1521,23 @@ Plak je data hieronder:`);
         volgorde: rows.indexOf(row),
       }));
 
+      const applySaveScopeFilters = (query) => {
+        let scopedQuery = query.eq('wedstrijd_id', wedstrijd);
+        const klasseCode = normalizeKlasseCode(klasse);
+        if (klasseCode) scopedQuery = scopedQuery.eq('klasse', klasseCode);
+
+        if (rubriek) {
+          const rubriekValue = String(rubriek).trim();
+          if (/^algemeen$/i.test(rubriekValue)) {
+            scopedQuery = scopedQuery.or('rubriek.is.null,rubriek.eq.Algemeen,rubriek.eq.');
+          } else {
+            scopedQuery = scopedQuery.eq('rubriek', rubriekValue);
+          }
+        }
+
+        return scopedQuery;
+      };
+
       const existingEntries = rowsWithOrder.filter((row) => row.dbId);
       const newEntries = rowsWithOrder.filter((row) => !row.dbId);
 
@@ -1566,6 +1583,39 @@ Plak je data hieronder:`);
         if (insertError) {
           console.error("Database insert error:", insertError);
           throw new Error(`Database fout bij invoegen: ${insertError.message || JSON.stringify(insertError)}`);
+        }
+      }
+
+      const { data: scopedDbRows, error: scopedLoadError } = await applySaveScopeFilters(
+        supabase
+          .from('inschrijvingen')
+          .select('id')
+      );
+
+      if (scopedLoadError) {
+        console.error('Database scoped load error:', scopedLoadError);
+        throw new Error(`Database fout bij controle verwijderde deelnemers: ${scopedLoadError.message || JSON.stringify(scopedLoadError)}`);
+      }
+
+      const currentDbIds = new Set(
+        rowsWithOrder
+          .map((row) => row.dbId)
+          .filter(Boolean)
+      );
+
+      const idsToDelete = (scopedDbRows || [])
+        .map((row) => row.id)
+        .filter((id) => id && !currentDbIds.has(id));
+
+      if (idsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('inschrijvingen')
+          .delete()
+          .in('id', idsToDelete);
+
+        if (deleteError) {
+          console.error('Database delete error:', deleteError);
+          throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
         }
       }
       

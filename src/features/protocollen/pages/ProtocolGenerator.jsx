@@ -6,7 +6,7 @@ import obstakelsData from "@/data/obstakels.json";
 import defaultTemplates from "@/data/defaultTemplates.json";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { buildProtocolPdf, generatePdfBlob, KLASSEN as PDF_KLASSEN, ONDERDELEN as PDF_ONDERDELEN } from '@/pdf/buildPdf';
+import { generatePdfBlob, KLASSEN as PDF_KLASSEN, ONDERDELEN as PDF_ONDERDELEN } from '@/pdf/buildPdf';
 
 /* Klassen & Onderdelen - gebruik de geëxporteerde constanten uit buildPdf */
 const KLASSEN = PDF_KLASSEN;
@@ -689,11 +689,13 @@ export default function ProtocolGenerator() {
   async function loadDeelnemersFromDB() {
     if (!config.wedstrijd_id || !config.klasse) { setDbMsg('⚠️ Selecteer eerst wedstrijd en klasse'); return; }
     setDbMsg('Laden...');
+    setDbRows([]);
+    setCsvRows([]);
     
     // Fallback LocalStorage logic
     const loadFromLocalStorage = () => {
       const storageKey = `startlijst_${config.wedstrijd_id}`;
-      const stored = localStorage.getItem(storageKey) || localStorage.getItem('wp_startlijst_cache_v1');
+      const stored = localStorage.getItem(storageKey);
       if (!stored) return null;
       try {
         const parsed = JSON.parse(stored);
@@ -736,14 +738,9 @@ export default function ProtocolGenerator() {
         setDbMsg(`✅ ${data.length} deelnemers geladen uit database`);
         return;
       }
-      const localData = loadFromLocalStorage();
-      if (localData && localData.length > 0) {
-        setDbRows(localData);
-        setDbMsg(`✅ ${localData.length} deelnemers geladen (localStorage)`);
-      } else {
-        setDbMsg('⚠️ Geen deelnemers gevonden');
-        setDbHint('Zorg dat je eerst deelnemers hebt opgeslagen in de Startlijst pagina');
-      }
+      setDbRows([]);
+      setDbMsg('⚠️ Geen deelnemers gevonden in database voor deze selectie');
+      setDbHint('Ga naar Startlijst en klik Opslaan voor deze wedstrijd/klasse, daarna opnieuw laden.');
     } catch (e) {
       const localData = loadFromLocalStorage();
       if (localData && localData.length > 0) {
@@ -900,15 +897,26 @@ export default function ProtocolGenerator() {
     try {
       if (!protocollen.length) return;
       const doc = new jsPDF({ unit: "pt", format: "A4" });
-      protocollen.forEach((p, i) => { 
-        if (i > 0) doc.addPage(); 
-        // Gebruik de buildProtocolPdf maar voeg pagina's toe aan bestaand doc
-        const tempDoc = buildProtocolPdf(p, items);
-        // Kopieer pagina's (simplified - in productie zou je alle pages moeten kopieëren)
-        protocolToDoc(doc, p, items, autoTable); 
+      protocollen.forEach((p, i) => {
+        if (i > 0) doc.addPage();
+        protocolToDoc(doc, p, items, autoTable);
       });
       doc.save(`protocollen_${config.onderdeel}.pdf`);
     } catch (error) { console.error(error); alert('Fout bij batch download: ' + error.message); }
+  };
+
+  const printBatch = async () => {
+    try {
+      if (!protocollen.length) return;
+      const doc = new jsPDF({ unit: "pt", format: "A4" });
+      protocollen.forEach((p, i) => {
+        if (i > 0) doc.addPage();
+        protocolToDoc(doc, p, items, autoTable);
+      });
+      doc.autoPrint();
+      const url = doc.output('bloburl');
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) { console.error(error); alert('Fout bij batch printen: ' + error.message); }
   };
 
   const handleDragStart = (e, item, fromAvailable) => {
@@ -1114,6 +1122,7 @@ export default function ProtocolGenerator() {
         <h2>Overzicht & export</h2>
         <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", margin:"8px 0 16px" }}>
           <button onClick={downloadBatch}>Download batch PDF</button>
+          <button onClick={printBatch}>Print batch PDF</button>
           <span style={{ display:"inline-flex", gap:8, alignItems:"center" }}>
             <select value={selectIndex} onChange={(e)=>setSelectIndex(Number(e.target.value))}>
               {protocollen.map((p,i)=>(<option key={i} value={i}>{p.startnummer} – {p.ruiter} – {p.paard}</option>))}
