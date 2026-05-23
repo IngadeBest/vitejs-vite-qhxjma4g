@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { REGISTRATION_MAINTENANCE, REGISTRATION_MAINTENANCE_MESSAGE } from './_maintenance.js';
 
 
 // Prefer server env names, fall back to VITE_* for local dev
@@ -14,6 +15,13 @@ export default async function handler(req, res) {
   });
   if (req.method === 'GET' && req.query?.ping) return res.status(200).json({ ok: true });
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
+  if (REGISTRATION_MAINTENANCE) {
+    return res.status(503).json({
+      ok: false,
+      error: 'REGISTRATION_MAINTENANCE',
+      message: REGISTRATION_MAINTENANCE_MESSAGE,
+    });
+  }
 
   const b = req.body || {};
   const wedstrijd_id = b.wedstrijd_id;

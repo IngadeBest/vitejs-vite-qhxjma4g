@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { notifyOrganisator } from '@/lib/notifyOrganisator';
 import Button from '@/ui/Button';
 import Input from '@/ui/Input';
+import { REGISTRATION_MAINTENANCE, REGISTRATION_MAINTENANCE_MESSAGE } from '@/config/maintenance';
 
 const InschrijvingForm = () => {
     const [name, setName] = useState('');
@@ -14,6 +15,11 @@ const InschrijvingForm = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (REGISTRATION_MAINTENANCE) {
+            setError(REGISTRATION_MAINTENANCE_MESSAGE);
+            return;
+        }
+
         setLoading(true);
         setError(null);
         setSuccess(false);
@@ -50,6 +56,7 @@ const InschrijvingForm = () => {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Naam"
                 required
+                disabled={REGISTRATION_MAINTENANCE}
             />
             <Input
                 type="email"
@@ -57,6 +64,7 @@ const InschrijvingForm = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="E-mail"
                 required
+                disabled={REGISTRATION_MAINTENANCE}
             />
             <input
                 type="text"
@@ -64,7 +72,7 @@ const InschrijvingForm = () => {
                 onChange={(e) => setHp(e.target.value)}
                 style={{ display: 'none' }} // Honeypot field hidden from users
             />
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || REGISTRATION_MAINTENANCE}>
                 {loading ? 'Verzenden...' : 'Inschrijven'}
             </Button>
             {error && <p style={{ color: 'red' }}>{error}</p>}

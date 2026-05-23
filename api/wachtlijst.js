@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { REGISTRATION_MAINTENANCE, REGISTRATION_MAINTENANCE_MESSAGE } from './_maintenance.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
@@ -24,6 +25,14 @@ export default async function handler(req, res) {
 }
 
 async function handleWachtlijstAdd(req, res) {
+  if (REGISTRATION_MAINTENANCE) {
+    return res.status(503).json({
+      ok: false,
+      error: 'REGISTRATION_MAINTENANCE',
+      message: REGISTRATION_MAINTENANCE_MESSAGE,
+    });
+  }
+
   const b = req.body || {};
   const wedstrijd_id = b.wedstrijd_id;
 

@@ -10,6 +10,7 @@ import { Input } from "@/ui/input";
 import { Card } from "@/ui/card";
 import Container from "@/ui/Container";
 import { Alert } from "@/ui/alert";
+import { REGISTRATION_MAINTENANCE, REGISTRATION_MAINTENANCE_MESSAGE } from "@/config/maintenance";
 
 // Klassen incl. WE2+ en extra klassen voor leeftijdsgroepen
 const KLASSEN = [
@@ -133,6 +134,7 @@ export default function PublicInschrijven() {
   // categorie removed, no per-klasse categorieen to enforce
 
   const disabled = useMemo(() => {
+    if (REGISTRATION_MAINTENANCE) return true;
     // Check if wedstrijd is gesloten or concept
     if (gekozenWedstrijd && (gekozenWedstrijd.status === 'gesloten' || gekozenWedstrijd.status === 'concept')) {
       return true;
@@ -147,6 +149,10 @@ export default function PublicInschrijven() {
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (REGISTRATION_MAINTENANCE) {
+      setErr(REGISTRATION_MAINTENANCE_MESSAGE);
+      return;
+    }
     setBusy(true);
     setDone(false);
     setErr("");
@@ -247,6 +253,10 @@ export default function PublicInschrijven() {
 
   async function onWachtlijstSubmit(e) {
     e.preventDefault();
+    if (REGISTRATION_MAINTENANCE) {
+      setErr(REGISTRATION_MAINTENANCE_MESSAGE);
+      return;
+    }
     setWachtlijstBusy(true);
     setErr("");
 
@@ -324,6 +334,13 @@ export default function PublicInschrijven() {
       <h2>Inschrijfformulier Ruiters</h2>
       <p style={{ color: "#555" }}>Velden met * zijn verplicht.</p>
 
+      {REGISTRATION_MAINTENANCE && (
+        <Alert type="info" style={{ marginBottom: "20px" }}>
+          <h3>Inschrijven tijdelijk gesloten</h3>
+          <p>{REGISTRATION_MAINTENANCE_MESSAGE}</p>
+        </Alert>
+      )}
+
       {/* Status controle */}
       {gekozenWedstrijd && gekozenWedstrijd.status === 'gesloten' && (
         <Alert variant="warning" style={{ marginBottom: "20px" }}>
@@ -350,7 +367,7 @@ export default function PublicInschrijven() {
           id="wedstrijd_select"
           value={form.wedstrijd_id}
           onChange={(e) => setForm((s) => ({ ...s, wedstrijd_id: e.target.value }))}
-          disabled={loading || !!qId}
+          disabled={REGISTRATION_MAINTENANCE || loading || !!qId}
         >
           <option value="">{loading ? "Laden..." : "— kies een wedstrijd —"}</option>
           {wedstrijden.map((w) => (
@@ -365,6 +382,7 @@ export default function PublicInschrijven() {
           id="klasse_select"
           value={form.klasse}
           onChange={(e) => setForm((s) => ({ ...s, klasse: e.target.value }))}
+          disabled={REGISTRATION_MAINTENANCE}
         >
           <option value="">— kies klasse —</option>
           {KLASSEN.filter((k) => allowedKlassenForWedstrijd.includes(k.code)).map((k) => (
@@ -382,6 +400,7 @@ export default function PublicInschrijven() {
           value={form.ruiter}
           onChange={(e) => setForm((s) => ({ ...s, ruiter: e.target.value }))}
           placeholder="Naam ruiter"
+          disabled={REGISTRATION_MAINTENANCE}
           style={{ width: '100%' }}
         />
 
@@ -391,11 +410,12 @@ export default function PublicInschrijven() {
           value={form.paard}
           onChange={(e) => setForm((s) => ({ ...s, paard: e.target.value }))}
           placeholder="Naam paard"
+          disabled={REGISTRATION_MAINTENANCE}
           style={{ width: '100%' }}
         />
 
         <label htmlFor="geslacht_select">Geslacht paard</label>
-        <select id="geslacht_select" value={form.geslacht_paard} onChange={(e) => setForm((s) => ({ ...s, geslacht_paard: e.target.value }))} style={{ width: '100%' }}>
+        <select id="geslacht_select" value={form.geslacht_paard} onChange={(e) => setForm((s) => ({ ...s, geslacht_paard: e.target.value }))} disabled={REGISTRATION_MAINTENANCE} style={{ width: '100%' }}>
           <option value="">— kies —</option>
           <option value="merrie">Merrie</option>
           <option value="ruin">Ruin</option>
@@ -403,7 +423,7 @@ export default function PublicInschrijven() {
         </select>
 
   <label htmlFor="leeftijd_input">Leeftijd ruiter (optioneel)</label>
-  <Input id="leeftijd_input" type="number" min="1" max="150" value={form.leeftijd_ruiter} onChange={(e)=>setForm(s=>({...s, leeftijd_ruiter: e.target.value}))} placeholder="Bijv. 32" style={{ width: '100%' }} />
+  <Input id="leeftijd_input" type="number" min="1" max="150" value={form.leeftijd_ruiter} onChange={(e)=>setForm(s=>({...s, leeftijd_ruiter: e.target.value}))} placeholder="Bijv. 32" disabled={REGISTRATION_MAINTENANCE} style={{ width: '100%' }} />
 
         <label htmlFor="email_input">E-mail*</label>
         <Input
@@ -412,6 +432,7 @@ export default function PublicInschrijven() {
           value={form.email}
           onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
           placeholder="jij@example.com"
+          disabled={REGISTRATION_MAINTENANCE}
           style={{ width: '100%' }}
         />
         {/* inline validation */}
@@ -427,6 +448,7 @@ export default function PublicInschrijven() {
           onChange={(e) => setForm((s) => ({ ...s, omroeper: e.target.value }))}
           placeholder="Korte introductie / bijzonderheden"
           className="border rounded px-2 py-1 w-full"
+          disabled={REGISTRATION_MAINTENANCE}
           style={{ width: '100%' }}
         />
 
@@ -438,11 +460,12 @@ export default function PublicInschrijven() {
           onChange={(e) => setForm((s) => ({ ...s, opmerkingen: e.target.value }))}
           placeholder="Speciale wensen/stal"
           className="border rounded px-2 py-1 w-full"
+          disabled={REGISTRATION_MAINTENANCE}
           style={{ width: '100%' }}
         />
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }} htmlFor="weh_lid_cb">
-          <input id="weh_lid_cb" type="checkbox" checked={form.weh_lid} onChange={(e) => setForm(s => ({ ...s, weh_lid: e.target.checked }))} />
+          <input id="weh_lid_cb" type="checkbox" checked={form.weh_lid} onChange={(e) => setForm(s => ({ ...s, weh_lid: e.target.checked }))} disabled={REGISTRATION_MAINTENANCE} />
           <span>WEH-lid</span>
         </label>
 
