@@ -261,6 +261,18 @@
   font-size: 0.9rem;
 }
 
+.dm-stal-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dm-stal-cell input {
+  width: 86px;
+  padding: 6px 8px;
+}
+
 .dm-ok {
   color: #2f6b44;
 }

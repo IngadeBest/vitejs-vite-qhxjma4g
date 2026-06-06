@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
 import Container from "@/ui/Container";
@@ -18,6 +18,7 @@ const DEFAULT_TARIEVEN = {
 
 const TARIEVEN_STORAGE_KEY = "deelnemers_tarieven_v1";
 const DUBBELEN_REVIEWED_KEY = "deelnemers_dubbelen_reviewed_v1";
+const STAL_TOEWIJZINGEN_KEY = "deelnemers_stal_toewijzingen_v1";
 
 const formatOmroeper = (deelnemer) => {
   const { ruiter, paard, omroeper } = deelnemer;
@@ -49,6 +50,7 @@ const persistTarieven = (wedstrijdId, tarieven) => {
 };
 
 export default function Deelnemers() {
+  const location = useLocation();
   const { items: wedstrijden, loading: wedstrijdenLoading } = useWedstrijden();
 
   const [wedstrijd, setWedstrijd] = useState(null);
@@ -63,6 +65,7 @@ export default function Deelnemers() {
 
   const [tarieven, setTarieven] = useState(DEFAULT_TARIEVEN);
   const [gecontroleerdeDubbelen, setGecontroleerdeDubbelen] = useState(new Set());
+  const [stalToewijzingen, setStalToewijzingen] = useState({});
 
   const [editDeelnemerId, setEditDeelnemerId] = useState(null);
   const [editForm, setEditForm] = useState({ klasse: "", paard: "" });
@@ -70,6 +73,16 @@ export default function Deelnemers() {
   const [actieMelding, setActieMelding] = useState("");
   const [actieFout, setActieFout] = useState("");
   const [actieBusyId, setActieBusyId] = useState(null);
+
+  useEffect(() => {
+    const wedstrijdId = location?.state?.wedstrijdId;
+    if (!wedstrijdId || !Array.isArray(wedstrijden) || wedstrijden.length === 0) return;
+
+    const geselecteerd = wedstrijden.find((w) => w.id === wedstrijdId);
+    if (!geselecteerd) return;
+
+    setWedstrijd((current) => (current?.id === geselecteerd.id ? current : geselecteerd));
+  }, [location?.state, wedstrijden]);
 
   useEffect(() => {
     if (!wedstrijd) {
@@ -102,6 +115,34 @@ export default function Deelnemers() {
       setGecontroleerdeDubbelen(new Set());
     }
   }, [wedstrijd]);
+
+  useEffect(() => {
+    if (!wedstrijd) {
+      setStalToewijzingen({});
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(STAL_TOEWIJZINGEN_KEY);
+      const data = raw ? JSON.parse(raw) : {};
+      setStalToewijzingen(data[wedstrijd.id] || {});
+    } catch (err) {
+      console.warn("Kon stal toewijzingen niet laden", err);
+      setStalToewijzingen({});
+    }
+  }, [wedstrijd]);
+
+  useEffect(() => {
+    if (!wedstrijd) return;
+    try {
+      const raw = localStorage.getItem(STAL_TOEWIJZINGEN_KEY);
+      const data = raw ? JSON.parse(raw) : {};
+      data[wedstrijd.id] = stalToewijzingen;
+      localStorage.setItem(STAL_TOEWIJZINGEN_KEY, JSON.stringify(data));
+    } catch (err) {
+      console.warn("Kon stal toewijzingen niet opslaan", err);
+    }
+  }, [wedstrijd, stalToewijzingen]);
 
   useEffect(() => {
     if (!wedstrijd) return;
@@ -383,6 +424,28 @@ export default function Deelnemers() {
     zichtbaar: gefilterde.length,
   };
 
+  const toggleStal = (deelnemerId) => {
+    setStalToewijzingen((prev) => {
+      const next = { ...prev };
+      if (next[deelnemerId]?.heeftStal) {
+        delete next[deelnemerId];
+      } else {
+        next[deelnemerId] = { heeftStal: true, stalnummer: "" };
+      }
+      return next;
+    });
+  };
+
+  const setStalnummer = (deelnemerId, stalnummer) => {
+    setStalToewijzingen((prev) => ({
+      ...prev,
+      [deelnemerId]: {
+        heeftStal: true,
+        stalnummer,
+      },
+    }));
+  };
+
   const klassen = [...new Set(deelnemers.map((d) => d.klasse).filter(Boolean))].sort();
 
   const renderStatusBadge = (deelnemer) => {
@@ -629,6 +692,7 @@ export default function Deelnemers() {
                           <th>Paard</th>
                           <th>Klasse</th>
                           <th>Status</th>
+                          <th>Stal</th>
                           <th>Opmerkingen</th>
                           <th>Contact</th>
                           <th>Acties</th>
@@ -654,6 +718,37 @@ export default function Deelnemers() {
                               )}
                             </td>
                             <td>{renderStatusBadge(deelnemer)}</td>
+                            <td>
+                              {stalToewijzingen[deelnemer.id]?.heeftStal ? (
+                                <div className="dm-stal-cell">
+                                  <span className="dm-badge dm-badge-green">Ja</span>
+                                  <input
+                                    type="text"
+                                    value={stalToewijzingen[deelnemer.id]?.stalnummer || ""}
+                                    onChange={(e) => setStalnummer(deelnemer.id, e.target.value)}
+                                    placeholder="Stalnr"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="dm-btn dm-btn-ghost"
+                                    onClick={() => toggleStal(deelnemer.id)}
+                                  >
+                                    Verwijder
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="dm-stal-cell">
+                                  <span className="dm-badge dm-badge-red">Nee</span>
+                                  <button
+                                    type="button"
+                                    className="dm-btn dm-btn-ghost"
+                                    onClick={() => toggleStal(deelnemer.id)}
+                                  >
+                                    Stal toewijzen
+                                  </button>
+                                </div>
+                              )}
+                            </td>
                             <td>
                               <div className="dm-cell-text">{deelnemer.opmerkingen || "Geen opmerkingen"}</div>
                               <div className="dm-cell-sub">Omroeper: {formatOmroeper(deelnemer)}</div>

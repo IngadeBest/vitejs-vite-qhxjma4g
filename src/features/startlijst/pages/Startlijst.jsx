@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
 import Container from "@/ui/Container";
+import "./Startlijst.css";
 
 // ======= Helpers =======
 const LS_KEY = "wp_startlijst_cache_v1";
@@ -831,6 +832,7 @@ export default function Startlijst() {
   const [loadingFromDB, setLoadingFromDB] = useState(false);
   const [dbMessage, setDbMessage] = useState("");
   const [activeTab, setActiveTab] = useState("startlijst"); // "startlijst" of "deelnemers"
+  const deelnemersLinkState = wedstrijd ? { wedstrijdId: wedstrijd } : undefined;
 
   // Volgorde van klassen + starttijden per klasse
   const [classOrder, setClassOrder] = useState([]);
@@ -2031,8 +2033,8 @@ Plak je data hieronder:`);
   };
 
   return (
-    <Container>
-      <div className="max-w-7xl mx-auto py-6 space-y-6">
+    <Container className="startlijst-shell" maxWidth="1800px">
+      <div className="sl-cozy max-w-7xl mx-auto py-6 space-y-6">
         {/* Header sectie */}
         <div>
           <div className="flex items-center justify-between">
@@ -2047,6 +2049,7 @@ Plak je data hieronder:`);
             <div className="flex gap-2">
               <Link
                 to="/deelnemers"
+                state={deelnemersLinkState}
                 className="px-3 py-2 border border-blue-200 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors text-sm font-medium"
               >
                 Naar deelnemers
@@ -2080,9 +2083,9 @@ Plak je data hieronder:`);
         </div>
 
       {/* Flex layout - links bewerkingstabel, rechts preview */}
-      <div className="flex gap-6 items-start">
+      <div className="flex gap-6 items-start startlijst-main-layout">
         {/* Main editing area (links) - nu 65% van de ruimte */}
-        <div className="flex-1 max-w-4xl">
+        <div className="startlijst-editor-col">
         {/* Filters sectie */}
         <div className={`${cardClass} p-6`}>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters en zoeken</h2>
@@ -2670,6 +2673,7 @@ Plak je data hieronder:`);
                                 ) : (
                                   <Link
                                     to="/deelnemers"
+                                    state={deelnemersLinkState}
                                     className="px-2 py-1 text-xs border rounded hover:bg-blue-50 text-blue-700"
                                     title="Beheer deelnemers via Deelnemers"
                                   >
@@ -2677,7 +2681,12 @@ Plak je data hieronder:`);
                                   </Link>
                                 )}
                                 {row.fromDB && (
-                                  <span className="px-1 py-1 text-xs bg-blue-100 text-blue-700 rounded">DB</span>
+                                  <span
+                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded font-medium"
+                                    title="Deze deelnemer is geladen vanuit de database"
+                                  >
+                                    Uit database
+                                  </span>
                                 )}
                               </div>
                             </td>
@@ -2709,6 +2718,7 @@ Plak je data hieronder:`);
               <div className="flex gap-3 flex-wrap">
                 <Link
                   to="/deelnemers"
+                  state={deelnemersLinkState}
                   className={primaryBtnClass}
                 >
                   Naar Deelnemersbeheer
@@ -2759,7 +2769,7 @@ Plak je data hieronder:`);
           </div>
         </div>
 
-        <div className="w-80 flex-shrink-0">
+        <div className="startlijst-side-col">
           <div className="sticky top-4 space-y-4">
             <div className={`${cardClass} p-4`}>
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Overzicht</h3>
