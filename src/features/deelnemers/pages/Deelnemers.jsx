@@ -684,172 +684,311 @@ export default function Deelnemers() {
                 {gefilterde.length === 0 ? (
                   <div className="dm-empty">Geen deelnemers gevonden met de huidige filters</div>
                 ) : (
-                  <div className="dm-table-wrap">
-                    <table className="dm-table">
-                      <thead>
-                        <tr>
-                          <th>Ruiter</th>
-                          <th>Paard</th>
-                          <th>Klasse</th>
-                          <th>Status</th>
-                          <th>Stal</th>
-                          <th>Opmerkingen</th>
-                          <th>Contact</th>
-                          <th>Acties</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {gefilterde.map((deelnemer, idx) => (
-                          <tr key={deelnemer.id || idx}>
-                            <td>
-                              <div className="dm-cell-title">{deelnemer.ruiter}</div>
-                              <div className="dm-cell-sub">
-                                Ingeschreven: {new Date(deelnemer.created_at).toLocaleDateString("nl-NL")}
-                              </div>
-                            </td>
-                            <td>
-                              <div className="dm-cell-title">{deelnemer.paard || "Onbekend paard"}</div>
-                              {deelnemer.weh_lid && <div className="dm-cell-sub dm-ok">WEH lid</div>}
-                            </td>
-                            <td>
-                              <span className="dm-badge dm-badge-blue">{deelnemer.klasse || "Geen klasse"}</span>
-                              {dubbeleIds.has(deelnemer.id) && (
-                                <span className="dm-badge dm-badge-amber">Mogelijk dubbel</span>
-                              )}
-                            </td>
-                            <td>{renderStatusBadge(deelnemer)}</td>
-                            <td>
-                              {stalToewijzingen[deelnemer.id]?.heeftStal ? (
-                                <div className="dm-stal-cell">
-                                  <span className="dm-badge dm-badge-green">Ja</span>
-                                  <input
-                                    type="text"
-                                    value={stalToewijzingen[deelnemer.id]?.stalnummer || ""}
-                                    onChange={(e) => setStalnummer(deelnemer.id, e.target.value)}
-                                    placeholder="Stalnr"
-                                  />
-                                  <button
-                                    type="button"
-                                    className="dm-btn dm-btn-ghost"
-                                    onClick={() => toggleStal(deelnemer.id)}
-                                  >
-                                    Verwijder
-                                  </button>
+                  <>
+                    <div className="dm-table-wrap">
+                      <table className="dm-table">
+                        <thead>
+                          <tr>
+                            <th>Ruiter</th>
+                            <th>Paard</th>
+                            <th>Klasse</th>
+                            <th>Status</th>
+                            <th>Stal</th>
+                            <th>Opmerkingen</th>
+                            <th>Contact</th>
+                            <th>Acties</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gefilterde.map((deelnemer, idx) => (
+                            <tr key={deelnemer.id || idx}>
+                              <td>
+                                <div className="dm-cell-title">{deelnemer.ruiter}</div>
+                                <div className="dm-cell-sub">
+                                  Ingeschreven: {new Date(deelnemer.created_at).toLocaleDateString("nl-NL")}
                                 </div>
-                              ) : (
-                                <div className="dm-stal-cell">
-                                  <span className="dm-badge dm-badge-red">Nee</span>
-                                  <button
-                                    type="button"
-                                    className="dm-btn dm-btn-ghost"
-                                    onClick={() => toggleStal(deelnemer.id)}
-                                  >
-                                    Stal toewijzen
-                                  </button>
-                                </div>
-                              )}
-                            </td>
-                            <td>
-                              <div className="dm-cell-text">{deelnemer.opmerkingen || "Geen opmerkingen"}</div>
-                              <div className="dm-cell-sub">Omroeper: {formatOmroeper(deelnemer)}</div>
-                            </td>
-                            <td>
-                              {deelnemer.email ? (
-                                <a href={`mailto:${deelnemer.email}`}>{deelnemer.email}</a>
-                              ) : (
-                                <span className="dm-cell-sub">Geen email</span>
-                              )}
-                              {deelnemer.telefoon && <div className="dm-cell-sub">{deelnemer.telefoon}</div>}
-                            </td>
-                            <td>
-                              {editDeelnemerId === deelnemer.id ? (
-                                <div className="dm-edit-wrap">
-                                  <div className="dm-edit-grid">
+                              </td>
+                              <td>
+                                <div className="dm-cell-title">{deelnemer.paard || "Onbekend paard"}</div>
+                                {deelnemer.weh_lid && <div className="dm-cell-sub dm-ok">WEH lid</div>}
+                              </td>
+                              <td>
+                                <span className="dm-badge dm-badge-blue">{deelnemer.klasse || "Geen klasse"}</span>
+                                {dubbeleIds.has(deelnemer.id) && (
+                                  <span className="dm-badge dm-badge-amber">Mogelijk dubbel</span>
+                                )}
+                              </td>
+                              <td>{renderStatusBadge(deelnemer)}</td>
+                              <td>
+                                {stalToewijzingen[deelnemer.id]?.heeftStal ? (
+                                  <div className="dm-stal-cell">
+                                    <span className="dm-badge dm-badge-green">Ja</span>
                                     <input
                                       type="text"
-                                      value={editForm.klasse}
-                                      onChange={(e) =>
-                                        setEditForm((prev) => ({ ...prev, klasse: e.target.value }))
-                                      }
-                                      placeholder="Klasse"
+                                      value={stalToewijzingen[deelnemer.id]?.stalnummer || ""}
+                                      onChange={(e) => setStalnummer(deelnemer.id, e.target.value)}
+                                      placeholder="Stalnr"
                                     />
-                                    <input
-                                      type="text"
-                                      value={editForm.paard}
-                                      onChange={(e) =>
-                                        setEditForm((prev) => ({ ...prev, paard: e.target.value }))
-                                      }
-                                      placeholder="Paard"
-                                    />
-                                  </div>
-                                  <div className="dm-actions-row">
                                     <button
                                       type="button"
-                                      onClick={() => saveEdit(deelnemer)}
-                                      disabled={actieBusyId === deelnemer.id}
-                                      className="dm-btn dm-btn-primary"
-                                    >
-                                      Opslaan
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={cancelEdit}
-                                      disabled={actieBusyId === deelnemer.id}
                                       className="dm-btn dm-btn-ghost"
+                                      onClick={() => toggleStal(deelnemer.id)}
                                     >
-                                      Annuleren
+                                      Verwijder
                                     </button>
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="dm-actions-row">
-                                  {(deelnemer.deelnemer_status || "actief") === "actief" ? (
-                                    <>
-                                      {dubbeleIds.has(deelnemer.id) && (
-                                        <button
-                                          type="button"
-                                          onClick={() => markeerDubbelGecontroleerd(deelnemer)}
-                                          disabled={actieBusyId === deelnemer.id}
-                                          className="dm-btn dm-btn-ghost"
-                                        >
-                                          Dubbel gecheckt
-                                        </button>
-                                      )}
+                                ) : (
+                                  <div className="dm-stal-cell">
+                                    <span className="dm-badge dm-badge-red">Nee</span>
+                                    <button
+                                      type="button"
+                                      className="dm-btn dm-btn-ghost"
+                                      onClick={() => toggleStal(deelnemer.id)}
+                                    >
+                                      Stal toewijzen
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                              <td>
+                                <div className="dm-cell-text">{deelnemer.opmerkingen || "Geen opmerkingen"}</div>
+                                <div className="dm-cell-sub">Omroeper: {formatOmroeper(deelnemer)}</div>
+                              </td>
+                              <td>
+                                {deelnemer.email ? (
+                                  <a href={`mailto:${deelnemer.email}`}>{deelnemer.email}</a>
+                                ) : (
+                                  <span className="dm-cell-sub">Geen email</span>
+                                )}
+                                {deelnemer.telefoon && <div className="dm-cell-sub">{deelnemer.telefoon}</div>}
+                              </td>
+                              <td>
+                                {editDeelnemerId === deelnemer.id ? (
+                                  <div className="dm-edit-wrap">
+                                    <div className="dm-edit-grid">
+                                      <input
+                                        type="text"
+                                        value={editForm.klasse}
+                                        onChange={(e) =>
+                                          setEditForm((prev) => ({ ...prev, klasse: e.target.value }))
+                                        }
+                                        placeholder="Klasse"
+                                      />
+                                      <input
+                                        type="text"
+                                        value={editForm.paard}
+                                        onChange={(e) =>
+                                          setEditForm((prev) => ({ ...prev, paard: e.target.value }))
+                                        }
+                                        placeholder="Paard"
+                                      />
+                                    </div>
+                                    <div className="dm-actions-row">
                                       <button
                                         type="button"
-                                        onClick={() => startEdit(deelnemer)}
+                                        onClick={() => saveEdit(deelnemer)}
                                         disabled={actieBusyId === deelnemer.id}
                                         className="dm-btn dm-btn-primary"
                                       >
-                                        Wijzig
+                                        Opslaan
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => afmeldenDeelnemer(deelnemer)}
+                                        onClick={cancelEdit}
                                         disabled={actieBusyId === deelnemer.id}
-                                        className="dm-btn dm-btn-danger"
+                                        className="dm-btn dm-btn-ghost"
                                       >
-                                        Afmelden
+                                        Annuleren
                                       </button>
-                                    </>
-                                  ) : (
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="dm-actions-row">
+                                    {(deelnemer.deelnemer_status || "actief") === "actief" ? (
+                                      <>
+                                        {dubbeleIds.has(deelnemer.id) && (
+                                          <button
+                                            type="button"
+                                            onClick={() => markeerDubbelGecontroleerd(deelnemer)}
+                                            disabled={actieBusyId === deelnemer.id}
+                                            className="dm-btn dm-btn-ghost"
+                                          >
+                                            Dubbel gecheckt
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => startEdit(deelnemer)}
+                                          disabled={actieBusyId === deelnemer.id}
+                                          className="dm-btn dm-btn-primary"
+                                        >
+                                          Wijzig
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => afmeldenDeelnemer(deelnemer)}
+                                          disabled={actieBusyId === deelnemer.id}
+                                          className="dm-btn dm-btn-danger"
+                                        >
+                                          Afmelden
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => heractiveerDeelnemer(deelnemer)}
+                                        disabled={actieBusyId === deelnemer.id}
+                                        className="dm-btn dm-btn-success"
+                                      >
+                                        Heractiveer
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="dm-mobile-list">
+                      {gefilterde.map((deelnemer, idx) => (
+                        <article className="dm-mobile-card" key={`mob-${deelnemer.id || idx}`}>
+                          <div className="dm-mobile-head">
+                            <div>
+                              <div className="dm-cell-title">{deelnemer.ruiter}</div>
+                              <div className="dm-cell-sub">{deelnemer.paard || "Onbekend paard"}</div>
+                            </div>
+                            <div>{renderStatusBadge(deelnemer)}</div>
+                          </div>
+
+                          <div className="dm-mobile-meta">
+                            <span className="dm-badge dm-badge-blue">{deelnemer.klasse || "Geen klasse"}</span>
+                            {deelnemer.weh_lid && <span className="dm-badge dm-badge-green">WEH</span>}
+                            {dubbeleIds.has(deelnemer.id) && <span className="dm-badge dm-badge-amber">Mogelijk dubbel</span>}
+                          </div>
+
+                          <div className="dm-mobile-contact">
+                            {deelnemer.email ? <a href={`mailto:${deelnemer.email}`}>{deelnemer.email}</a> : "Geen email"}
+                            {deelnemer.telefoon && <div className="dm-cell-sub">{deelnemer.telefoon}</div>}
+                          </div>
+
+                          <div className="dm-mobile-stal">
+                            <label>Stal</label>
+                            {stalToewijzingen[deelnemer.id]?.heeftStal ? (
+                              <div className="dm-stal-cell">
+                                <span className="dm-badge dm-badge-green">Ja</span>
+                                <input
+                                  type="text"
+                                  value={stalToewijzingen[deelnemer.id]?.stalnummer || ""}
+                                  onChange={(e) => setStalnummer(deelnemer.id, e.target.value)}
+                                  placeholder="Stalnr"
+                                />
+                                <button
+                                  type="button"
+                                  className="dm-btn dm-btn-ghost"
+                                  onClick={() => toggleStal(deelnemer.id)}
+                                >
+                                  Verwijder
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="dm-stal-cell">
+                                <span className="dm-badge dm-badge-red">Nee</span>
+                                <button
+                                  type="button"
+                                  className="dm-btn dm-btn-ghost"
+                                  onClick={() => toggleStal(deelnemer.id)}
+                                >
+                                  Stal toewijzen
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {editDeelnemerId === deelnemer.id ? (
+                            <div className="dm-edit-wrap">
+                              <div className="dm-edit-grid">
+                                <input
+                                  type="text"
+                                  value={editForm.klasse}
+                                  onChange={(e) => setEditForm((prev) => ({ ...prev, klasse: e.target.value }))}
+                                  placeholder="Klasse"
+                                />
+                                <input
+                                  type="text"
+                                  value={editForm.paard}
+                                  onChange={(e) => setEditForm((prev) => ({ ...prev, paard: e.target.value }))}
+                                  placeholder="Paard"
+                                />
+                              </div>
+                              <div className="dm-actions-row">
+                                <button
+                                  type="button"
+                                  onClick={() => saveEdit(deelnemer)}
+                                  disabled={actieBusyId === deelnemer.id}
+                                  className="dm-btn dm-btn-primary"
+                                >
+                                  Opslaan
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEdit}
+                                  disabled={actieBusyId === deelnemer.id}
+                                  className="dm-btn dm-btn-ghost"
+                                >
+                                  Annuleren
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="dm-actions-row">
+                              {(deelnemer.deelnemer_status || "actief") === "actief" ? (
+                                <>
+                                  {dubbeleIds.has(deelnemer.id) && (
                                     <button
                                       type="button"
-                                      onClick={() => heractiveerDeelnemer(deelnemer)}
+                                      onClick={() => markeerDubbelGecontroleerd(deelnemer)}
                                       disabled={actieBusyId === deelnemer.id}
-                                      className="dm-btn dm-btn-success"
+                                      className="dm-btn dm-btn-ghost"
                                     >
-                                      Heractiveer
+                                      Dubbel gecheckt
                                     </button>
                                   )}
-                                </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => startEdit(deelnemer)}
+                                    disabled={actieBusyId === deelnemer.id}
+                                    className="dm-btn dm-btn-primary"
+                                  >
+                                    Wijzig
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => afmeldenDeelnemer(deelnemer)}
+                                    disabled={actieBusyId === deelnemer.id}
+                                    className="dm-btn dm-btn-danger"
+                                  >
+                                    Afmelden
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => heractiveerDeelnemer(deelnemer)}
+                                  disabled={actieBusyId === deelnemer.id}
+                                  className="dm-btn dm-btn-success"
+                                >
+                                  Heractiveer
+                                </button>
                               )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                            </div>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  </>
                 )}
               </section>
             )}

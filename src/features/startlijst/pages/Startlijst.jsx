@@ -2699,6 +2699,124 @@ Plak je data hieronder:`);
               </table>
             </div>
 
+            <div className="sl-mobile-list">
+              {filtered.map((row, index) => {
+                const times = calculatedTimesForView[row.id || index] || {};
+                const rowKlasse = row.type === 'break' ? 'PAUZE' : (normalizeKlasse(row.klasse) || 'Geen klasse');
+                return (
+                  <article key={`mobile-${row.id || index}`} className="sl-mobile-card">
+                    <div className="sl-mobile-head">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {row.type === 'break' ? (row.label || 'Pauze') : (row.ruiter || 'Onbekende ruiter')}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {row.type === 'break' ? 'Pauze blok' : (row.paard || 'Onbekend paard')}
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-medium rounded ${row.type === 'break' ? 'bg-yellow-100 text-yellow-800' : 'bg-slate-100 text-slate-800'}`}>
+                        {rowKlasse}
+                      </span>
+                    </div>
+
+                    <div className="sl-mobile-grid">
+                      <div>
+                        <div className="sl-mobile-label">Dressuur</div>
+                        <div className="text-sm font-mono text-blue-700">
+                          {row.type === 'break'
+                            ? formatBreakWindow(times.dressuur, times.dressuurEnd)
+                            : (times.dressuur || '--:--')}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="sl-mobile-label">Trail</div>
+                        <div className="text-sm font-mono text-green-700">
+                          {row.type === 'break'
+                            ? formatBreakWindow(times.trail, times.trailEnd)
+                            : (times.trail || '--:--')}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="sl-mobile-label">Startnr</div>
+                        <div className="text-sm font-mono text-gray-700">{row.type === 'break' ? '—' : (row.startnummer || '—')}</div>
+                      </div>
+                      <div>
+                        <div className="sl-mobile-label">Rubriek</div>
+                        <div className="text-sm text-gray-700">{row.type === 'break' ? '—' : (row.rubriek || 'Algemeen')}</div>
+                      </div>
+                    </div>
+
+                    {row.type === 'break' ? (
+                      <div className="sl-mobile-break-edit">
+                        <input
+                          className="border rounded px-2 py-1 text-sm"
+                          value={row.label || ''}
+                          placeholder="Pauze naam"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRows((prev) => {
+                              const next = prev.slice();
+                              const realIndex = rows.indexOf(row);
+                              if (realIndex >= 0) {
+                                next[realIndex] = { ...next[realIndex], label: val };
+                              }
+                              return next;
+                            });
+                          }}
+                        />
+                        <div className="sl-mobile-break-row">
+                          <input
+                            className="border rounded px-2 py-1 w-20 text-sm"
+                            type="number"
+                            value={row.duration || ''}
+                            placeholder="15"
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setRows((prev) => {
+                                const next = prev.slice();
+                                const realIndex = rows.indexOf(row);
+                                if (realIndex >= 0) {
+                                  next[realIndex] = { ...next[realIndex], duration: Number(val) || 0 };
+                                }
+                                return next;
+                              });
+                            }}
+                          />
+                          <button
+                            className="px-3 py-1 text-xs border rounded hover:bg-red-50 text-red-600"
+                            onClick={() => {
+                              const realIndex = rows.indexOf(row);
+                              if (realIndex >= 0) {
+                                setRows((prev) => prev.filter((_, i) => i !== realIndex));
+                              }
+                            }}
+                          >
+                            Verwijder
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="sl-mobile-actions">
+                        <Link
+                          to="/deelnemers"
+                          state={deelnemersLinkState}
+                          className="px-2 py-1 text-xs border rounded hover:bg-blue-50 text-blue-700"
+                          title="Beheer deelnemers via Deelnemers"
+                        >
+                          Beheer
+                        </Link>
+                        {row.fromDB && (
+                          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded font-medium">
+                            Uit database
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+
             {/* Lege staat */}
             {filtered.length === 0 && (
               <div className="p-12 text-center text-gray-500">

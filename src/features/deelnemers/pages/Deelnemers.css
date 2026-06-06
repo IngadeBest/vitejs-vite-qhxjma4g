@@ -329,6 +329,39 @@
   color: #7b6349;
 }
 
+.dm-mobile-list {
+  display: none;
+  padding: 10px;
+  gap: 10px;
+}
+
+.dm-mobile-card {
+  border: 1px solid #ecdcc7;
+  border-radius: 12px;
+  background: #fffdf9;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.dm-mobile-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.dm-mobile-meta,
+.dm-mobile-contact,
+.dm-mobile-stal {
+  display: grid;
+  gap: 6px;
+}
+
+.dm-mobile-stal label {
+  margin: 0;
+}
+
 .dm-btn {
   display: inline-flex;
   align-items: center;
@@ -434,5 +467,13 @@
   .dm-filters,
   .dm-stats {
     grid-template-columns: 1fr;
+  }
+
+  .dm-table-wrap {
+    display: none;
+  }
+
+  .dm-mobile-list {
+    display: grid;
   }
 }
