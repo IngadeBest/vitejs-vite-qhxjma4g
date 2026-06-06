@@ -14,6 +14,7 @@ import WedstrijdenBeheer from "@/features/wedstrijden/pages/WedstrijdenBeheer";
 import WachtlijstBeheer from "@/features/wachtlijst/pages/WachtlijstBeheer";
 import ProefInstellingen from "@/features/proeven/pages/ProefInstellingen";
 import ScoreInvoer from "@/features/scoring/pages/ScoreInvoer";
+import TrailGenerator from "@/features/trailgenerator/pages/TrailGenerator";
 
 const navStyle = ({ isActive }) => ({
   padding: "8px 10px",
@@ -66,6 +67,7 @@ function InnerApp() {
               <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
               <NavLink to="/deelnemers" style={navStyle}>Deelnemers</NavLink>
               <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
+              <NavLink to="/trailgenerator" style={navStyle}>Trailgenerator</NavLink>
               <NavLink to="/proeven" style={navStyle}>Proeven</NavLink>
               <NavLink to="/scores" style={navStyle}>Score Invoer</NavLink>
               <NavLink to="/uitslagen" style={navStyle}>Uitslagen</NavLink>
@@ -89,6 +91,7 @@ function InnerApp() {
   <Route path="/startlijst" element={<Startlijst />} />
   <Route path="/deelnemers" element={<Deelnemers />} />
   <Route path="/protocollen" element={<ProtocolGenerator />} />
+  <Route path="/trailgenerator" element={<TrailGenerator />} />
   <Route path="/proeven" element={<ProefInstellingen />} />
   <Route path="/scores" element={<ScoreInvoer />} />
   <Route path="/uitslagen" element={<Einduitslag />} />

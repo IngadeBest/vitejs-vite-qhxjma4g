@@ -11,6 +11,11 @@ import { generatePdfBlob, KLASSEN as PDF_KLASSEN, ONDERDELEN as PDF_ONDERDELEN }
 /* Klassen & Onderdelen - gebruik de geëxporteerde constanten uit buildPdf */
 const KLASSEN = PDF_KLASSEN;
 const ONDERDELEN = PDF_ONDERDELEN;
+const TRAIL_LEVELS = [
+  { code: 'we0', label: 'WE0' },
+  { code: 'we1', label: 'WE1' },
+  { code: 'we2p', label: 'WE2 / WE2+' },
+];
 
 /* Backwards compatible wrapper voor makePdfBlob */
 async function makePdfBlob(protocol, items) {
@@ -584,10 +589,33 @@ export default function ProtocolGenerator() {
   const [selectIndex, setSelectIndex] = useState(0);
   const [selectedRubriek, setSelectedRubriek] = useState('senior');
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [showParcoursMaker, setShowParcoursMaker] = useState(false);
+  const [parcoursImage, setParcoursImage] = useState('');
+  const [parcoursImageName, setParcoursImageName] = useState('');
+  const [parcoursLevel, setParcoursLevel] = useState('we0');
+  const [parcoursMeta, setParcoursMeta] = useState({
+    eventNaam: '',
+    locatie: '',
+    datum: '',
+    piste: '',
+  });
+  const [parcoursByLevel, setParcoursByLevel] = useState({
+    we0: '',
+    we1: '',
+    we2p: '',
+  });
   const draggedItem = useRef(null);
   const draggedFromAvailable = useRef(false);
 
   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
+
+  useEffect(() => {
+    setParcoursMeta((prev) => ({
+      ...prev,
+      eventNaam: selectedWedstrijd?.naam || prev.eventNaam,
+      datum: config.datum || prev.datum,
+    }));
+  }, [selectedWedstrijd, config.datum]);
 
   const saveItemsConfig = () => {
     const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
@@ -919,6 +947,123 @@ export default function ProtocolGenerator() {
     } catch (error) { console.error(error); alert('Fout bij batch printen: ' + error.message); }
   };
 
+  const parseParcoursLines = (value) => String(value || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const updateParcoursLines = (levelCode, value) => {
+    setParcoursByLevel((prev) => ({ ...prev, [levelCode]: value }));
+  };
+
+  const fillParcoursFromItems = (levelCode) => {
+    const text = (items || [])
+      .map((item, idx) => {
+        if (Array.isArray(item)) return `${idx + 1}. ${item.filter(Boolean).join(' - ')}`;
+        return `${idx + 1}. ${String(item || '').trim()}`;
+      })
+      .filter((line) => !/\d+\.\s*$/.test(line))
+      .join('\n');
+    updateParcoursLines(levelCode, text);
+  };
+
+  const onParcoursImageFile = (file) => {
+    if (!file) {
+      setParcoursImage('');
+      setParcoursImageName('');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setParcoursImage(String(reader.result || ''));
+      setParcoursImageName(file.name || 'parcours');
+    };
+    reader.onerror = () => {
+      setParcoursImage('');
+      setParcoursImageName('');
+      alert('Kon afbeelding niet lezen.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const exportTrailParcoursPdf = (levelCode) => {
+    const level = TRAIL_LEVELS.find((l) => l.code === levelCode);
+    const lines = parseParcoursLines(parcoursByLevel[levelCode]);
+    if (!lines.length) {
+      alert(`Geen obstakels ingevuld voor ${level?.label || levelCode}.`);
+      return;
+    }
+
+    const doc = new jsPDF({ unit: 'pt', format: 'A4', orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 34;
+    const leftW = 480;
+    const imageX = margin;
+    const imageY = 96;
+    const imageW = leftW;
+    const imageH = pageHeight - imageY - margin;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text(parcoursMeta.eventNaam || selectedWedstrijd?.naam || 'Trailparcours', margin, 34);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    const metaParts = [
+      parcoursMeta.locatie || '',
+      parcoursMeta.datum || config.datum || '',
+      parcoursMeta.piste || '',
+    ].filter(Boolean);
+    if (metaParts.length) doc.text(metaParts.join('  |  '), margin, 52);
+
+    if (parcoursImage) {
+      const imageType = parcoursImage.includes('data:image/png') ? 'PNG' : 'JPEG';
+      try {
+        doc.addImage(parcoursImage, imageType, imageX, imageY, imageW, imageH);
+      } catch {
+        doc.rect(imageX, imageY, imageW, imageH);
+        doc.setFontSize(11);
+        doc.text('Afbeelding kon niet in PDF geplaatst worden.', imageX + 12, imageY + 20);
+      }
+    } else {
+      doc.rect(imageX, imageY, imageW, imageH);
+      doc.setFontSize(11);
+      doc.text('Upload optioneel een parcours afbeelding.', imageX + 12, imageY + 20);
+    }
+
+    const listX = imageX + imageW + 22;
+    const listW = pageWidth - listX - margin;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text(level?.label || levelCode, listX, 40);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+
+    let y = 68;
+    lines.forEach((line, idx) => {
+      const text = /^\d+[.)\-:\s]/.test(line) ? line : `${idx + 1}. ${line}`;
+      const wrapped = doc.splitTextToSize(text, listW);
+      doc.text(wrapped, listX, y);
+      y += wrapped.length * 16;
+      if (y > pageHeight - 36) {
+        doc.addPage();
+        y = 44;
+      }
+    });
+
+    const safe = (s) => String(s || '').replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    const fileBase = safe(parcoursMeta.eventNaam || selectedWedstrijd?.naam || 'trailparcours');
+    doc.save(`${fileBase}_${levelCode}.pdf`);
+  };
+
+  const exportAllTrailParcours = () => {
+    TRAIL_LEVELS.forEach((level) => {
+      if (parseParcoursLines(parcoursByLevel[level.code]).length > 0) {
+        exportTrailParcoursPdf(level.code);
+      }
+    });
+  };
+
   const handleDragStart = (e, item, fromAvailable) => {
     draggedItem.current = item;
     draggedFromAvailable.current = fromAvailable;
@@ -1123,6 +1268,9 @@ export default function ProtocolGenerator() {
         <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", margin:"8px 0 16px" }}>
           <button onClick={downloadBatch}>Download batch PDF</button>
           <button onClick={printBatch}>Print batch PDF</button>
+          <button onClick={() => setShowParcoursMaker(v => !v)}>
+            {showParcoursMaker ? 'Verberg Trailparcours maker' : 'Trailparcours maker'}
+          </button>
           <span style={{ display:"inline-flex", gap:8, alignItems:"center" }}>
             <select value={selectIndex} onChange={(e)=>setSelectIndex(Number(e.target.value))}>
               {protocollen.map((p,i)=>(<option key={i} value={i}>{p.startnummer} – {p.ruiter} – {p.paard}</option>))}
@@ -1133,6 +1281,69 @@ export default function ProtocolGenerator() {
           </span>
           <a href="#/startlijst"><button>Terug naar Startlijst</button></a>
         </div>
+        {showParcoursMaker && (
+          <div style={{ border: '1px solid #dbe3ef', borderRadius: 12, padding: 16, background: '#f8fbff', marginBottom: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Trailparcours maker (los per niveau)</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginBottom: 10 }}>
+              <input
+                placeholder="Naam wedstrijd"
+                value={parcoursMeta.eventNaam}
+                onChange={(e) => setParcoursMeta(prev => ({ ...prev, eventNaam: e.target.value }))}
+              />
+              <input
+                placeholder="Locatie"
+                value={parcoursMeta.locatie}
+                onChange={(e) => setParcoursMeta(prev => ({ ...prev, locatie: e.target.value }))}
+              />
+              <input
+                type="date"
+                value={parcoursMeta.datum}
+                onChange={(e) => setParcoursMeta(prev => ({ ...prev, datum: e.target.value }))}
+              />
+              <input
+                placeholder="Piste/baan"
+                value={parcoursMeta.piste}
+                onChange={(e) => setParcoursMeta(prev => ({ ...prev, piste: e.target.value }))}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => onParcoursImageFile(e.target.files?.[0])} />
+              {parcoursImageName && <span style={{ fontSize: 12, color: '#475569' }}>Afbeelding: {parcoursImageName}</span>}
+              {parcoursImage && <button onClick={() => onParcoursImageFile(null)}>Verwijder afbeelding</button>}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+              <label>Niveau:</label>
+              <select value={parcoursLevel} onChange={(e) => setParcoursLevel(e.target.value)}>
+                {TRAIL_LEVELS.map((level) => (
+                  <option key={level.code} value={level.code}>{level.label}</option>
+                ))}
+              </select>
+              <button onClick={() => fillParcoursFromItems(parcoursLevel)}>Vul met huidige items</button>
+              <button onClick={() => exportTrailParcoursPdf(parcoursLevel)}>Exporteer huidig niveau PDF</button>
+              <button onClick={exportAllTrailParcours}>Exporteer alle niveaus</button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+              {TRAIL_LEVELS.map((level) => (
+                <div key={level.code} style={{ background: '#fff', border: '1px solid #dbe3ef', borderRadius: 10, padding: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <b>{level.label}</b>
+                    <button onClick={() => setParcoursLevel(level.code)}>Selecteer</button>
+                  </div>
+                  <textarea
+                    rows={12}
+                    value={parcoursByLevel[level.code]}
+                    onChange={(e) => updateParcoursLines(level.code, e.target.value)}
+                    placeholder={`1. Slalom\n2. Brug\n3. Tonnen`}
+                    style={{ width: '100%', resize: 'vertical' }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {pdfUrl && <iframe src={pdfUrl} title="PDF preview" style={{ width:"100%", height:"680px", border:"1px solid #ccc", borderRadius:8 }} />}
       </div>
     </>

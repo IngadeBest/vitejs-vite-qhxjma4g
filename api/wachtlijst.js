@@ -62,6 +62,41 @@ async function handleWachtlijstAdd(req, res) {
       });
     }
 
+    // Someone already registered should not also be on waitlist for same class
+    const normalizedEmail = (b.email || '').trim().toLowerCase();
+    const normalizedRuiter = (b.ruiter || '').trim().toLowerCase();
+    const normalizedPaard = (b.paard || '').trim().toLowerCase();
+
+    const { data: bestaandeInschrijvingen, error: bestaandeError } = await supabaseServer
+      .from('inschrijvingen')
+      .select('id, email, ruiter, paard')
+      .eq('wedstrijd_id', wedstrijd_id)
+      .eq('klasse', b.klasse)
+      .or('deelnemer_status.is.null,deelnemer_status.eq.actief')
+      .limit(20);
+
+    if (bestaandeError) {
+      console.error('Check bestaande inschrijving failed:', bestaandeError);
+    } else {
+      const bestaatAl = (bestaandeInschrijvingen || []).some((item) => {
+        const itemEmail = (item.email || '').trim().toLowerCase();
+        const itemRuiter = (item.ruiter || '').trim().toLowerCase();
+        const itemPaard = (item.paard || '').trim().toLowerCase();
+
+        if (normalizedEmail && itemEmail && normalizedEmail === itemEmail) return true;
+        if (normalizedRuiter && normalizedPaard && normalizedRuiter === itemRuiter && normalizedPaard === itemPaard) return true;
+        return false;
+      });
+
+      if (bestaatAl) {
+        return res.status(409).json({
+          ok: false,
+          error: 'ALREADY_REGISTERED',
+          message: 'Deze deelnemer staat al op de deelnemerslijst voor deze klasse.'
+        });
+      }
+    }
+
     // Check if person is already on waitlist
     const { data: existing } = await supabaseServer
       .from('wachtlijst')

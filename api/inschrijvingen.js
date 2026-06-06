@@ -95,6 +95,43 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: 'CATEGORIE_NOT_ALLOWED', message: 'Geselecteerde categorie niet toegestaan voor deze klasse.'});
     }
 
+    const normalizedEmail = (b.email || '').trim().toLowerCase();
+    const normalizedRuiter = (b.ruiter || '').trim().toLowerCase();
+    const normalizedPaard = (b.paard || '').trim().toLowerCase();
+
+    if (normalizedEmail || (normalizedRuiter && normalizedPaard)) {
+      const duplicateClient = supabaseServer || createClient(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL, process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
+      const { data: bestaandeInschrijvingen, error: duplicateError } = await duplicateClient
+        .from('inschrijvingen')
+        .select('id, ruiter, paard, klasse, email')
+        .eq('wedstrijd_id', wedstrijd_id)
+        .eq('klasse', b.klasse)
+        .or('deelnemer_status.is.null,deelnemer_status.eq.actief')
+        .limit(10);
+
+      if (duplicateError) {
+        console.error('Duplicate check error:', duplicateError);
+      } else {
+        const isDubbel = (bestaandeInschrijvingen || []).some((item) => {
+          const itemEmail = (item.email || '').trim().toLowerCase();
+          const itemRuiter = (item.ruiter || '').trim().toLowerCase();
+          const itemPaard = (item.paard || '').trim().toLowerCase();
+
+          if (normalizedEmail && itemEmail && normalizedEmail === itemEmail) return true;
+          if (normalizedRuiter && normalizedPaard && normalizedRuiter === itemRuiter && normalizedPaard === itemPaard) return true;
+          return false;
+        });
+
+        if (isDubbel) {
+          return res.status(409).json({
+            ok: false,
+            error: 'DUPLICATE_INSCHRIJVING',
+            message: 'Je lijkt al ingeschreven te zijn voor deze klasse. Neem contact op met de organisatie voor wijzigingen of afmelding.'
+          });
+        }
+      }
+    }
+
     // Server-side capacity validation
     let shouldAutoClose = false;
     let capacityWarnings = [];

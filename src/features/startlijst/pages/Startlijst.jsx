@@ -1523,6 +1523,7 @@ Plak je data hieronder:`);
 
       const applySaveScopeFilters = (query) => {
         let scopedQuery = query.eq('wedstrijd_id', wedstrijd);
+        scopedQuery = scopedQuery.or('deelnemer_status.is.null,deelnemer_status.eq.actief');
         const klasseCode = normalizeKlasseCode(klasse);
         if (klasseCode) scopedQuery = scopedQuery.eq('klasse', klasseCode);
 
@@ -1586,38 +1587,8 @@ Plak je data hieronder:`);
         }
       }
 
-      const { data: scopedDbRows, error: scopedLoadError } = await applySaveScopeFilters(
-        supabase
-          .from('inschrijvingen')
-          .select('id')
-      );
-
-      if (scopedLoadError) {
-        console.error('Database scoped load error:', scopedLoadError);
-        throw new Error(`Database fout bij controle verwijderde deelnemers: ${scopedLoadError.message || JSON.stringify(scopedLoadError)}`);
-      }
-
-      const currentDbIds = new Set(
-        rowsWithOrder
-          .map((row) => row.dbId)
-          .filter(Boolean)
-      );
-
-      const idsToDelete = (scopedDbRows || [])
-        .map((row) => row.id)
-        .filter((id) => id && !currentDbIds.has(id));
-
-      if (idsToDelete.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('inschrijvingen')
-          .delete()
-          .in('id', idsToDelete);
-
-        if (deleteError) {
-          console.error('Database delete error:', deleteError);
-          throw new Error(`Database fout bij verwijderen: ${deleteError.message || JSON.stringify(deleteError)}`);
-        }
-      }
+      // Deelnemer lifecycle (afmelden/heractiveren) gebeurt uitsluitend in Deelnemersbeheer.
+      // Startlijst bewaart alleen volgorde/gegevens van zichtbare actieve deelnemers.
       
       // Save to localStorage as backup (after successful database save)
       // Alleen wedstrijd-specifieke key gebruiken, GEEN algemene cache meer
@@ -1733,6 +1704,7 @@ Plak je data hieronder:`);
       // Stap 2: Laad deelnemers (sorteer op volgorde veld indien aanwezig)
       const baseFilters = (q, includeRubriek = true) => {
         let qq = q.eq("wedstrijd_id", wedstrijd);
+        qq = qq.or("deelnemer_status.is.null,deelnemer_status.eq.actief");
         const klasseCode = normalizeKlasseCode(klasse);
         if (klasseCode) qq = qq.eq("klasse", klasseCode);
         if (includeRubriek && rubriek) {
@@ -1749,12 +1721,12 @@ Plak je data hieronder:`);
       let query = baseFilters(
         supabase
           .from("inschrijvingen")
-          .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde")
+          .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde,deelnemer_status")
       );
 
       let { data, error } = await query;
 
-      if (error && /column .*rubriek|column .*volgorde/i.test(String(error.message || error))) {
+      if (error && /column .*rubriek|column .*volgorde|column .*deelnemer_status/i.test(String(error.message || error))) {
         console.warn("Kolom ontbreekt in inschrijvingen, fallback zonder rubriek/volgorde:", error);
         query = baseFilters(
           supabase
@@ -2599,71 +2571,16 @@ Plak je data hieronder:`);
                                   PAUZE
                                 </span>
                               ) : (
-                                (() => {
-                                  const k = rowKlasse.toLowerCase();
-                                  const klassColor =
-                                    k === 'we0' || k === 'we1'
-                                      ? 'bg-blue-50 border-blue-200 text-blue-900'
-                                      : k === 'we2' || k === 'we2+'
-                                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                                      : k === 'we3' || k === 'we4'
-                                      ? 'bg-violet-50 border-violet-200 text-violet-900'
-                                      : k === 'junioren' || k === 'young riders'
-                                      ? 'bg-rose-50 border-rose-200 text-rose-900'
-                                      : 'bg-white border-gray-300 text-gray-900';
-                                  return (
-                                <select
-                                  className={`border rounded px-2 py-1 text-sm ${klassColor}`}
-                                  value={normalizeKlasse(row.klasse) || ""}
-                                  onChange={(e) => {
-                                    const newKlasse = e.target.value;
-                                    setRows((prev) => {
-                                      const next = prev.slice();
-                                      const realIndex = rows.indexOf(row);
-                                      if (realIndex >= 0) {
-                                        next[realIndex] = { ...next[realIndex], klasse: newKlasse };
-                                      }
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  <option value="">Kies klasse...</option>
-                                  <option value="WE0">WE0</option>
-                                  <option value="WE1">WE1</option>
-                                  <option value="WE2">WE2</option>
-                                  <option value="WE3">WE3</option>
-                                  <option value="WE4">WE4</option>
-                                  <option value="Junioren">Junioren</option>
-                                  <option value="Young Riders">Young Riders</option>
-                                  <option value="WE2+">WE2+</option>
-                                </select>
-                                  );
-                                })()
+                                <span className="px-2 py-1 text-xs font-medium rounded bg-slate-100 text-slate-800">
+                                  {normalizeKlasse(row.klasse) || 'Geen klasse'}
+                                </span>
                               )}
                             </td>
                             <td className="px-4 py-4">
                               {row.type === 'break' ? (
                                 <span className="text-gray-400">—</span>
                               ) : (
-                                <select
-                                  className="border rounded px-2 py-1 text-sm bg-white"
-                                  value={row.rubriek || "Algemeen"}
-                                  onChange={(e) => {
-                                    const newRubriek = e.target.value;
-                                    setRows((prev) => {
-                                      const next = prev.slice();
-                                      const realIndex = rows.indexOf(row);
-                                      if (realIndex >= 0) {
-                                        next[realIndex] = { ...next[realIndex], rubriek: newRubriek };
-                                      }
-                                      return next;
-                                    });
-                                  }}
-                                >
-                                  <option value="Algemeen">Algemeen</option>
-                                  <option value="Senior">Senior</option>
-                                  <option value="Jeugd">Jeugd</option>
-                                </select>
+                                <span className="text-sm text-gray-700">{row.rubriek || 'Algemeen'}</span>
                               )}
                             </td>
                             <td className="px-4 py-4">
@@ -2684,22 +2601,7 @@ Plak je data hieronder:`);
                               {row.type === 'break' ? (
                                 <span className="text-gray-400">—</span>
                               ) : (
-                                <input
-                                  className="border rounded px-2 py-1 w-16 text-sm"
-                                  value={row.startnummer || ""}
-                                  placeholder={`${getStartnummerBase(rowKlasse).toString().padStart(3, '0')}`}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setRows((prev) => {
-                                      const next = prev.slice();
-                                      const realIndex = rows.indexOf(row);
-                                      if (realIndex >= 0) {
-                                        next[realIndex] = { ...next[realIndex], startnummer: val };
-                                      }
-                                      return next;
-                                    });
-                                  }}
-                                />
+                                <span className="text-sm font-mono text-gray-700">{row.startnummer || '—'}</span>
                               )}
                             </td>
                             <td className="px-4 py-4">
@@ -2721,22 +2623,7 @@ Plak je data hieronder:`);
                                   }}
                                 />
                               ) : (
-                                <input
-                                  className="border rounded px-2 py-1 text-sm"
-                                  value={row.ruiter || ""}
-                                  placeholder="Ruiter naam"
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setRows((prev) => {
-                                      const next = prev.slice();
-                                      const realIndex = rows.indexOf(row);
-                                      if (realIndex >= 0) {
-                                        next[realIndex] = { ...next[realIndex], ruiter: val };
-                                      }
-                                      return next;
-                                    });
-                                  }}
-                                />
+                                <span className="text-sm text-gray-800">{row.ruiter || '—'}</span>
                               )}
                             </td>
                             <td className="px-4 py-4">
@@ -2762,38 +2649,33 @@ Plak je data hieronder:`);
                                   <span className="text-xs text-gray-500">min</span>
                                 </div>
                               ) : (
-                                <input
-                                  className="border rounded px-2 py-1 text-sm"
-                                  value={row.paard || ""}
-                                  placeholder="Paard naam"
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setRows((prev) => {
-                                      const next = prev.slice();
-                                      const realIndex = rows.indexOf(row);
-                                      if (realIndex >= 0) {
-                                        next[realIndex] = { ...next[realIndex], paard: val };
-                                      }
-                                      return next;
-                                    });
-                                  }}
-                                />
+                                <span className="text-sm text-gray-800">{row.paard || '—'}</span>
                               )}
                             </td>
                             <td className="px-4 py-4">
                               <div className="flex items-center space-x-1">
-                                <button
-                                  className="px-2 py-1 text-xs border rounded hover:bg-red-50 text-red-600"
-                                  onClick={() => {
-                                    const realIndex = rows.indexOf(row);
-                                    if (realIndex >= 0) {
-                                      setRows((prev) => prev.filter((_, i) => i !== realIndex));
-                                    }
-                                  }}
-                                  title="Verwijderen"
-                                >
-                                  🗑️
-                                </button>
+                                {row.type === 'break' ? (
+                                  <button
+                                    className="px-2 py-1 text-xs border rounded hover:bg-red-50 text-red-600"
+                                    onClick={() => {
+                                      const realIndex = rows.indexOf(row);
+                                      if (realIndex >= 0) {
+                                        setRows((prev) => prev.filter((_, i) => i !== realIndex));
+                                      }
+                                    }}
+                                    title="Verwijderen"
+                                  >
+                                    🗑️
+                                  </button>
+                                ) : (
+                                  <Link
+                                    to="/deelnemers"
+                                    className="px-2 py-1 text-xs border rounded hover:bg-blue-50 text-blue-700"
+                                    title="Beheer deelnemers via Deelnemers"
+                                  >
+                                    Beheer
+                                  </Link>
+                                )}
                                 {row.fromDB && (
                                   <span className="px-1 py-1 text-xs bg-blue-100 text-blue-700 rounded">DB</span>
                                 )}
@@ -2825,13 +2707,12 @@ Plak je data hieronder:`);
                 <p className="text-sm text-gray-500">Bewerken, exporteren en opslaan.</p>
               </div>
               <div className="flex gap-3 flex-wrap">
-                <button
+                <Link
+                  to="/deelnemers"
                   className={primaryBtnClass}
-                  onClick={() => addEmptyRow(setRows, klasse)}
                 >
-                  + Nieuwe deelnemer
-                </button>
-                
+                  Naar Deelnemersbeheer
+                </Link>
                 <button
                   className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors"
                   onClick={() => addBreak(setRows)}

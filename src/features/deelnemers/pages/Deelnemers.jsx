@@ -1,51 +1,28 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
 import Container from "@/ui/Container";
+import "./Deelnemers.css";
 
-// Inschrijfgeld tarieven (in euros)
 const DEFAULT_TARIEVEN = {
   base: {
     standaard: 45.0,
-    weh_korting: 2.50  // WEH leden krijgen €2.50 korting
+    weh_korting: 2.5,
   },
   stal: {
     per_dag: 15.0,
-    per_nacht: 25.0
-  }
+    per_nacht: 25.0,
+  },
 };
 
 const TARIEVEN_STORAGE_KEY = "deelnemers_tarieven_v1";
+const DUBBELEN_REVIEWED_KEY = "deelnemers_dubbelen_reviewed_v1";
 
-// Helper functie voor inschrijfgeld berekening
-const berekenInschrijfgeld = (deelnemer, stalToewijzingen, tarieven) => {
-  const { weh_lid } = deelnemer;
-  
-  // Basis tarief: €45, WEH leden krijgen €2.50 korting
-  let totaal = tarieven.base.standaard;
-  if (weh_lid) {
-    totaal -= tarieven.base.weh_korting; // €45 - €2.50 = €42.50
-  }
-  
-  // Stal kosten - check stal toewijzing
-  if (stalToewijzingen && stalToewijzingen[deelnemer.id]) {
-    totaal += tarieven.stal.per_dag; // Default per dag, kan later uitgebreid worden
-  }
-  
-  return totaal;
-};
-
-// Helper functie om omroeper tekst te formatteren
 const formatOmroeper = (deelnemer) => {
   const { ruiter, paard, omroeper } = deelnemer;
-  
-  if (omroeper && omroeper.trim()) {
-    return omroeper;
-  }
-  
-  // Fallback: genereer standaard omroeper tekst
-  return `${ruiter || 'Ruiter'} met ${paard || 'paard'}`;
+  if (omroeper && omroeper.trim()) return omroeper;
+  return `${ruiter || "Ruiter"} met ${paard || "paard"}`;
 };
 
 const loadTarieven = (wedstrijdId) => {
@@ -73,33 +50,57 @@ const persistTarieven = (wedstrijdId, tarieven) => {
 
 export default function Deelnemers() {
   const { items: wedstrijden, loading: wedstrijdenLoading } = useWedstrijden();
+
   const [wedstrijd, setWedstrijd] = useState(null);
   const [deelnemers, setDeelnemers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [filterKlasse, setFilterKlasse] = useState("");
-  const [filterWehLid, setFilterWehLid] = useState("");
-  const [filterStal, setFilterStal] = useState("");
-  const [zoekterm, setZoekterm] = useState("");
-  const [stalToewijzingen, setStalToewijzingen] = useState({});
-  const [tarieven, setTarieven] = useState(DEFAULT_TARIEVEN);
 
-  // Load deelnemers when wedstrijd changes
+  const [zoekterm, setZoekterm] = useState("");
+  const [filterKlasse, setFilterKlasse] = useState("");
+  const [filterStatus, setFilterStatus] = useState("actief");
+  const [filterWehLid, setFilterWehLid] = useState("");
+
+  const [tarieven, setTarieven] = useState(DEFAULT_TARIEVEN);
+  const [gecontroleerdeDubbelen, setGecontroleerdeDubbelen] = useState(new Set());
+
+  const [editDeelnemerId, setEditDeelnemerId] = useState(null);
+  const [editForm, setEditForm] = useState({ klasse: "", paard: "" });
+
+  const [actieMelding, setActieMelding] = useState("");
+  const [actieFout, setActieFout] = useState("");
+  const [actieBusyId, setActieBusyId] = useState(null);
+
   useEffect(() => {
     if (!wedstrijd) {
       setDeelnemers([]);
       setTarieven(DEFAULT_TARIEVEN);
       return;
     }
-
     loadDeelnemers();
   }, [wedstrijd]);
 
   useEffect(() => {
     if (!wedstrijd) return;
-
     const stored = loadTarieven(wedstrijd.id);
     setTarieven(stored || DEFAULT_TARIEVEN);
+  }, [wedstrijd]);
+
+  useEffect(() => {
+    if (!wedstrijd) {
+      setGecontroleerdeDubbelen(new Set());
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(DUBBELEN_REVIEWED_KEY);
+      const data = raw ? JSON.parse(raw) : {};
+      const ids = Array.isArray(data[wedstrijd.id]) ? data[wedstrijd.id] : [];
+      setGecontroleerdeDubbelen(new Set(ids));
+    } catch (err) {
+      console.warn("Kon gecontroleerde dubbelen niet laden", err);
+      setGecontroleerdeDubbelen(new Set());
+    }
   }, [wedstrijd]);
 
   useEffect(() => {
@@ -108,16 +109,20 @@ export default function Deelnemers() {
   }, [wedstrijd, tarieven]);
 
   const loadDeelnemers = async () => {
+    if (!wedstrijd) return;
     setLoading(true);
     setError(null);
-    
+
     try {
-      const { data, error } = await supabase
-        .from('inschrijvingen')
+      const { data, error: dbError } = await supabase
+        .from("inschrijvingen")
         .select(`
           id,
           created_at,
           wedstrijd_id,
+          deelnemer_status,
+          afgemeld_at,
+          afgemeld_reden,
           klasse,
           weh_lid,
           ruiter,
@@ -128,407 +133,621 @@ export default function Deelnemers() {
           opmerkingen,
           wedstrijden(naam, datum)
         `)
-        .eq('wedstrijd_id', wedstrijd.id)
-        .order('created_at', { ascending: true });
-      
-      if (error) throw error;
+        .eq("wedstrijd_id", wedstrijd.id)
+        .order("created_at", { ascending: true });
+
+      if (dbError) throw dbError;
       setDeelnemers(data || []);
     } catch (err) {
-      console.error('Fout bij laden deelnemers:', err);
-      setError('Kon deelnemers niet laden: ' + err.message);
+      console.error("Fout bij laden deelnemers:", err);
+      setError("Kon deelnemers niet laden: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter deelnemers
-  const gefilterde = deelnemers.filter(d => {
+  const gefilterde = deelnemers.filter((d) => {
     const term = zoekterm.trim().toLowerCase();
     if (term) {
-      const haystack = [
-        d.ruiter,
-        d.paard,
-        d.klasse,
-        d.email,
-        d.telefoon,
-        d.omroeper,
-        d.opmerkingen
-      ]
+      const haystack = [d.ruiter, d.paard, d.klasse, d.email, d.telefoon, d.omroeper, d.opmerkingen]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-
       if (!haystack.includes(term)) return false;
     }
+
     if (filterKlasse && d.klasse !== filterKlasse) return false;
-    if (filterWehLid === 'ja' && !d.weh_lid) return false;
-    if (filterWehLid === 'nee' && d.weh_lid) return false;
-    if (filterStal === 'ja' && !stalToewijzingen[d.id]) return false;
-    if (filterStal === 'nee' && stalToewijzingen[d.id]) return false;
+
+    const status = d.deelnemer_status || "actief";
+    if (filterStatus === "actief" && status !== "actief") return false;
+    if (filterStatus === "afgemeld" && status !== "afgemeld") return false;
+
+    if (filterWehLid === "ja" && !d.weh_lid) return false;
+    if (filterWehLid === "nee" && d.weh_lid) return false;
+
     return true;
   });
 
-  // Statistieken
-  const stats = {
-    totaal: gefilterde.length,
-    wehLeden: gefilterde.filter(d => d.weh_lid).length,
-    stalVerzoeken: gefilterde.filter(d => stalToewijzingen[d.id]).length,
-    totaalInschrijfgeld: gefilterde.reduce((sum, d) => sum + berekenInschrijfgeld(d, stalToewijzingen, tarieven), 0),
+  const dubbeleGroepen = useMemo(() => {
+    const groepen = new Map();
+    for (const d of deelnemers) {
+      if ((d.deelnemer_status || "actief") !== "actief") continue;
+      if (gecontroleerdeDubbelen.has(d.id)) continue;
+      const emailKey = (d.email || "").trim().toLowerCase();
+      if (!emailKey || !d.klasse) continue;
+      const key = `${d.wedstrijd_id}__${d.klasse}__${emailKey}`;
+      const lijst = groepen.get(key) || [];
+      lijst.push(d);
+      groepen.set(key, lijst);
+    }
+    return Array.from(groepen.values())
+      .filter((groep) => groep.length > 1)
+      .map((groep) => [...groep].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
+  }, [deelnemers, gecontroleerdeDubbelen]);
+
+  const dubbeleIds = useMemo(() => {
+    const ids = new Set();
+    dubbeleGroepen.forEach((groep) => {
+      groep.forEach((d) => ids.add(d.id));
+    });
+    return ids;
+  }, [dubbeleGroepen]);
+
+  const startEdit = (deelnemer) => {
+    setActieFout("");
+    setActieMelding("");
+    setEditDeelnemerId(deelnemer.id);
+    setEditForm({
+      klasse: deelnemer.klasse || "",
+      paard: deelnemer.paard || "",
+    });
   };
 
-  // Unieke klassen voor filter
-  const klassen = [...new Set(deelnemers.map(d => d.klasse).filter(Boolean))].sort();
+  const cancelEdit = () => {
+    setEditDeelnemerId(null);
+    setEditForm({ klasse: "", paard: "" });
+  };
+
+  const saveEdit = async (deelnemer) => {
+    const nieuweKlasse = editForm.klasse.trim();
+    const nieuwPaard = editForm.paard.trim();
+
+    if (!nieuweKlasse || !nieuwPaard) {
+      setActieFout("Klasse en paard zijn verplicht.");
+      return;
+    }
+
+    setActieBusyId(deelnemer.id);
+    setActieFout("");
+    setActieMelding("");
+
+    try {
+      const { error: dbError } = await supabase
+        .from("inschrijvingen")
+        .update({ klasse: nieuweKlasse, paard: nieuwPaard })
+        .eq("id", deelnemer.id);
+
+      if (dbError) throw dbError;
+
+      setActieMelding(`Gegevens bijgewerkt voor ${deelnemer.ruiter}.`);
+      cancelEdit();
+      await loadDeelnemers();
+    } catch (err) {
+      setActieFout(`Bijwerken mislukt: ${err.message}`);
+    } finally {
+      setActieBusyId(null);
+    }
+  };
+
+  const afmeldenDeelnemer = async (deelnemer) => {
+    if (!confirm(`Inschrijving van ${deelnemer.ruiter} afmelden?`)) {
+      return;
+    }
+
+    setActieBusyId(deelnemer.id);
+    setActieFout("");
+    setActieMelding("");
+
+    try {
+      const { error: dbError } = await supabase
+        .from("inschrijvingen")
+        .update({
+          deelnemer_status: "afgemeld",
+          afgemeld_at: new Date().toISOString(),
+          afgemeld_reden: "Afgemeld via deelnemersbeheer",
+        })
+        .eq("id", deelnemer.id);
+
+      if (dbError) throw dbError;
+
+      const { data: wachtlijstKandidaten, error: wachtlijstError } = await supabase
+        .from("wachtlijst")
+        .select("*")
+        .eq("wedstrijd_id", deelnemer.wedstrijd_id)
+        .eq("klasse", deelnemer.klasse)
+        .order("created_at", { ascending: true })
+        .limit(1);
+
+      if (wachtlijstError) throw wachtlijstError;
+
+      const kandidaat = wachtlijstKandidaten?.[0] || null;
+      if (kandidaat) {
+        const wilPromoten = confirm(
+          `Er staat iemand op de wachtlijst voor ${deelnemer.klasse}: ${kandidaat.ruiter}. Meteen promoveren naar deelnemer?`
+        );
+
+        if (wilPromoten) {
+          const inschrijving = {
+            wedstrijd_id: deelnemer.wedstrijd_id,
+            wedstrijd: wedstrijd?.naam || null,
+            klasse: kandidaat.klasse,
+            weh_lid: kandidaat.weh_lid || false,
+            ruiter: kandidaat.ruiter,
+            paard: kandidaat.paard,
+            leeftijd_ruiter: kandidaat.leeftijd_ruiter,
+            geslacht_paard: kandidaat.geslacht_paard,
+            email: kandidaat.email,
+            telefoon: kandidaat.telefoon,
+            opmerkingen: kandidaat.opmerkingen,
+            omroeper: kandidaat.omroeper,
+            rubriek: "Algemeen",
+          };
+
+          const { error: insertError } = await supabase.from("inschrijvingen").insert(inschrijving);
+          if (insertError) throw insertError;
+
+          const { error: delWaitError } = await supabase.from("wachtlijst").delete().eq("id", kandidaat.id);
+          if (delWaitError) throw delWaitError;
+
+          setActieMelding(
+            `${deelnemer.ruiter} is afgemeld. ${kandidaat.ruiter} is gepromoveerd vanuit de wachtlijst.`
+          );
+        } else {
+          setActieMelding(`${deelnemer.ruiter} is afgemeld.`);
+        }
+      } else {
+        setActieMelding(`${deelnemer.ruiter} is afgemeld.`);
+      }
+
+      await loadDeelnemers();
+    } catch (err) {
+      setActieFout(`Afmelden mislukt: ${err.message}`);
+    } finally {
+      setActieBusyId(null);
+    }
+  };
+
+  const heractiveerDeelnemer = async (deelnemer) => {
+    setActieBusyId(deelnemer.id);
+    setActieFout("");
+    setActieMelding("");
+
+    try {
+      const { error: dbError } = await supabase
+        .from("inschrijvingen")
+        .update({
+          deelnemer_status: "actief",
+          afgemeld_at: null,
+          afgemeld_reden: null,
+        })
+        .eq("id", deelnemer.id);
+
+      if (dbError) throw dbError;
+
+      setActieMelding(`${deelnemer.ruiter} is weer actief gemaakt.`);
+      await loadDeelnemers();
+    } catch (err) {
+      setActieFout(`Heractiveren mislukt: ${err.message}`);
+    } finally {
+      setActieBusyId(null);
+    }
+  };
+
+  const markeerDubbelGecontroleerd = (deelnemer) => {
+    if (!wedstrijd) return;
+
+    const emailKey = (deelnemer.email || "").trim().toLowerCase();
+    if (!emailKey || !deelnemer.klasse) return;
+
+    const idsVanGroep = deelnemers
+      .filter((d) => {
+        const dEmail = (d.email || "").trim().toLowerCase();
+        return (
+          d.wedstrijd_id === deelnemer.wedstrijd_id &&
+          d.klasse === deelnemer.klasse &&
+          dEmail === emailKey
+        );
+      })
+      .map((d) => d.id);
+
+    const nextSet = new Set(gecontroleerdeDubbelen);
+    idsVanGroep.forEach((id) => nextSet.add(id));
+    setGecontroleerdeDubbelen(nextSet);
+
+    try {
+      const raw = localStorage.getItem(DUBBELEN_REVIEWED_KEY);
+      const data = raw ? JSON.parse(raw) : {};
+      data[wedstrijd.id] = Array.from(nextSet);
+      localStorage.setItem(DUBBELEN_REVIEWED_KEY, JSON.stringify(data));
+      setActieMelding(`Dubbelcontrole opgeslagen voor ${deelnemer.ruiter}.`);
+      setActieFout("");
+    } catch (err) {
+      console.warn("Kon dubbelcontrole niet opslaan", err);
+    }
+  };
+
+  const stats = {
+    totaal: deelnemers.length,
+    actief: deelnemers.filter((d) => (d.deelnemer_status || "actief") === "actief").length,
+    afgemeld: deelnemers.filter((d) => (d.deelnemer_status || "actief") === "afgemeld").length,
+    zichtbaar: gefilterde.length,
+  };
+
+  const klassen = [...new Set(deelnemers.map((d) => d.klasse).filter(Boolean))].sort();
+
+  const renderStatusBadge = (deelnemer) => {
+    const isAfgemeld = (deelnemer.deelnemer_status || "actief") === "afgemeld";
+    return (
+      <span className={`dm-badge ${isAfgemeld ? "dm-badge-red" : "dm-badge-green"}`}>
+        {isAfgemeld ? "Afgemeld" : "Actief"}
+      </span>
+    );
+  };
 
   if (wedstrijdenLoading) {
     return (
       <Container>
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2">Wedstrijden laden...</span>
-        </div>
+        <div className="dm-loading">Wedstrijden laden...</div>
       </Container>
     );
   }
 
   return (
     <Container>
-      <div className="max-w-7xl mx-auto py-6">
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Deelnemers Management</h1>
-              <p className="text-gray-600 mt-2">
-                Overzicht van alle inschrijvingen met organisatie-relevante informatie
-              </p>
-            </div>
-            
-            {/* Navigation links */}
-            <div className="flex gap-2">
-              <Link
-                to="/startlijst"
-                className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm font-medium"
+      <div className="dm-page">
+        <section className="dm-hero">
+          <div>
+            <h1>Deelnemers Beheerdashboard</h1>
+            <p>Deelnemers beheren, muteren en afmelden op één plek.</p>
+          </div>
+          <div className="dm-hero-actions">
+            <button
+              type="button"
+              onClick={loadDeelnemers}
+              disabled={!wedstrijd || loading}
+              className="dm-btn dm-btn-ghost"
+            >
+              Vernieuwen
+            </button>
+            <Link to="/startlijst" className="dm-btn dm-btn-ghost">
+              Naar Startlijst
+            </Link>
+          </div>
+        </section>
+
+        <section className="dm-card">
+          <div className="dm-row dm-row-bottom">
+            <div className="dm-grow">
+              <label>Wedstrijd</label>
+              <select
+                value={wedstrijd?.id || ""}
+                onChange={(e) => {
+                  const geselecteerd = wedstrijden.find((w) => w.id === e.target.value);
+                  setWedstrijd(geselecteerd || null);
+                }}
               >
-                📋 Naar Startlijst
-              </Link>
+                <option value="">Selecteer een wedstrijd...</option>
+                {wedstrijden.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.naam} - {new Date(w.datum).toLocaleDateString("nl-NL")}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="dm-inline-note">
+              {wedstrijd ? `Je beheert nu: ${wedstrijd.naam}` : "Kies eerst een wedstrijd om deelnemers te beheren."}
             </div>
           </div>
-        </div>
-
-        {/* Wedstrijd Selectie */}
-        <div className="bg-white rounded-lg border p-4 mb-6">
-          <h2 className="text-lg font-semibold mb-3">Wedstrijd Selectie</h2>
-          <select
-            className="w-full max-w-md border rounded px-3 py-2"
-            value={wedstrijd?.id || ""}
-            onChange={(e) => {
-              const geselecteerd = wedstrijden.find(w => w.id === e.target.value);
-              setWedstrijd(geselecteerd || null);
-            }}
-          >
-            <option value="">Selecteer een wedstrijd...</option>
-            {wedstrijden.map(w => (
-              <option key={w.id} value={w.id}>
-                {w.naam} - {new Date(w.datum).toLocaleDateString('nl-NL')}
-              </option>
-            ))}
-          </select>
-        </div>
+        </section>
 
         {wedstrijd && (
-          <div className="bg-white rounded-lg border p-4 mb-6">
-            <h2 className="text-lg font-semibold mb-3">Tarieven per wedstrijd</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <details className="dm-card dm-details">
+            <summary>Tarieven en stalinformatie</summary>
+            <div className="dm-grid4">
               <div>
-                <label className="block text-sm font-medium mb-1">Standaard</label>
+                <label>Standaard</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={tarieven.base.standaard}
                   onChange={(e) =>
-                    setTarieven(prev => ({
+                    setTarieven((prev) => ({
                       ...prev,
-                      base: { ...prev.base, standaard: Number(e.target.value) }
+                      base: { ...prev.base, standaard: Number(e.target.value) },
                     }))
                   }
-                  className="w-full border rounded px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">WEH korting</label>
+                <label>WEH korting</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={tarieven.base.weh_korting}
                   onChange={(e) =>
-                    setTarieven(prev => ({
+                    setTarieven((prev) => ({
                       ...prev,
-                      base: { ...prev.base, weh_korting: Number(e.target.value) }
+                      base: { ...prev.base, weh_korting: Number(e.target.value) },
                     }))
                   }
-                  className="w-full border rounded px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Stal per dag</label>
+                <label>Stal per dag</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={tarieven.stal.per_dag}
                   onChange={(e) =>
-                    setTarieven(prev => ({
+                    setTarieven((prev) => ({
                       ...prev,
-                      stal: { ...prev.stal, per_dag: Number(e.target.value) }
+                      stal: { ...prev.stal, per_dag: Number(e.target.value) },
                     }))
                   }
-                  className="w-full border rounded px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Stal per nacht</label>
+                <label>Stal per nacht</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={tarieven.stal.per_nacht}
                   onChange={(e) =>
-                    setTarieven(prev => ({
+                    setTarieven((prev) => ({
                       ...prev,
-                      stal: { ...prev.stal, per_nacht: Number(e.target.value) }
+                      stal: { ...prev.stal, per_nacht: Number(e.target.value) },
                     }))
                   }
-                  className="w-full border rounded px-3 py-2 text-sm"
                 />
               </div>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Tarieven worden lokaal opgeslagen per wedstrijd.
-            </p>
-          </div>
+          </details>
         )}
 
         {wedstrijd && (
           <>
-            {/* Statistieken */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-blue-50 rounded-lg p-4 border">
-                <div className="text-2xl font-bold text-blue-600">{stats.totaal}</div>
-                <div className="text-blue-800 text-sm">Totaal Deelnemers</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4 border">
-                <div className="text-2xl font-bold text-green-600">{stats.wehLeden}</div>
-                <div className="text-green-800 text-sm">WEH Leden</div>
-              </div>
-              <div className="bg-yellow-50 rounded-lg p-4 border">
-                <div className="text-2xl font-bold text-yellow-600">{stats.stalVerzoeken}</div>
-                <div className="text-yellow-800 text-sm">Stal Toewijzingen</div>
-              </div>
-              <div className="bg-purple-50 rounded-lg p-4 border">
-                <div className="text-2xl font-bold text-purple-600">€{stats.totaalInschrijfgeld.toFixed(2)}</div>
-                <div className="text-purple-800 text-sm">Totaal Inschrijfgeld</div>
-              </div>
-            </div>
+            <section className="dm-stats">
+              <article className="dm-stat dm-stat-total">
+                <div className="dm-stat-number">{stats.totaal}</div>
+                <div className="dm-stat-label">Totaal</div>
+              </article>
+              <article className="dm-stat dm-stat-active">
+                <div className="dm-stat-number">{stats.actief}</div>
+                <div className="dm-stat-label">Actief</div>
+              </article>
+              <article className="dm-stat dm-stat-cancelled">
+                <div className="dm-stat-number">{stats.afgemeld}</div>
+                <div className="dm-stat-label">Afgemeld</div>
+              </article>
+              <article className="dm-stat dm-stat-visible">
+                <div className="dm-stat-number">{stats.zichtbaar}</div>
+                <div className="dm-stat-label">In huidige filter</div>
+              </article>
+            </section>
 
-            {/* Filters */}
-            <div className="bg-white rounded-lg border p-4 mb-6">
-              <h3 className="text-lg font-semibold mb-3">Filters</h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Zoeken</label>
+            {(actieMelding || actieFout) && (
+              <section className="dm-stack">
+                {actieMelding && <div className="dm-alert dm-alert-success">{actieMelding}</div>}
+                {actieFout && <div className="dm-alert dm-alert-error">{actieFout}</div>}
+              </section>
+            )}
+
+            <section className="dm-card">
+              <div className="dm-row dm-row-between dm-row-bottom dm-wrap">
+                <h3>Filters</h3>
+                <button
+                  type="button"
+                  className="dm-btn dm-btn-ghost"
+                  onClick={() => {
+                    setZoekterm("");
+                    setFilterKlasse("");
+                    setFilterStatus("actief");
+                    setFilterWehLid("");
+                  }}
+                >
+                  Reset filters
+                </button>
+              </div>
+
+              <div className="dm-filters">
+                <div className="dm-filter dm-filter-search">
+                  <label>Zoeken</label>
                   <input
                     type="text"
                     value={zoekterm}
                     onChange={(e) => setZoekterm(e.target.value)}
                     placeholder="Ruiter, paard, email, tel..."
-                    className="w-full border rounded px-3 py-2 text-sm"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Klasse</label>
-                  <select
-                    className="w-full border rounded px-3 py-2 text-sm"
-                    value={filterKlasse}
-                    onChange={(e) => setFilterKlasse(e.target.value)}
-                  >
+                <div className="dm-filter">
+                  <label>Klasse</label>
+                  <select value={filterKlasse} onChange={(e) => setFilterKlasse(e.target.value)}>
                     <option value="">Alle klassen</option>
-                    {klassen.map(k => (
-                      <option key={k} value={k}>{k}</option>
+                    {klassen.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">WEH Lid</label>
-                  <select
-                    className="w-full border rounded px-3 py-2 text-sm"
-                    value={filterWehLid}
-                    onChange={(e) => setFilterWehLid(e.target.value)}
-                  >
+                <div className="dm-filter">
+                  <label>Status</label>
+                  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                    <option value="actief">Alleen actief</option>
+                    <option value="afgemeld">Alleen afgemeld</option>
+                    <option value="alles">Alles</option>
+                  </select>
+                </div>
+                <div className="dm-filter">
+                  <label>WEH Lid</label>
+                  <select value={filterWehLid} onChange={(e) => setFilterWehLid(e.target.value)}>
                     <option value="">Alle deelnemers</option>
                     <option value="ja">Alleen WEH leden</option>
                     <option value="nee">Alleen niet-leden</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Stal Toewijzing</label>
-                  <select
-                    className="w-full border rounded px-3 py-2 text-sm"
-                    value={filterStal}
-                    onChange={(e) => setFilterStal(e.target.value)}
-                  >
-                    <option value="">Alle deelnemers</option>
-                    <option value="ja">Met stal toewijzing</option>
-                    <option value="nee">Zonder stal toewijzing</option>
-                  </select>
-                </div>
               </div>
-            </div>
+            </section>
 
-            {/* Deelnemers Tabel */}
             {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-2">Deelnemers laden...</span>
-              </div>
+              <div className="dm-loading">Deelnemers laden...</div>
             ) : error ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-700">{error}</p>
-                <button
-                  className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                  onClick={loadDeelnemers}
-                >
+              <div className="dm-alert dm-alert-error">
+                <p>{error}</p>
+                <button className="dm-btn dm-btn-danger" onClick={loadDeelnemers}>
                   Opnieuw proberen
                 </button>
               </div>
             ) : (
-              <div className="bg-white rounded-lg border overflow-hidden">
-                <div className="px-4 py-3 bg-gray-50 border-b">
-                  <h3 className="text-lg font-semibold">
-                    Deelnemers ({gefilterde.length})
-                  </h3>
+              <section className="dm-card dm-table-card">
+                <div className="dm-row dm-row-between dm-row-bottom">
+                  <h3>Deelnemers ({gefilterde.length})</h3>
                 </div>
-                
+
                 {gefilterde.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500">
-                    <div className="text-4xl mb-4">🏇</div>
-                    <p>Geen deelnemers gevonden met de huidige filters</p>
-                  </div>
+                  <div className="dm-empty">Geen deelnemers gevonden met de huidige filters</div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead className="bg-gray-50">
+                  <div className="dm-table-wrap">
+                    <table className="dm-table">
+                      <thead>
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ruiter</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paard</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Klasse</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">WEH</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stal</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Inschrijfgeld</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Omroeper</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Opmerkingen</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                          <th>Ruiter</th>
+                          <th>Paard</th>
+                          <th>Klasse</th>
+                          <th>Status</th>
+                          <th>Opmerkingen</th>
+                          <th>Contact</th>
+                          <th>Acties</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-200">
+                      <tbody>
                         {gefilterde.map((deelnemer, idx) => (
-                          <tr key={deelnemer.id || idx} className="hover:bg-gray-50">
-                            <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900">{deelnemer.ruiter}</div>
-                              <div className="text-xs text-gray-500">
-                                Ingeschreven: {new Date(deelnemer.created_at).toLocaleDateString('nl-NL')}
+                          <tr key={deelnemer.id || idx}>
+                            <td>
+                              <div className="dm-cell-title">{deelnemer.ruiter}</div>
+                              <div className="dm-cell-sub">
+                                Ingeschreven: {new Date(deelnemer.created_at).toLocaleDateString("nl-NL")}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-gray-900">{deelnemer.paard}</td>
-                            <td className="px-4 py-3">
-                              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                                {deelnemer.klasse || 'Geen klasse'}
-                              </span>
+                            <td>
+                              <div className="dm-cell-title">{deelnemer.paard || "Onbekend paard"}</div>
+                              {deelnemer.weh_lid && <div className="dm-cell-sub dm-ok">WEH lid</div>}
                             </td>
-                            <td className="px-4 py-3">
-                              {deelnemer.weh_lid ? (
-                                <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                                  ✓ Ja
-                                </span>
-                              ) : (
-                                <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
-                                  - Nee
-                                </span>
+                            <td>
+                              <span className="dm-badge dm-badge-blue">{deelnemer.klasse || "Geen klasse"}</span>
+                              {dubbeleIds.has(deelnemer.id) && (
+                                <span className="dm-badge dm-badge-amber">Mogelijk dubbel</span>
                               )}
                             </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={!!stalToewijzingen[deelnemer.id]}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setStalToewijzingen(prev => ({
-                                        ...prev,
-                                        [deelnemer.id]: { stalnummer: "" }
-                                      }));
-                                    } else {
-                                      setStalToewijzingen(prev => {
-                                        const next = { ...prev };
-                                        delete next[deelnemer.id];
-                                        return next;
-                                      });
-                                    }
-                                  }}
-                                  className="rounded"
-                                />
-                                {stalToewijzingen[deelnemer.id] && (
-                                  <input
-                                    type="text"
-                                    placeholder="Nr"
-                                    value={stalToewijzingen[deelnemer.id]?.stalnummer || ""}
-                                    onChange={(e) => {
-                                      setStalToewijzingen(prev => ({
-                                        ...prev,
-                                        [deelnemer.id]: { stalnummer: e.target.value }
-                                      }));
-                                    }}
-                                    className="border rounded px-2 py-1 w-16 text-xs"
-                                  />
-                                )}
-                              </div>
+                            <td>{renderStatusBadge(deelnemer)}</td>
+                            <td>
+                              <div className="dm-cell-text">{deelnemer.opmerkingen || "Geen opmerkingen"}</div>
+                              <div className="dm-cell-sub">Omroeper: {formatOmroeper(deelnemer)}</div>
                             </td>
-                            <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900">
-                                €{berekenInschrijfgeld(deelnemer, stalToewijzingen, tarieven).toFixed(2)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                Basis: €{tarieven.base.standaard}{deelnemer.weh_lid ? ` - €${tarieven.base.weh_korting} (WEH)` : ''}
-                                {stalToewijzingen[deelnemer.id] && ' + stal'}
-                              </div>
+                            <td>
+                              {deelnemer.email ? (
+                                <a href={`mailto:${deelnemer.email}`}>{deelnemer.email}</a>
+                              ) : (
+                                <span className="dm-cell-sub">Geen email</span>
+                              )}
+                              {deelnemer.telefoon && <div className="dm-cell-sub">{deelnemer.telefoon}</div>}
                             </td>
-                            <td className="px-4 py-3">
-                              <div className="text-sm text-gray-900 max-w-xs">
-                                {formatOmroeper(deelnemer)}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              {deelnemer.opmerkingen ? (
-                                <div className="text-sm text-gray-900 max-w-xs">
-                                  {deelnemer.opmerkingen}
+                            <td>
+                              {editDeelnemerId === deelnemer.id ? (
+                                <div className="dm-edit-wrap">
+                                  <div className="dm-edit-grid">
+                                    <input
+                                      type="text"
+                                      value={editForm.klasse}
+                                      onChange={(e) =>
+                                        setEditForm((prev) => ({ ...prev, klasse: e.target.value }))
+                                      }
+                                      placeholder="Klasse"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={editForm.paard}
+                                      onChange={(e) =>
+                                        setEditForm((prev) => ({ ...prev, paard: e.target.value }))
+                                      }
+                                      placeholder="Paard"
+                                    />
+                                  </div>
+                                  <div className="dm-actions-row">
+                                    <button
+                                      type="button"
+                                      onClick={() => saveEdit(deelnemer)}
+                                      disabled={actieBusyId === deelnemer.id}
+                                      className="dm-btn dm-btn-primary"
+                                    >
+                                      Opslaan
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={cancelEdit}
+                                      disabled={actieBusyId === deelnemer.id}
+                                      className="dm-btn dm-btn-ghost"
+                                    >
+                                      Annuleren
+                                    </button>
+                                  </div>
                                 </div>
                               ) : (
-                                <span className="text-gray-400 text-sm">Geen opmerkingen</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {deelnemer.email ? (
-                                <a
-                                  href={`mailto:${deelnemer.email}`}
-                                  className="text-sm text-blue-700 hover:underline"
-                                >
-                                  {deelnemer.email}
-                                </a>
-                              ) : (
-                                <span className="text-gray-400 text-sm">Geen email</span>
-                              )}
-                              {deelnemer.telefoon && (
-                                <div className="text-xs text-gray-500">{deelnemer.telefoon}</div>
+                                <div className="dm-actions-row">
+                                  {(deelnemer.deelnemer_status || "actief") === "actief" ? (
+                                    <>
+                                      {dubbeleIds.has(deelnemer.id) && (
+                                        <button
+                                          type="button"
+                                          onClick={() => markeerDubbelGecontroleerd(deelnemer)}
+                                          disabled={actieBusyId === deelnemer.id}
+                                          className="dm-btn dm-btn-ghost"
+                                        >
+                                          Dubbel gecheckt
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => startEdit(deelnemer)}
+                                        disabled={actieBusyId === deelnemer.id}
+                                        className="dm-btn dm-btn-primary"
+                                      >
+                                        Wijzig
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => afmeldenDeelnemer(deelnemer)}
+                                        disabled={actieBusyId === deelnemer.id}
+                                        className="dm-btn dm-btn-danger"
+                                      >
+                                        Afmelden
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => heractiveerDeelnemer(deelnemer)}
+                                      disabled={actieBusyId === deelnemer.id}
+                                      className="dm-btn dm-btn-success"
+                                    >
+                                      Heractiveer
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -537,25 +756,27 @@ export default function Deelnemers() {
                     </table>
                   </div>
                 )}
-              </div>
+              </section>
             )}
 
-            {/* Tarieven Info */}
-            <div className="mt-6 bg-blue-50 rounded-lg p-4 border">
-              <h4 className="font-semibold text-blue-900 mb-2">Tarieven Informatie</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <section className="dm-card dm-info">
+              <h4>Tarieven Informatie</h4>
+              <div className="dm-grid2">
                 <div>
-                  <div className="font-medium text-blue-800">Inschrijfgeld:</div>
-                  <div className="text-blue-700">Standaard: €{tarieven.base.standaard}</div>
-                  <div className="text-blue-700">WEH leden: €{tarieven.base.standaard - tarieven.base.weh_korting} (korting: €{tarieven.base.weh_korting})</div>
+                  <div className="dm-cell-title">Inschrijfgeld</div>
+                  <div>Standaard: €{tarieven.base.standaard}</div>
+                  <div>
+                    WEH leden: €{tarieven.base.standaard - tarieven.base.weh_korting} (korting: €
+                    {tarieven.base.weh_korting})
+                  </div>
                 </div>
                 <div>
-                  <div className="font-medium text-blue-800">Stal kosten:</div>
-                  <div className="text-blue-700">Per dag: €{tarieven.stal.per_dag}</div>
-                  <div className="text-blue-700">Per nacht: €{tarieven.stal.per_nacht}</div>
+                  <div className="dm-cell-title">Stal kosten</div>
+                  <div>Per dag: €{tarieven.stal.per_dag}</div>
+                  <div>Per nacht: €{tarieven.stal.per_nacht}</div>
                 </div>
               </div>
-            </div>
+            </section>
           </>
         )}
       </div>
