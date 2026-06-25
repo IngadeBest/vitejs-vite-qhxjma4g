@@ -7,6 +7,41 @@
     linear-gradient(180deg, #faf7f3 0%, #f4efe9 100%);
 }
 
+.wb-page-shell .wp-btn {
+  background: #8b5a2b;
+  color: #fff;
+  border: 1px solid #7a4b20;
+  box-shadow: 0 8px 18px rgba(103, 62, 26, 0.12);
+}
+
+.wb-page-shell .wp-btn:hover {
+  background: #7b4c22;
+  border-color: #693e19;
+}
+
+.wb-page-shell .wp-btn.secondary {
+  background: #fff6ea;
+  color: #6b4827;
+  border: 1px solid #e8d3b9;
+}
+
+.wb-page-shell .wp-btn.secondary:hover {
+  background: #fdebd5;
+  border-color: #dfc19d;
+}
+
+.wb-page-shell .wp-input {
+  border-color: #e2d2be;
+  border-radius: 10px;
+  padding: 0.62rem 0.75rem;
+  background: #fffdf9;
+  color: #4b3422;
+}
+
+.wb-page-shell .wp-input:focus {
+  outline: 3px solid rgba(139, 90, 43, 0.14);
+}
+
 .wb-container {
   display: grid;
   gap: 16px;
@@ -85,6 +120,11 @@
   padding: 18px;
 }
 
+.wb-proeven-card {
+  display: grid;
+  gap: 14px;
+}
+
 .wb-card-head {
   display: flex;
   justify-content: space-between;
@@ -111,6 +151,14 @@
   font-size: 0.92rem;
   font-weight: 700;
   color: #6a492d;
+}
+
+.wb-form-grid input,
+.wb-form-grid select,
+.wb-card input,
+.wb-card select,
+.wb-card textarea {
+  width: 100%;
 }
 
 .wb-form-actions {
@@ -216,6 +264,31 @@
 .wb-btn-danger {
   background: #b74e3b;
   border: 1px solid #9c3d2b;
+}
+
+.wb-btn-danger:hover {
+  background: #a94131;
+  border-color: #853225;
+}
+
+@media (max-width: 720px) {
+  .wb-page-shell {
+    padding: 16px 0 28px;
+  }
+
+  .wb-card {
+    padding: 14px;
+  }
+
+  .wb-actions-row,
+  .wb-hero-actions {
+    width: 100%;
+  }
+
+  .wb-actions-row > *,
+  .wb-hero-actions > * {
+    flex: 1 1 100%;
+  }
 }
 
 @media (max-width: 980px) {

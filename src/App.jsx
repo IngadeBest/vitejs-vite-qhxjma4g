@@ -76,7 +76,10 @@ function AppHeader({ onApp, hasSelection }) {
       <nav className="wp-app-nav">
         {onApp ? (
           navGroups.map((group) => (
-            <div key={group.title} className="wp-nav-group wp-nav-dropdown">
+            <div
+              key={group.title}
+              className={`wp-nav-group wp-nav-dropdown${group.title === "Wedstrijddag" ? " wp-nav-dropdown-right" : ""}`}
+            >
               <NavLink to={group.to} style={navStyle} className="wp-nav-top-link">
                 {group.title}
               </NavLink>

@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
-import ProefEditor from "@/features/wedstrijden/components/ProefEditor";
 import Container from "@/ui/Container";
 import "./WedstrijdenBeheer.css";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
@@ -150,7 +149,6 @@ export default function WedstrijdenBeheer() {
   const [wachtlijstEnabled, setWachtlijstEnabled] = useState(false);
   const [deleteRelated, setDeleteRelated] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("open");
-  // migration SQL UI removed per user request
 
   useEffect(() => {
     if (new URLSearchParams(location.search).get("nieuw") === "1") {
@@ -175,8 +173,8 @@ export default function WedstrijdenBeheer() {
     }
 
     setEditForm(hydrateWedstrijdForm(gekozen));
-  setSelectedId(gekozen.id);
-  setSelectedWedstrijdId(gekozen.id);
+    setSelectedId(gekozen.id);
+    setSelectedWedstrijdId(gekozen.id);
     setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
 
     const hydrated = hydrateStartlijstConfig(gekozen);
@@ -334,8 +332,7 @@ export default function WedstrijdenBeheer() {
       setShowNew(false);
       return;
     }
-  // expected shape: gekozen.allowed_klassen (array)
-  setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
+    setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
     // populate organisator email if present
     setNieuwEmail(gekozen.organisator_email || "");
     setSelectedStatus(gekozen.status || "open");
@@ -363,11 +360,6 @@ export default function WedstrijdenBeheer() {
     setCapacitiesMap(cfg.capacities && typeof cfg.capacities === 'object' ? cfg.capacities : {});
     setAlternatesMap(cfg.alternates && typeof cfg.alternates === 'object' ? cfg.alternates : {});    setTotaalMaximum(cfg.totaalMaximum !== undefined && cfg.totaalMaximum !== null ? String(cfg.totaalMaximum) : '');        
     setWachtlijstEnabled(!!gekozen.wachtlijst_enabled);
-    // ensure proef-editor default klasse is the first allowed class for this wedstrijd
-        const allowed = Array.isArray(gekozen.allowed_klassen) && gekozen.allowed_klassen.length ? gekozen.allowed_klassen : (Array.isArray(cfg.allowed_klassen) ? cfg.allowed_klassen : []);
-        if (allowed && allowed.length) {
-          setCfg(s => ({ ...s, klasse: allowed[0] }));
-        }
       }
     } catch (e) {
       // ignore parse errors
@@ -378,49 +370,6 @@ export default function WedstrijdenBeheer() {
   React.useEffect(() => {
     syncConfigFromSelected();
   }, [selectedId, wedstrijden]);
-
-  async function saveProef() {
-    setMsg("");
-    if (!gekozen) return setMsg("Kies eerst een wedstrijd.");
-    if (!cfg.proef_naam) return setMsg("Geef een naam voor de proef.");
-    const maxInt = cfg.max_score ? parseInt(cfg.max_score, 10) : null;
-
-    try {
-      const { data: p, error: e1 } = await supabase.from("proeven")
-        .insert({
-          wedstrijd_id: gekozen.id,
-          onderdeel: cfg.onderdeel,
-          klasse: cfg.klasse,
-          naam: cfg.proef_naam,
-          max_score: maxInt
-        })
-        .select("id")
-        .single();
-      if (e1) throw e1;
-
-      const rows = (cfg.items_text || "").split("\n").map(l => l.trim()).filter(Boolean);
-      const items = rows.map((line, idx) => {
-        if (cfg.onderdeel === "dressuur") {
-          const parts = line.split("|").map(s=>s.trim());
-          return {
-            proef_id: p.id, nr: idx+1,
-            omschrijving: parts[0] || line,
-            max_punt: parts[1] ? parseInt(parts[1],10) : null,
-            coeff: parts[2] ? parseInt(parts[2],10) : 1
-          };
-        } else {
-          return { proef_id: p.id, nr: idx+1, omschrijving: line, max_punt: null, coeff: 1 };
-        }
-      });
-      if (items.length) {
-        const { error: e2 } = await supabase.from("proeven_items").insert(items);
-        if (e2) throw e2;
-      }
-      setMsg("Proef + onderdelen opgeslagen ✔️");
-    } catch (e) {
-      setMsg("Opslaan mislukt: " + (e?.message || String(e)));
-    }
-  }
 
   async function saveWedstrijdConfig() {
     setMsg("");
@@ -752,14 +701,17 @@ export default function WedstrijdenBeheer() {
                 </div>
               </section>
 
-              <section className="wb-card">
+              <section className="wb-card wb-proeven-card">
                 <div className="wb-card-head">
                   <div>
                     <h2>Proeven</h2>
-                    <p>Voeg proeven toe voor de geselecteerde wedstrijd.</p>
+                    <p>Proeven beheer je nu centraal via de proevenpagina.</p>
                   </div>
+                  <Link className="wb-hero-link" to="/proeven">Naar Proefinstellingen</Link>
                 </div>
-                <ProefEditor cfg={cfg} setCfg={setCfg} saveProef={saveProef} gekozen={gekozen} />
+                <div className="wb-inline-note">
+                  Hier houd je alleen de wedstrijdinstellingen bij. Voor het toevoegen, bewerken en verwijderen van proeven ga je naar de aparte proevenpagina.
+                </div>
               </section>
             </>
           ) : (
