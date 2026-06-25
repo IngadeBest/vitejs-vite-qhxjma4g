@@ -1,0 +1,143 @@
+.eu-page {
+  min-height: 100vh;
+  padding: 24px 0 36px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 233, 214, 0.9), transparent 28%),
+    radial-gradient(circle at top right, rgba(240, 246, 255, 0.9), transparent 24%),
+    linear-gradient(180deg, #faf7f3 0%, #f4efe9 100%);
+}
+
+.eu-shell {
+  border: 1px solid #ecd9c2;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 30px rgba(103, 62, 26, 0.08);
+  padding: 26px 22px 20px;
+}
+
+.eu-title {
+  margin: 0 0 18px;
+  color: #633b1b;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.eu-select-card {
+  margin-bottom: 20px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #ecd9c2;
+}
+
+.eu-label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #6a492d;
+}
+
+.eu-select {
+  width: 100%;
+  padding: 0.68rem 0.78rem;
+  border: 1px solid #e2d2be;
+  border-radius: 10px;
+  background: #fffdf9;
+  color: #4b3422;
+}
+
+.eu-empty {
+  padding: 20px;
+  text-align: center;
+  color: #745c47;
+}
+
+.eu-klasse-block {
+  margin-bottom: 30px;
+}
+
+.eu-klasse-badge {
+  font-weight: 800;
+  background: #fff1dd;
+  color: #7a4a22;
+  padding: 8px 16px;
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 1.2rem;
+  margin-bottom: 12px;
+}
+
+.eu-table-wrap {
+  overflow-x: auto;
+}
+
+.eu-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.eu-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f6ebdc;
+  color: #654325;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5d4bc;
+}
+
+.eu-table tbody td {
+  padding: 10px 12px;
+  border-top: 1px solid #f0e2cf;
+}
+
+.eu-table tbody tr:nth-child(odd) {
+  background: #fffdfa;
+}
+
+.eu-table tbody tr:nth-child(even) {
+  background: #fff7ed;
+}
+
+.eu-strong {
+  font-weight: 800;
+}
+
+.eu-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.eu-button {
+  padding: 0.58rem 0.95rem;
+  font-weight: 700;
+  border-radius: 999px;
+  border: 1px solid #7a4b20;
+  background: #8b5a2b;
+  color: #fff;
+}
+
+.eu-button:hover {
+  background: #7b4c22;
+}
+
+@media (max-width: 720px) {
+  .eu-page {
+    padding: 16px 0 28px;
+  }
+
+  .eu-shell {
+    padding: 14px;
+  }
+
+  .eu-title {
+    font-size: 1.45rem;
+  }
+
+  .eu-actions > * {
+    flex: 1 1 100%;
+  }
+}

@@ -8,6 +8,7 @@ import defaultTemplates from "@/data/defaultTemplates.json";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { generatePdfBlob, KLASSEN as PDF_KLASSEN, ONDERDELEN as PDF_ONDERDELEN } from '@/pdf/buildPdf';
+import './ProtocolGenerator.css';
 
 /* Klassen & Onderdelen - gebruik de geëxporteerde constanten uit buildPdf */
 const KLASSEN = PDF_KLASSEN;
@@ -1109,20 +1110,15 @@ export default function ProtocolGenerator() {
   }, [config.klasse, config.onderdeel]);
 
   const Header = () => (
-    <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:"1px solid #eee",position:"sticky",top:0,background:"#fff",zIndex:10}}>
-      <div style={{fontWeight:700,fontSize:18,color:"#102754"}}>WE Protocol Generator</div>
-      <div style={{marginLeft:"auto",fontSize:12,color:"#667085"}}>
-        <a href="#/" style={{ color:"#2b6cb0", textDecoration:"none" }}>Inschrijven</a>{" · "}
-        <a href="#/startlijst" style={{ color:"#2b6cb0", textDecoration:"none" }}>Startlijst</a>{" · "}
-        <a href="#/wedstrijden" style={{ color:"#2b6cb0", textDecoration:"none" }}>Wedstrijden</a>
-      </div>
+    <div className="pg-header">
+      <div className="pg-title">Working Point - Protocollen</div>
     </div>
   );
 
   const viewStap1 = (
-    <>
+    <div className="pg-page">
       <Header />
-      <div style={{ maxWidth: 900, margin: "24px auto" }}>
+      <div style={{ maxWidth: 900, margin: "24px auto" }} className="pg-content">
         <h2>Protocollen configureren</h2>
         <div style={{display:"grid",gridTemplateColumns:"200px 1fr 200px 1fr",gap:"10px 12px",alignItems:"center"}}>
           <label>Wedstrijd*</label>
@@ -1156,7 +1152,7 @@ export default function ProtocolGenerator() {
           <button onClick={() => setStap(2)} disabled={!config.wedstrijd_id || !config.klasse || !config.onderdeel}>Volgende: Items & Deelnemers</button>
         </div>
       </div>
-    </>
+    </div>
   );
 
   const renderItemsEditor = () => {
@@ -1215,9 +1211,9 @@ export default function ProtocolGenerator() {
   };
 
   const viewStap2 = (
-    <>
+    <div className="pg-page">
       <Header />
-      <div style={{ maxWidth: 1200, margin: "24px auto" }}>
+      <div style={{ maxWidth: 1200, margin: "24px auto" }} className="pg-content">
         <h2>Items & deelnemers</h2>
         <div style={{display:"grid",gridTemplateColumns:"1fr 420px",gap:24,alignItems:"start"}}>
           <div>
@@ -1265,13 +1261,13 @@ export default function ProtocolGenerator() {
           <button onClick={() => setStap(3)} disabled={!items.length || (csvRows.length === 0 && dbRows.length === 0)} style={{ opacity: (!items.length || (csvRows.length === 0 && dbRows.length === 0)) ? 0.5 : 1 }}>Volgende: Overzicht & PDF</button>
         </div>
       </div>
-    </>
+    </div>
   );
 
   const viewStap3 = (
-    <>
+    <div className="pg-page">
       <Header />
-      <div style={{ maxWidth: 1100, margin: "24px auto" }}>
+      <div style={{ maxWidth: 1100, margin: "24px auto" }} className="pg-content">
         <h2>Overzicht & export</h2>
         <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", margin:"8px 0 16px" }}>
           <button onClick={downloadBatch}>Download batch PDF</button>
@@ -1354,7 +1350,7 @@ export default function ProtocolGenerator() {
         )}
         {pdfUrl && <iframe src={pdfUrl} title="PDF preview" style={{ width:"100%", height:"680px", border:"1px solid #ccc", borderRadius:8 }} />}
       </div>
-    </>
+    </div>
   );
 
   if (stap === 1) return viewStap1;

@@ -6,6 +6,7 @@ import Container from '@/ui/Container';
 import { Card } from '@/ui/card';
 import { Button } from '@/ui/button';
 import { Alert } from '@/ui/alert';
+import './WachtlijstBeheer.css';
 
 export default function WachtlijstBeheer() {
   const { items: wedstrijden, loading: wedstrijdenLoading } = useWedstrijden(false);
@@ -29,12 +30,17 @@ export default function WachtlijstBeheer() {
     setLoading(true);
     setMsg('');
     try {
-      const res = await fetch(`/api/wachtlijst?wedstrijd_id=${selectedWedstrijdId}`);
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.message || json.error || 'Laden mislukt');
+      const { data, error } = await supabase
+        .from('wachtlijst')
+        .select('*')
+        .eq('wedstrijd_id', selectedWedstrijdId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        throw new Error(error.message || 'Laden mislukt');
       }
-      setWachtlijst(json.data || []);
+
+      setWachtlijst(data || []);
     } catch (e) {
       setMsg('Fout bij laden: ' + (e?.message || String(e)));
     } finally {
@@ -157,22 +163,22 @@ export default function WachtlijstBeheer() {
   }, {});
 
   return (
-    <div style={{ background: '#f5f7fb', minHeight: '100vh', padding: 24 }}>
+    <div className="wl-page">
       <Container maxWidth={1200}>
-        <Card>
-          <h2 style={{ fontSize: 28, fontWeight: 900, color: '#204574', marginBottom: 18 }}>
+        <Card className="wl-shell">
+          <h2 className="wl-title">
             Wachtlijst beheer
           </h2>
 
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ fontWeight: 700, display: 'block', marginBottom: 8 }}>
+          <div className="wl-select-wrap">
+            <label className="wl-label">
               Selecteer wedstrijd
             </label>
             <select
               value={selectedWedstrijdId}
               onChange={(e) => setSelectedWedstrijdId(e.target.value)}
               disabled={wedstrijdenLoading}
-              style={{ padding: 8, borderRadius: 6, border: '1px solid #ddd', minWidth: 300 }}
+              className="wl-select"
             >
               <option value="">— kies wedstrijd —</option>
               {wedstrijden.map(w => (
@@ -195,80 +201,70 @@ export default function WachtlijstBeheer() {
           {loading && <div>Laden...</div>}
 
           {!loading && selectedWedstrijdId && wachtlijst.length === 0 && (
-            <div style={{ padding: 24, textAlign: 'center', color: '#666' }}>
+            <div className="wl-empty">
               Geen personen op de wachtlijst
             </div>
           )}
 
           {!loading && wachtlijst.length > 0 && (
-            <div style={{ marginTop: 24 }}>
-              <div style={{ marginBottom: 12, fontWeight: 700, fontSize: 16 }}>
+            <div className="wl-results">
+              <div className="wl-summary">
                 Totaal {wachtlijst.length} {wachtlijst.length === 1 ? 'persoon' : 'personen'} op de wachtlijst
               </div>
 
               {Object.keys(groupedByKlasse).sort().map(klasse => (
-                <div key={klasse} style={{ marginBottom: 32 }}>
-                  <h3 style={{ fontSize: 20, fontWeight: 700, color: '#204574', marginBottom: 12 }}>
+                <div key={klasse} className="wl-klasse-block">
+                  <h3 className="wl-klasse-title">
                     {klasse} ({groupedByKlasse[klasse].length})
                   </h3>
 
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <div className="wl-table-wrap">
+                    <table className="wl-table">
                       <thead>
-                        <tr style={{ background: '#f0f4f8', borderBottom: '2px solid #ddd' }}>
-                          <th style={{ padding: 10, textAlign: 'left', fontWeight: 700 }}>Datum/tijd</th>
-                          <th style={{ padding: 10, textAlign: 'left', fontWeight: 700 }}>Ruiter</th>
-                          <th style={{ padding: 10, textAlign: 'left', fontWeight: 700 }}>Paard</th>
-                          <th style={{ padding: 10, textAlign: 'left', fontWeight: 700 }}>Email</th>
-                          <th style={{ padding: 10, textAlign: 'left', fontWeight: 700 }}>Telefoon</th>
-                          <th style={{ padding: 10, textAlign: 'center', fontWeight: 700 }}>WEH-lid</th>
-                          <th style={{ padding: 10, textAlign: 'left', fontWeight: 700 }}>Opmerkingen</th>
-                          <th style={{ padding: 10, textAlign: 'center', fontWeight: 700, minWidth: 180 }}>Acties</th>
+                        <tr>
+                          <th>Datum/tijd</th>
+                          <th>Ruiter</th>
+                          <th>Paard</th>
+                          <th>Email</th>
+                          <th>Telefoon</th>
+                          <th>WEH-lid</th>
+                          <th>Opmerkingen</th>
+                          <th>Acties</th>
                         </tr>
                       </thead>
                       <tbody>
                         {groupedByKlasse[klasse].map((item, idx) => (
-                          <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: 10, fontSize: 13 }}>
+                          <tr key={item.id}>
+                            <td className="wl-cell-sm">
                               {new Date(item.created_at).toLocaleString('nl-NL')}
                             </td>
-                            <td style={{ padding: 10, fontWeight: 600 }}>{item.ruiter}</td>
-                            <td style={{ padding: 10 }}>{item.paard}</td>
-                            <td style={{ padding: 10, fontSize: 13 }}>
-                              <a href={`mailto:${item.email}`} style={{ color: '#204574' }}>
+                            <td className="wl-strong">{item.ruiter}</td>
+                            <td>{item.paard}</td>
+                            <td className="wl-cell-sm">
+                              <a href={`mailto:${item.email}`} className="wl-link">
                                 {item.email}
                               </a>
                             </td>
-                            <td style={{ padding: 10, fontSize: 13 }}>{item.telefoon || '—'}</td>
-                            <td style={{ padding: 10, textAlign: 'center' }}>
+                            <td className="wl-cell-sm">{item.telefoon || '—'}</td>
+                            <td className="wl-center">
                               {item.weh_lid ? '✓' : '—'}
                             </td>
-                            <td style={{ padding: 10, fontSize: 13, maxWidth: 200 }}>
+                            <td className="wl-cell-sm wl-notes">
                               {item.opmerkingen || '—'}
                             </td>
-                            <td style={{ padding: 10, textAlign: 'center' }}>
-                              <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                            <td className="wl-center">
+                              <div className="wl-actions">
                                 <Button 
                                   onClick={() => promoteToDeelnemer(item)}
                                   disabled={busy}
-                                  style={{ 
-                                    padding: '6px 12px', 
-                                    fontSize: 13, 
-                                    background: '#4caf50',
-                                    whiteSpace: 'nowrap'
-                                  }}
+                                  className="wl-btn wl-btn-accept"
                                 >
                                   ✓ Toevoegen
                                 </Button>
                                 <Button 
                                   onClick={() => removeFromWachtlijst(item)}
                                   disabled={busy}
-                                  style={{ 
-                                    padding: '6px 12px', 
-                                    fontSize: 13, 
-                                    background: '#f44336',
-                                    whiteSpace: 'nowrap'
-                                  }}
+                                  className="wl-btn wl-btn-remove"
                                 >
                                   ✗ Verwijder
                                 </Button>
@@ -285,9 +281,9 @@ export default function WachtlijstBeheer() {
           )}
 
           {selectedWedstrijdId && !loading && (
-            <div style={{ marginTop: 24, textAlign: 'right' }}>
-              <Button onClick={loadWachtlijst}>
-                🔄 Ververs
+            <div className="wl-footer-actions">
+              <Button onClick={loadWachtlijst} className="wl-btn-refresh">
+                Ververs
               </Button>
             </div>
           )}

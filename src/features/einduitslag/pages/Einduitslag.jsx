@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
+import "./Einduitslag.css";
 // heavy libs: imported on-demand below to avoid module-init side-effects in the main bundle
 
 // HELPER: 'mm:ss:hh'
@@ -360,36 +361,23 @@ export default function Einduitslag() {
   }
 
   return (
-    <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: 24 }}>
+    <div className="eu-page">
       <Container maxWidth={900}>
-        <div style={{
-          background: "#fff",
-          borderRadius: 16,
-          boxShadow: "0 6px 24px #20457422",
-          padding: "40px 32px 28px 32px",
-          fontFamily: "system-ui, sans-serif"
-        }}>
-        <h2 style={{ fontSize: 33, fontWeight: 900, color: "#204574", letterSpacing: 1.2, marginBottom: 22 }}>
+        <div className="eu-shell">
+        <h2 className="eu-title">
           Einduitslag per klasse
         </h2>
         
         {/* Wedstrijd selectie */}
-        <div style={{ marginBottom: 24, padding: 16, background: "#f0f4f8", borderRadius: 8 }}>
-          <label style={{ display: "block", fontWeight: 600, marginBottom: 8, color: "#204574" }}>
+        <div className="eu-select-card">
+          <label className="eu-label">
             Wedstrijd:
           </label>
           <select 
             value={selectedWedstrijdId} 
             onChange={(e) => setSelectedWedstrijdId(e.target.value)}
             disabled={loadingWed}
-            style={{ 
-              width: "100%", 
-              padding: "10px 12px", 
-              fontSize: 16, 
-              borderRadius: 6, 
-              border: "1px solid #cbd5e0",
-              background: "#fff"
-            }}
+            className="eu-select"
           >
             <option value="">{loadingWed ? "Laden..." : "— Selecteer wedstrijd —"}</option>
             {wedstrijden.map(w => (
@@ -401,13 +389,13 @@ export default function Einduitslag() {
         </div>
 
         {!selectedWedstrijdId && (
-          <div style={{ padding: 20, textAlign: "center", color: "#666" }}>
+          <div className="eu-empty">
             Selecteer een wedstrijd om de einduitslag te bekijken
           </div>
         )}
 
         {selectedWedstrijdId && klasses.length === 0 && (
-          <div style={{ padding: 20, textAlign: "center", color: "#666" }}>
+          <div className="eu-empty">
             Geen proeven of scores gevonden voor deze wedstrijd
           </div>
         )}
@@ -416,60 +404,53 @@ export default function Einduitslag() {
           const { onderdelen, eindstand } = berekenEindstand(klasse);
           if (eindstand.length === 0) return null;
           return (
-            <div key={klasse} style={{ marginBottom: 40 }}>
-              <div style={{
-                fontWeight: 800,
-                background: "#e6eefb",
-                color: "#296fe6",
-                padding: "8px 16px",
-                borderRadius: 10,
-                display: "inline-block",
-                fontSize: 22,
-                marginBottom: 14
-              }}>{`Klasse ${klasse}`}</div>
+            <div key={klasse} className="eu-klasse-block">
+              <div className="eu-klasse-badge">{`Klasse ${klasse}`}</div>
               <div ref={el => (refs.current[klasse] = el)}>
-                <table style={{ width: "100%", borderCollapse: "collapse", background: "#fafdff", borderRadius: 8 }}>
+                <div className="eu-table-wrap">
+                <table className="eu-table">
                   <thead>
-                    <tr style={{ background: "#d3e6fd", color: "#174174" }}>
-                      <th style={{ padding: 8 }}>Plaats</th>
-                      <th style={{ padding: 8 }}>Ruiter</th>
-                      <th style={{ padding: 8 }}>Paard</th>
+                    <tr>
+                      <th>Plaats</th>
+                      <th>Ruiter</th>
+                      <th>Paard</th>
                       {onderdelen.map(o =>
-                        <th key={o} style={{ padding: 8 }}>{o}</th>
+                        <th key={o}>{o}</th>
                       )}
-                      <th style={{ padding: 8 }}>Totaal punten</th>
+                      <th>Totaal punten</th>
                     </tr>
                   </thead>
                   <tbody>
                     {eindstand.map((item, idx) => (
                       <tr key={item.naam + item.paard}>
-                        <td style={{ padding: 8, fontWeight: 700 }}>{item.plaats}</td>
-                        <td style={{ padding: 8 }}>{item.naam}</td>
-                        <td style={{ padding: 8 }}>{item.paard}</td>
+                        <td className="eu-strong">{item.plaats}</td>
+                        <td>{item.naam}</td>
+                        <td>{item.paard}</td>
                         {onderdelen.map(o => (
-                          <td key={o} style={{ padding: 8 }}>
+                          <td key={o}>
                             {item.onderdelen[o]?.scoreLabel}
                             {item.onderdelen[o]?.plaats &&
                               ` (${item.onderdelen[o].plaats})`}
                           </td>
                         ))}
-                        <td style={{ padding: 8, fontWeight: 700 }}>{item.totaalpunten}</td>
+                        <td className="eu-strong">{item.totaalpunten}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
-              <div style={{ margin: "12px 0 0 0", display: "flex", gap: 12 }}>
+              <div className="eu-actions">
                 <button onClick={() => handleExportPDF(klasse, onderdelen, eindstand)}
-                  style={{ padding: "7px 16px", fontWeight: 700, borderRadius: 8, border: "1px solid #d3e6fd", background: "#fafdff", cursor: "pointer" }}>
+                  className="eu-button">
                   Export PDF
                 </button>
                 <button onClick={() => handleExportExcel(klasse, onderdelen, eindstand)}
-                  style={{ padding: "7px 16px", fontWeight: 700, borderRadius: 8, border: "1px solid #d3e6fd", background: "#fafdff", cursor: "pointer" }}>
+                  className="eu-button">
                   Export Excel
                 </button>
                 <button onClick={() => handleExportAfbeelding(klasse)}
-                  style={{ padding: "7px 16px", fontWeight: 700, borderRadius: 8, border: "1px solid #d3e6fd", background: "#fafdff", cursor: "pointer" }}>
+                  className="eu-button">
                   Export afbeelding
                 </button>
               </div>

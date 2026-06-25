@@ -1,0 +1,76 @@
+.pg-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(255, 233, 214, 0.9), transparent 28%),
+    radial-gradient(circle at top right, rgba(240, 246, 255, 0.9), transparent 24%),
+    linear-gradient(180deg, #faf7f3 0%, #f4efe9 100%);
+  padding-bottom: 24px;
+}
+
+.pg-header {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9d7bf;
+  background: rgba(255, 250, 244, 0.98);
+  box-shadow: 0 8px 20px rgba(103, 62, 26, 0.08);
+}
+
+.pg-title {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #60391c;
+}
+
+.pg-content {
+  border: 1px solid #ecd9c2;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 30px rgba(103, 62, 26, 0.08);
+  padding: 18px;
+}
+
+.pg-page h2,
+.pg-page h3,
+.pg-page b,
+.pg-page label {
+  color: #633b1b;
+}
+
+.pg-page input,
+.pg-page select,
+.pg-page textarea {
+  border: 1px solid #e2d2be !important;
+  border-radius: 10px !important;
+  background: #fffdf9 !important;
+  color: #4b3422 !important;
+  padding: 0.62rem 0.72rem;
+}
+
+.pg-page button {
+  border-radius: 999px !important;
+  border: 1px solid #7a4b20 !important;
+  background: #8b5a2b !important;
+  color: #fff !important;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(103, 62, 26, 0.12);
+}
+
+.pg-page button:hover {
+  background: #7b4c22 !important;
+}
+
+@media (max-width: 900px) {
+  .pg-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pg-content {
+    padding: 12px;
+  }
+}

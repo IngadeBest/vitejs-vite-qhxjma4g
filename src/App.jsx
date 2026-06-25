@@ -18,6 +18,7 @@ import WachtlijstBeheer from "@/features/wachtlijst/pages/WachtlijstBeheer";
 import ProefInstellingen from "@/features/proeven/pages/ProefInstellingen";
 import ScoreInvoer from "@/features/scoring/pages/ScoreInvoer";
 import TrailGenerator from "@/features/trailgenerator/pages/TrailGenerator";
+import { isAppHost } from "@/lib/isAppHost";
 
 const navStyle = ({ isActive }) => ({
   padding: "8px 11px",
@@ -108,8 +109,7 @@ function AppHeader({ onApp, hasSelection }) {
 }
 
 function InnerApp() {
-  const host = typeof window !== "undefined" ? window.location.hostname : "";
-  const defaultOnApp = host.startsWith("app.");
+  const defaultOnApp = isAppHost();
 
   const location = useLocation();
   const params = new URLSearchParams(location.search);
