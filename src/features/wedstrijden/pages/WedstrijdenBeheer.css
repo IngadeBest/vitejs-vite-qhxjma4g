@@ -1,0 +1,220 @@
+.wb-page-shell {
+  min-height: 100vh;
+  padding: 24px 0 36px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 233, 214, 0.9), transparent 28%),
+    radial-gradient(circle at top right, rgba(240, 246, 255, 0.9), transparent 24%),
+    linear-gradient(180deg, #faf7f3 0%, #f4efe9 100%);
+}
+
+.wb-container {
+  display: grid;
+  gap: 16px;
+}
+
+.wb-hero,
+.wb-card,
+.wb-empty-state,
+.wb-alert {
+  border: 1px solid #ecd9c2;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 30px rgba(103, 62, 26, 0.08);
+}
+
+.wb-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 20px 22px;
+}
+
+.wb-hero h1,
+.wb-card h2,
+.wb-card h3 {
+  margin: 0;
+  color: #633b1b;
+}
+
+.wb-hero p,
+.wb-card p {
+  margin: 6px 0 0;
+  color: #7b5a3d;
+}
+
+.wb-hero-actions,
+.wb-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wb-actions-row-end {
+  justify-content: flex-end;
+}
+
+.wb-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.wb-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wb-card {
+  padding: 18px;
+}
+
+.wb-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.wb-form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wb-form-grid-select .wb-span-2,
+.wb-span-2 {
+  grid-column: 1 / -1;
+}
+
+.wb-form-grid label,
+.wb-card label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #6a492d;
+}
+
+.wb-form-actions {
+  display: flex;
+  align-items: end;
+}
+
+.wb-inline-note {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff6ea;
+  border: 1px solid #efd8bc;
+  color: #734a23;
+}
+
+.wb-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.wb-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #5b4533;
+}
+
+.wb-check-card {
+  padding: 12px 14px;
+  border: 1px solid #efddc6;
+  border-radius: 12px;
+  background: #fffaf4;
+}
+
+.wb-checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.wb-two-col {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wb-divider {
+  height: 1px;
+  margin: 18px 0;
+  background: #ecdcc8;
+}
+
+.wb-textarea {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #e6d8c7;
+  border-radius: 10px;
+  font: inherit;
+  resize: vertical;
+  background: #fff;
+  color: #4b3422;
+}
+
+.wb-capacity-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1.2fr);
+  align-items: center;
+}
+
+.wb-capacity-grid-head {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #6a492d;
+}
+
+.wb-capacity-list {
+  display: grid;
+  gap: 10px;
+}
+
+.wb-alert {
+  padding: 12px 14px;
+}
+
+.wb-alert-success {
+  background: #f3fbf3;
+  border-color: #cfe4d2;
+  color: #245438;
+}
+
+.wb-alert-error {
+  background: #fff1f0;
+  border-color: #f1c4c4;
+  color: #7b2222;
+}
+
+.wb-empty-state {
+  padding: 18px;
+  color: #745c47;
+}
+
+.wb-btn-danger {
+  background: #b74e3b;
+  border: 1px solid #9c3d2b;
+}
+
+@media (max-width: 980px) {
+  .wb-hero,
+  .wb-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .wb-two-col,
+  .wb-grid-2,
+  .wb-form-grid,
+  .wb-capacity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wb-form-actions {
+    grid-column: auto;
+  }
+}

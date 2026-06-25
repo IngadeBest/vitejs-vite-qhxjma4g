@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import ProefEditor from "@/features/wedstrijden/components/ProefEditor";
 import Container from "@/ui/Container";
+import "./WedstrijdenBeheer.css";
 
 const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
@@ -20,14 +21,110 @@ const ONDERDELEN = [
   { code: "speed", label: "Speedtrail" },
 ];
 
+const EMPTY_WEDSTRIJD = {
+  naam: "",
+  datum: "",
+  locatie: "",
+  status: "open",
+  organisator_email: "",
+};
+
+const EMPTY_STARTLIJST_CONFIG = {
+  dressuurStart: "",
+  interval: 7,
+  stijltrailStart: "",
+  pauses: [],
+};
+
+function formatDateInput(value) {
+  if (!value) return "";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function hydrateWedstrijdForm(wedstrijd) {
+  if (!wedstrijd) return { ...EMPTY_WEDSTRIJD };
+  return {
+    naam: wedstrijd.naam || "",
+    datum: formatDateInput(wedstrijd.datum),
+    locatie: wedstrijd.locatie || "",
+    status: wedstrijd.status || "open",
+    organisator_email: wedstrijd.organisator_email || "",
+  };
+}
+
+function hydrateStartlijstConfig(wedstrijd) {
+  if (!wedstrijd) {
+    return {
+      config: { ...EMPTY_STARTLIJST_CONFIG },
+      jeugdAllowed: {},
+      offsetOverridesText: "",
+      capacitiesMap: {},
+      alternatesMap: {},
+      totaalMaximum: "",
+      wachtlijstEnabled: false,
+    };
+  }
+
+  try {
+    const cfg = (wedstrijd.startlijst_config && typeof wedstrijd.startlijst_config === "object")
+      ? wedstrijd.startlijst_config
+      : (wedstrijd.startlijst_config ? JSON.parse(wedstrijd.startlijst_config) : null);
+
+    const pauses = cfg?.pauses && !Array.isArray(cfg.pauses)
+      ? cfg.pauses
+      : { __default__: (Array.isArray(cfg?.pauses) ? cfg.pauses : []) };
+
+    let stijltrailStart = cfg?.stijltrailStart || "";
+    if (!stijltrailStart && (cfg?.trailOffset || cfg?.trailOffset === 0) && cfg?.dressuurStart) {
+      try {
+        const parts = String(cfg.dressuurStart).split(":").map((value) => Number(value));
+        const baseDate = new Date();
+        baseDate.setHours(parts[0] || 0, parts[1] || 0, 0, 0);
+        const shifted = new Date(baseDate.getTime() + Number(cfg.trailOffset || 0) * 60000);
+        stijltrailStart = shifted.toTimeString().slice(0, 5);
+      } catch (error) {
+        stijltrailStart = "";
+      }
+    }
+
+    return {
+      config: {
+        dressuurStart: cfg?.dressuurStart || "",
+        interval: cfg?.interval || 7,
+        stijltrailStart,
+        pauses,
+      },
+      jeugdAllowed: cfg?.jeugdAllowed || {},
+      offsetOverridesText: cfg?.offsetOverrides ? JSON.stringify(cfg.offsetOverrides, null, 2) : "",
+      capacitiesMap: cfg?.capacities && typeof cfg.capacities === "object" ? cfg.capacities : {},
+      alternatesMap: cfg?.alternates && typeof cfg.alternates === "object" ? cfg.alternates : {},
+      totaalMaximum: cfg?.totaalMaximum !== undefined && cfg?.totaalMaximum !== null ? String(cfg.totaalMaximum) : "",
+      wachtlijstEnabled: !!wedstrijd.wachtlijst_enabled,
+    };
+  } catch (error) {
+    return {
+      config: { ...EMPTY_STARTLIJST_CONFIG },
+      jeugdAllowed: {},
+      offsetOverridesText: "",
+      capacitiesMap: {},
+      alternatesMap: {},
+      totaalMaximum: "",
+      wachtlijstEnabled: !!wedstrijd.wachtlijst_enabled,
+    };
+  }
+}
+
 export default function WedstrijdenBeheer() {
   const { items: wedstrijden, loading } = useWedstrijden(false);
   const [nieuw, setNieuw] = useState({ naam: "", datum: "", locatie: "", status: "open" });
-  // nieuw.organisator_email optionally
   const [nieuwEmail, setNieuwEmail] = useState("");
   const [selectedId, setSelectedId] = useState("");
-  const [showNew, setShowNew] = useState(false);
   const gekozen = useMemo(() => wedstrijden.find(w => w.id === selectedId) || null, [selectedId, wedstrijden]);
+  const [showNew, setShowNew] = useState(false);
+  const [editForm, setEditForm] = useState(() => hydrateWedstrijdForm(null));
 
   const [cfg, setCfg] = useState({
     onderdeel: "dressuur",
@@ -39,16 +136,43 @@ export default function WedstrijdenBeheer() {
 
   const [msg, setMsg] = useState("");
   const [allowedKlassen, setAllowedKlassen] = useState([]);
-  const [startlijstConfig, setStartlijstConfig] = useState({ dressuurStart: '', interval: 7, stijltrailStart: '', pauses: [] });
-  const [jeugdAllowed, setJeugdAllowed] = useState({}); // map klasse -> boolean
-  const [offsetOverridesText, setOffsetOverridesText] = useState('');
+  const [startlijstConfig, setStartlijstConfig] = useState({ ...EMPTY_STARTLIJST_CONFIG });
+  const [jeugdAllowed, setJeugdAllowed] = useState({});
+  const [offsetOverridesText, setOffsetOverridesText] = useState("");
   const [capacitiesMap, setCapacitiesMap] = useState({});
   const [alternatesMap, setAlternatesMap] = useState({});
-  const [totaalMaximum, setTotaalMaximum] = useState('');
+  const [totaalMaximum, setTotaalMaximum] = useState("");
   const [wachtlijstEnabled, setWachtlijstEnabled] = useState(false);
   const [deleteRelated, setDeleteRelated] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("open");
   // migration SQL UI removed per user request
+
+  useEffect(() => {
+    if (!gekozen) {
+      setEditForm(hydrateWedstrijdForm(null));
+      setAllowedKlassen([]);
+      setStartlijstConfig({ ...EMPTY_STARTLIJST_CONFIG });
+      setJeugdAllowed({});
+      setOffsetOverridesText("");
+      setCapacitiesMap({});
+      setAlternatesMap({});
+      setTotaalMaximum("");
+      setWachtlijstEnabled(false);
+      return;
+    }
+
+    setEditForm(hydrateWedstrijdForm(gekozen));
+    setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
+
+    const hydrated = hydrateStartlijstConfig(gekozen);
+    setStartlijstConfig(hydrated.config);
+    setJeugdAllowed(hydrated.jeugdAllowed);
+    setOffsetOverridesText(hydrated.offsetOverridesText);
+    setCapacitiesMap(hydrated.capacitiesMap);
+    setAlternatesMap(hydrated.alternatesMap);
+    setTotaalMaximum(hydrated.totaalMaximum);
+    setWachtlijstEnabled(hydrated.wachtlijstEnabled);
+  }, [gekozen]);
 
     
 
@@ -68,6 +192,36 @@ export default function WedstrijdenBeheer() {
       setSelectedId(data.id);
     } catch (e) {
       setMsg("Fout: " + (e?.message || String(e)));
+    }
+  }
+
+  async function saveWedstrijdDetails() {
+    if (!gekozen) {
+      setMsg("Kies eerst een wedstrijd.");
+      return;
+    }
+
+    const payload = {
+      naam: editForm.naam.trim(),
+      datum: editForm.datum || null,
+      locatie: editForm.locatie.trim() || null,
+      status: editForm.status || "open",
+      organisator_email: editForm.organisator_email.trim() || null,
+    };
+
+    if (!payload.naam) {
+      setMsg("Geef een naam op voor de wedstrijd.");
+      return;
+    }
+
+    setMsg("");
+    try {
+      const { error } = await supabase.from("wedstrijden").update(payload).eq("id", gekozen.id);
+      if (error) throw error;
+      setMsg("Wedstrijdgegevens opgeslagen ✔️");
+      window.dispatchEvent(new Event("wedstrijden:refresh"));
+    } catch (e) {
+      setMsg("Opslaan mislukt: " + (e?.message || String(e)));
     }
   }
 
@@ -256,8 +410,8 @@ export default function WedstrijdenBeheer() {
     try {
       const payload = {
         allowed_klassen: allowedKlassen,
-        organisator_email: nieuwEmail || null,
-        status: selectedStatus || "open",
+        organisator_email: editForm.organisator_email || null,
+        status: editForm.status || "open",
         wachtlijst_enabled: wachtlijstEnabled || false,
           startlijst_config: {
           dressuurStart: startlijstConfig.dressuurStart || null,
@@ -287,228 +441,313 @@ export default function WedstrijdenBeheer() {
   }
 
     return (
-    <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: 24 }}>
-      <Container maxWidth={1000}>
-        <div style={{
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow: "0 6px 18px #20457422",
-          padding: "32px 28px",
-          fontFamily: "system-ui, sans-serif"
-        }}>
-        <h2 style={{ fontSize: 28, fontWeight: 900, color: "#204574", letterSpacing: 0.6, marginBottom: 18 }}>
-          Wedstrijden beheer
-        </h2>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16, marginBottom: 18 }}>
-          <div style={{ padding: 12 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ fontWeight: 800 }}>Nieuwe wedstrijd</div>
-              <div style={{ marginLeft: 'auto' }}>
-                <button onClick={()=>setShowNew(s=>!s)}>{showNew ? 'Verberg nieuw' : 'Nieuwe wedstrijd'}</button>
-              </div>
+      <div className="wb-page-shell">
+        <Container maxWidth={1280} className="wb-container">
+          <section className="wb-hero">
+            <div>
+              <h1>Wedstrijden beheer</h1>
+              <p>Aanmaken, bewerken en configureren van wedstrijden op één plek.</p>
             </div>
-            {showNew && (
-              <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px 1fr', gap: 8, alignItems: 'center' }}>
-                  <input placeholder="Naam*" value={nieuw.naam} onChange={(e)=>setNieuw(s=>({...s, naam:e.target.value}))} />
-                  <input type="date" value={nieuw.datum} onChange={(e)=>setNieuw(s=>({...s, datum:e.target.value}))} />
-                  <input placeholder="Locatie" value={nieuw.locatie} onChange={(e)=>setNieuw(s=>({...s, locatie:e.target.value}))} />
-                  <input placeholder="Organisator e-mail" value={nieuwEmail} onChange={(e)=>setNieuwEmail(e.target.value)} />
-                  <select value={nieuw.status} onChange={(e)=>setNieuw(s=>({...s, status:e.target.value}))}>
-                    <option value="open">open</option>
-                    <option value="gesloten">gesloten</option>
-                    <option value="archief">archief</option>
+            <div className="wb-hero-actions">
+              <button type="button" className="wp-btn secondary" onClick={() => setShowNew((value) => !value)}>
+                {showNew ? "Nieuwe wedstrijd verbergen" : "Nieuwe wedstrijd"}
+              </button>
+              <button type="button" className="wp-btn secondary" onClick={() => window.dispatchEvent(new Event("wedstrijden:refresh"))} disabled={loading}>
+                Vernieuwen
+              </button>
+            </div>
+          </section>
+
+          {msg && (
+            <div className={`wb-alert ${msg.toLowerCase().includes("mislukt") || msg.toLowerCase().includes("fout") ? "wb-alert-error" : "wb-alert-success"}`}>
+              {msg}
+            </div>
+          )}
+
+          <section className="wb-grid wb-grid-2">
+            <article className="wb-card">
+              <div className="wb-card-head">
+                <div>
+                  <h2>Nieuwe wedstrijd</h2>
+                  <p>Maak een wedstrijd aan en ga direct verder met bewerken.</p>
+                </div>
+              </div>
+              {showNew && (
+                <div className="wb-form-grid">
+                  <div>
+                    <label>Naam</label>
+                    <input className="wp-input" placeholder="Naam*" value={nieuw.naam} onChange={(e) => setNieuw((s) => ({ ...s, naam: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label>Datum</label>
+                    <input className="wp-input" type="date" value={nieuw.datum} onChange={(e) => setNieuw((s) => ({ ...s, datum: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label>Locatie</label>
+                    <input className="wp-input" placeholder="Locatie" value={nieuw.locatie} onChange={(e) => setNieuw((s) => ({ ...s, locatie: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label>Organisator e-mail</label>
+                    <input className="wp-input" type="email" placeholder="organisator@example.com" value={nieuwEmail} onChange={(e) => setNieuwEmail(e.target.value)} />
+                  </div>
+                  <div>
+                    <label>Status</label>
+                    <select className="wp-input" value={nieuw.status} onChange={(e) => setNieuw((s) => ({ ...s, status: e.target.value }))}>
+                      <option value="open">open</option>
+                      <option value="gesloten">gesloten</option>
+                      <option value="archief">archief</option>
+                    </select>
+                  </div>
+                  <div className="wb-form-actions">
+                    <button type="button" className="wp-btn" onClick={addWedstrijd} disabled={!nieuw.naam}>Aanmaken</button>
+                  </div>
+                </div>
+              )}
+            </article>
+
+            <article className="wb-card">
+              <div className="wb-card-head">
+                <div>
+                  <h2>Selecteer wedstrijd</h2>
+                  <p>Kies een bestaande wedstrijd om gegevens, proeven en instellingen te beheren.</p>
+                </div>
+                <button type="button" className="wp-btn secondary" onClick={copyLink} disabled={!gekozen}>Kopieer inschrijflink</button>
+              </div>
+              <div className="wb-form-grid wb-form-grid-select">
+                <div className="wb-span-2">
+                  <label>Wedstrijd</label>
+                  <select className="wp-input" value={selectedId} onChange={(e) => setSelectedId(e.target.value)} disabled={loading}>
+                    <option value="">{loading ? "Laden..." : "— kies wedstrijd —"}</option>
+                    {wedstrijden.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.naam} {w.datum ? `(${w.datum})` : ""}
+                      </option>
+                    ))}
                   </select>
-                  <div></div>
                 </div>
-                <div style={{ marginTop: 10 }}>
-                  <button onClick={addWedstrijd} disabled={!nieuw.naam}>Aanmaken</button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
-            <div style={{ fontWeight: 800, marginBottom: 8 }}>Selecteer wedstrijd</div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <select value={selectedId} onChange={(e)=>setSelectedId(e.target.value)} disabled={loading} style={{ flex: '1 1 auto', minWidth: 0 }}>
-                <option value="">{loading ? "Laden..." : "— kies wedstrijd —"}</option>
-                {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ""}</option>)}
-              </select>
-              <button onClick={copyLink} disabled={!gekozen} style={{ whiteSpace: 'nowrap' }}>Kopieer inschrijflink</button>
-            </div>
-            {gekozen && (
-              <div style={{ marginTop: 12, fontSize: 13, color: '#444' }}>
-                <div><b>{gekozen.naam}</b></div>
-                <div style={{ marginTop: 6 }}><b>Datum:</b> {gekozen.datum || "—"}</div>
-                <div style={{ marginTop:8 }}>
-                  <label style={{display:'block', fontSize:13, fontWeight:600, marginBottom:6}}>Organisator e-mail</label>
-                  <input
-                    type="email"
-                    placeholder="organisator@example.com"
-                    value={nieuwEmail}
-                    onChange={(e)=>setNieuwEmail(e.target.value)}
-                    style={{padding:6, borderRadius:6, border:'1px solid #ddd', width:'100%'}}
-                  />
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <label style={{display:'block', fontSize:13, fontWeight:600, marginBottom:6}}>Status</label>
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    style={{padding:6, borderRadius:6, border:'1px solid #ddd', width:'100%'}}
-                  >
-                    <option value="open">open</option>
-                    <option value="gesloten">gesloten</option>
-                    <option value="archief">archief</option>
-                  </select>
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <input
-                      type="checkbox"
-                      checked={deleteRelated}
-                      onChange={(e) => setDeleteRelated(e.target.checked)}
-                    />
-                    <span>Ook inschrijvingen, proeven en wachtlijst verwijderen</span>
-                  </label>
-                </div>
-                <div style={{ marginTop: 8 }}>
-                  <button onClick={deleteWedstrijd} disabled={!gekozen} style={{ background: "#d14343", color: "#fff" }}>
-                    Verwijder wedstrijd
-                  </button>
+                <div className="wb-inline-note wb-span-2">
+                  {gekozen ? `Je beheert nu: ${gekozen.naam}` : "Selecteer een wedstrijd om de bewerk- en configuratiekaarten te tonen."}
                 </div>
               </div>
-            )}
-          </div>
-        </div>
+            </article>
+          </section>
 
-          <div style={{ padding: 12, borderRadius: 8, border: '1px solid #eef6ff' }}>
-            <div style={{ fontWeight: 800, marginBottom: 8 }}>Toegestane klassen</div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <button type="button" onClick={()=>setAllowedKlassen(KLASSEN.map(k=>k.code))}>Selecteer alles</button>
-              <button type="button" onClick={()=>setAllowedKlassen([])}>Reset</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {KLASSEN.map(k => {
-                const checked = allowedKlassen.includes(k.code);
-                return (
-                  <label key={k.code} style={{display:'flex', alignItems:'center', gap:8}}>
-                    <input type="checkbox" checked={checked} onChange={(e)=>{
-                      setAllowedKlassen(s => e.target.checked ? Array.from(new Set([...s, k.code])) : s.filter(x=>x!==k.code));
-                    }} />
-                    <span style={{fontSize:13}}>{k.label}</span>
-                  </label>
-                );
-              })}
-            </div>
-            <div style={{ marginTop: 12, borderTop: '1px solid #f0f4f8', paddingTop: 10 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Jeugd-rubriek</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {KLASSEN.map(k => (
-                  <label key={`jeugd-${k.code}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input type="checkbox" checked={!!jeugdAllowed[k.code]} onChange={(e)=>{ setJeugdAllowed(prev => ({ ...prev, [k.code]: e.target.checked })); }} />
-                    <span style={{ fontSize: 13 }}>{k.label} — jeugd toegestaan</span>
-                  </label>
-                ))}
-              </div>
-
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Offset overrides (optioneel)</div>
-                <div style={{ fontSize: 12, color: '#555', marginBottom: 6 }}>Voer JSON in zoals: {`{"we2:jeugd":801, "we0:senior":5}`}</div>
-                <textarea rows={4} value={offsetOverridesText} onChange={(e)=>setOffsetOverridesText(e.target.value)} style={{ width: '100%', fontFamily: 'monospace' }} />
-
-                <div style={{ fontWeight: 700, marginTop: 12, marginBottom: 6 }}>Totaal maximum deelnemers (hele wedstrijd)</div>
-                <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>Laat leeg voor geen limiet op het totaal aantal deelnemers over alle klassen.</div>
-                <input 
-                  type="number" 
-                  min={0} 
-                  placeholder="Geen limiet" 
-                  value={totaalMaximum} 
-                  onChange={(e) => setTotaalMaximum(e.target.value)}
-                  style={{ width: '200px', padding: '8px', borderRadius: 6, border: '1px solid #ddd', marginBottom: 16 }}
-                />
-
-                <div style={{ marginTop: 16, marginBottom: 16 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={wachtlijstEnabled} 
-                      onChange={(e) => setWachtlijstEnabled(e.target.checked)}
-                      style={{ width: 18, height: 18, cursor: 'pointer' }}
-                    />
+          {gekozen ? (
+            <>
+              <section className="wb-grid wb-grid-2">
+                <article className="wb-card">
+                  <div className="wb-card-head">
                     <div>
-                      <span style={{ fontWeight: 700 }}>Wachtlijst inschakelen</span>
-                      <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
-                        Als deze optie is ingeschakeld kunnen mensen zich op een wachtlijst plaatsen wanneer de wedstrijd of een klasse vol is.
-                      </div>
+                      <h2>Wedstrijdgegevens</h2>
+                      <p>Bewerk naam, datum, locatie en status na het aanmaken.</p>
                     </div>
-                  </label>
+                  </div>
+                  <div className="wb-form-grid">
+                    <div>
+                      <label>Naam</label>
+                      <input className="wp-input" value={editForm.naam} onChange={(e) => setEditForm((s) => ({ ...s, naam: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label>Datum</label>
+                      <input className="wp-input" type="date" value={editForm.datum} onChange={(e) => setEditForm((s) => ({ ...s, datum: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label>Locatie</label>
+                      <input className="wp-input" value={editForm.locatie} onChange={(e) => setEditForm((s) => ({ ...s, locatie: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label>Organisator e-mail</label>
+                      <input className="wp-input" type="email" value={editForm.organisator_email} onChange={(e) => setEditForm((s) => ({ ...s, organisator_email: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label>Status</label>
+                      <select className="wp-input" value={editForm.status} onChange={(e) => setEditForm((s) => ({ ...s, status: e.target.value }))}>
+                        <option value="open">open</option>
+                        <option value="gesloten">gesloten</option>
+                        <option value="archief">archief</option>
+                      </select>
+                    </div>
+                    <div className="wb-form-actions">
+                      <button type="button" className="wp-btn" onClick={saveWedstrijdDetails} disabled={!gekozen || !editForm.naam.trim()}>
+                        Wijzigingen opslaan
+                      </button>
+                    </div>
+                  </div>
+                </article>
+
+                <article className="wb-card">
+                  <div className="wb-card-head">
+                    <div>
+                      <h2>Wedstrijdacties</h2>
+                      <p>Beheer toegangsopties en verwijder alleen wanneer je zeker bent.</p>
+                    </div>
+                  </div>
+                  <div className="wb-stack">
+                    <div className="wb-inline-note">
+                      <strong>{gekozen.naam}</strong><br />
+                      {gekozen.datum ? `Datum: ${gekozen.datum}` : "Geen datum ingesteld"}
+                    </div>
+                    <label className="wb-check-row wb-check-card">
+                      <input type="checkbox" checked={deleteRelated} onChange={(e) => setDeleteRelated(e.target.checked)} />
+                      <span>Ook inschrijvingen, proeven en wachtlijst verwijderen</span>
+                    </label>
+                    <div className="wb-actions-row">
+                      <button type="button" className="wp-btn secondary" onClick={() => setEditForm((current) => ({ ...current, status: gekozen.status || "open" }))}>
+                        Status terugzetten
+                      </button>
+                      <button type="button" className="wp-btn wb-btn-danger" onClick={deleteWedstrijd}>Verwijder wedstrijd</button>
+                    </div>
+                  </div>
+                </article>
+              </section>
+
+              <section className="wb-card">
+                <div className="wb-card-head">
+                  <div>
+                    <h2>Toegestane klassen en limieten</h2>
+                    <p>Stel wedstrijdbreed gedrag in voor inschrijven, startlijst en wachtlijst.</p>
+                  </div>
+                  <div className="wb-actions-row">
+                    <button type="button" className="wp-btn secondary" onClick={() => setAllowedKlassen(KLASSEN.map(k => k.code))}>Selecteer alles</button>
+                    <button type="button" className="wp-btn secondary" onClick={() => setAllowedKlassen([])}>Reset</button>
+                  </div>
                 </div>
 
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Capaciteiten & alternatieven per klasse</div>
-                <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>Voer per klasse het maximaal aantal deelnemers in en (optioneel) een alternatieve wedstrijd.</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 8, alignItems: 'center' }}>
-                  <div style={{ fontWeight: 700 }}>Klasse</div>
-                  <div style={{ fontWeight: 700 }}>Capacity</div>
-                  <div style={{ fontWeight: 700 }}>Alternatief (wedstrijd)</div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                  {KLASSEN.map(k => (
-                    <div key={k.code} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 8, alignItems: 'center' }}>
-                      <div>{k.label}</div>
-                      <div>
-                        <input type="number" min={0} placeholder="Geen limiet" value={capacitiesMap[k.code] ?? ''} onChange={(e)=>{
-                          const v = e.target.value === '' ? undefined : Number(e.target.value);
-                          setCapacitiesMap(prev => {
-                            const copy = { ...prev };
-                            if (v === undefined) delete copy[k.code]; else copy[k.code] = v;
-                            return copy;
-                          });
-                        }} style={{ width: '100%', padding: '6px', borderRadius: 6, border: '1px solid #ddd' }} />
-                      </div>
-                      <div>
-                        <select value={alternatesMap[k.code] || ''} onChange={(e)=>{
-                          const val = e.target.value || undefined;
-                          setAlternatesMap(prev => {
-                            const copy = { ...prev };
-                            if (!val) delete copy[k.code]; else copy[k.code] = val;
-                            return copy;
-                          });
-                        }} style={{ width: '100%', padding: '6px', borderRadius: 6, border: '1px solid #ddd' }}>
-                          <option value="">— geen —</option>
-                          {wedstrijden.filter(w=>w.id !== (gekozen && gekozen.id)).map(w => (
-                            <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ''}</option>
-                          ))}
-                        </select>
-                      </div>
+                <div className="wb-two-col">
+                  <div>
+                    <h3>Toegestane klassen</h3>
+                    <div className="wb-checklist">
+                      {KLASSEN.map((k) => {
+                        const checked = allowedKlassen.includes(k.code);
+                        return (
+                          <label key={k.code} className="wb-check-row">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                setAllowedKlassen((s) => e.target.checked ? Array.from(new Set([...s, k.code])) : s.filter((x) => x !== k.code));
+                              }}
+                            />
+                            <span>{k.label}</span>
+                          </label>
+                        );
+                      })}
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="wb-stack">
+                    <div>
+                      <label>Wachtlijst inschakelen</label>
+                      <label className="wb-check-row wb-check-card">
+                        <input type="checkbox" checked={wachtlijstEnabled} onChange={(e) => setWachtlijstEnabled(e.target.checked)} />
+                        <span>Gebruik een wachtlijst wanneer de wedstrijd of een klasse vol is.</span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label>Totaal maximum deelnemers</label>
+                      <input className="wp-input" type="number" min={0} placeholder="Geen limiet" value={totaalMaximum} onChange={(e) => setTotaalMaximum(e.target.value)} />
+                    </div>
+
+                    <div>
+                      <label>Offset overrides</label>
+                      <textarea className="wb-textarea" rows={4} value={offsetOverridesText} onChange={(e) => setOffsetOverridesText(e.target.value)} placeholder='{"we2:jeugd":801, "we0:senior":5}' />
+                    </div>
+                  </div>
                 </div>
-              </div>
+
+                <div className="wb-divider" />
+
+                <div className="wb-two-col">
+                  <div>
+                    <h3>Jeugd-rubriek</h3>
+                    <div className="wb-checklist">
+                      {KLASSEN.map((k) => (
+                        <label key={`jeugd-${k.code}`} className="wb-check-row">
+                          <input type="checkbox" checked={!!jeugdAllowed[k.code]} onChange={(e) => { setJeugdAllowed(prev => ({ ...prev, [k.code]: e.target.checked })); }} />
+                          <span>{k.label} - jeugd toegestaan</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3>Capaciteiten & alternatieven</h3>
+                    <div className="wb-capacity-grid wb-capacity-grid-head">
+                      <div>Klasse</div>
+                      <div>Capaciteit</div>
+                      <div>Alternatief</div>
+                    </div>
+                    <div className="wb-capacity-list">
+                      {KLASSEN.map((k) => (
+                        <div key={k.code} className="wb-capacity-grid">
+                          <div>{k.label}</div>
+                          <div>
+                            <input
+                              className="wp-input"
+                              type="number"
+                              min={0}
+                              placeholder="Geen limiet"
+                              value={capacitiesMap[k.code] ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value === "" ? undefined : Number(e.target.value);
+                                setCapacitiesMap((prev) => {
+                                  const copy = { ...prev };
+                                  if (v === undefined) delete copy[k.code]; else copy[k.code] = v;
+                                  return copy;
+                                });
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <select
+                              className="wp-input"
+                              value={alternatesMap[k.code] || ""}
+                              onChange={(e) => {
+                                const val = e.target.value || undefined;
+                                setAlternatesMap((prev) => {
+                                  const copy = { ...prev };
+                                  if (!val) delete copy[k.code]; else copy[k.code] = val;
+                                  return copy;
+                                });
+                              }}
+                            >
+                              <option value="">— geen —</option>
+                              {wedstrijden.filter((wedstrijd) => wedstrijd.id !== (gekozen && gekozen.id)).map((wedstrijd) => (
+                                <option key={wedstrijd.id} value={wedstrijd.id}>
+                                  {wedstrijd.naam} {wedstrijd.datum ? `(${wedstrijd.datum})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="wb-actions-row wb-actions-row-end">
+                  <button type="button" className="wp-btn" onClick={saveWedstrijdConfig} disabled={!gekozen}>Instellingen opslaan</button>
+                </div>
+              </section>
+
+              <section className="wb-card">
+                <div className="wb-card-head">
+                  <div>
+                    <h2>Proeven</h2>
+                    <p>Voeg proeven toe voor de geselecteerde wedstrijd.</p>
+                  </div>
+                </div>
+                <ProefEditor cfg={cfg} setCfg={setCfg} saveProef={saveProef} gekozen={gekozen} />
+              </section>
+            </>
+          ) : (
+            <div className="wb-empty-state">
+              <h2>Proeven en instellingen</h2>
+              <p>Selecteer eerst een bestaande wedstrijd om de bewerk- en configuratiekaarten te tonen.</p>
             </div>
-          </div>
-
-          {/* categorie feature removed */}
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginBottom: 8 }}>
-          <button onClick={saveWedstrijdConfig} disabled={!gekozen}>Opslaan instellingen</button>
-        </div>
-      
-
-      
-
-      {gekozen ? (
-        <ProefEditor cfg={cfg} setCfg={setCfg} saveProef={saveProef} gekozen={gekozen} />
-      ) : (
-        <div style={{ marginTop: 12, color: '#666' }}>Selecteer een bestaande wedstrijd om proeven toe te voegen.</div>
-      )}
-
-      </Container>
-
-      {msg && <div style={{ marginTop: 12, color: "#333" }}>{msg}</div>}
-    </div>
-  );
+          )}
+        </Container>
+      </div>
+    );
 }
