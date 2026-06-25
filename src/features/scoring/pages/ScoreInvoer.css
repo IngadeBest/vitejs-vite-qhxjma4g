@@ -1,0 +1,279 @@
+.si-page {
+  min-height: 100vh;
+  padding: 24px 0 36px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 233, 214, 0.9), transparent 28%),
+    radial-gradient(circle at top right, rgba(240, 246, 255, 0.9), transparent 24%),
+    linear-gradient(180deg, #faf7f3 0%, #f4efe9 100%);
+}
+
+.si-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 12px;
+  display: grid;
+  gap: 16px;
+}
+
+.si-hero,
+.si-card {
+  border: 1px solid #ecd9c2;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 30px rgba(103, 62, 26, 0.08);
+}
+
+.si-hero {
+  padding: 20px 22px;
+}
+
+.si-hero h2,
+.si-card-head h3 {
+  margin: 0;
+  color: #633b1b;
+}
+
+.si-note,
+.si-muted {
+  margin-top: 6px;
+  color: #7b5a3d;
+}
+
+.si-card {
+  padding: 18px;
+}
+
+.si-form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.si-form-grid-actions {
+  align-items: end;
+}
+
+.si-field {
+  display: grid;
+  gap: 8px;
+}
+
+.si-field span {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #6a492d;
+}
+
+.si-span-2 {
+  grid-column: 1 / -1;
+}
+
+.si-input {
+  width: 100%;
+  padding: 0.72rem 0.8rem;
+  border: 1px solid #e2d2be;
+  border-radius: 10px;
+  background: #fffdf9;
+  color: #4b3422;
+  font: inherit;
+}
+
+.si-input:focus {
+  outline: 3px solid rgba(139, 90, 43, 0.14);
+}
+
+.si-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: #5b4533;
+}
+
+.si-max-score {
+  color: #8a6b4f;
+  margin-left: 6px;
+  font-size: 0.92rem;
+}
+
+.si-button {
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  border: 1px solid #7a4b20;
+  background: #8b5a2b;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(103, 62, 26, 0.12);
+}
+
+.si-button:hover {
+  background: #7b4c22;
+}
+
+.si-error {
+  color: #a53a2b;
+  background: #fff1f0;
+  border: 1px solid #f1c4c4;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.si-overview {
+  display: grid;
+  gap: 14px;
+}
+
+.si-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.si-table-wrap {
+  overflow-x: auto;
+}
+
+.si-table {
+  width: 100%;
+  min-width: 940px;
+  border-collapse: collapse;
+}
+
+.si-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f6ebdc;
+  color: #654325;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5d4bc;
+}
+
+.si-table tbody td {
+  padding: 10px 12px;
+  border-top: 1px solid #f0e2cf;
+}
+
+.si-table tbody tr:nth-child(odd) {
+  background: #fffdfa;
+}
+
+.si-table tbody tr:nth-child(even) {
+  background: #fff7ed;
+}
+
+.si-empty {
+  text-align: center;
+  color: #745c47;
+  padding: 18px 12px;
+}
+
+.si-strong {
+  font-weight: 800;
+}
+
+.si-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.si-link-button {
+  border: 1px solid #e8d3b9;
+  background: #fff6ea;
+  color: #6b4827;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+}
+
+.si-link-button:hover {
+  background: #fdebd5;
+}
+
+.si-link-danger {
+  color: #9c3d2b;
+}
+
+.si-mobile-list {
+  display: none;
+}
+
+.si-mobile-card {
+  border: 1px solid #ecd9c2;
+  border-radius: 14px;
+  background: #fffdf9;
+  padding: 12px;
+  gap: 10px;
+  display: grid;
+}
+
+.si-mobile-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.si-mobile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.si-mobile-grid span {
+  display: block;
+  font-size: 0.72rem;
+  color: #7b6653;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.si-pill {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fff1dd;
+  color: #7a4a22;
+  font-weight: 700;
+}
+
+.si-mobile-empty {
+  border: 1px solid #ecd9c2;
+  border-radius: 14px;
+  background: #fffdf9;
+}
+
+@media (max-width: 720px) {
+  .si-page {
+    padding: 16px 0 28px;
+  }
+
+  .si-card,
+  .si-hero {
+    padding: 14px;
+  }
+
+  .si-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .si-span-2 {
+    grid-column: auto;
+  }
+
+  .si-card-head,
+  .si-mobile-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .si-table-wrap {
+    display: none;
+  }
+
+  .si-mobile-list {
+    display: grid;
+    gap: 10px;
+  }
+}

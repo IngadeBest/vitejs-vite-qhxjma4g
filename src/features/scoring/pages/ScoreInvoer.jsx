@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
+import "./ScoreInvoer.css";
 
 // Helper: 'mm:ss:hh' (of 'mm:ss') => seconden (float)
 function parseTimeString(str) {
@@ -298,27 +299,23 @@ export default function ScoreInvoer() {
     ];
   }
 
+  const klassement = berekenKlassement();
+
   return (
-    <div style={{ background: "#f5f7fb", minHeight: "100vh", padding: "24px 0" }}>
-      <div style={{
-        maxWidth: 750,
-        background: "#fff",
-        borderRadius: 16,
-        boxShadow: "0 6px 24px #20457422",
-        margin: "0 auto",
-        padding: "40px 32px 28px 32px",
-        fontFamily: "system-ui, sans-serif"
-      }}>
-        <h2 style={{ fontSize: 33, fontWeight: 900, color: "#204574", letterSpacing: 1.2, marginBottom: 22 }}>
-          Score-invoer
-        </h2>
-        <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: "#fff7ed", border: "1px solid #ecd9c2", color: "#6b4827", fontWeight: 700 }}>
+    <div className="si-page">
+      <div className="si-shell">
+        <div className="si-hero">
+          <h2>Score-invoer</h2>
+          <div className="si-note">
           {selectedWedstrijd ? `Actieve wedstrijd: ${selectedWedstrijd.naam}` : "Geen actieve wedstrijd geselecteerd"}
+          </div>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginBottom: 20 }}>
-          <label>
-            Klasse:
-            <select value={selectedKlasse} onChange={e => {
+
+        <section className="si-card">
+        <div className="si-form-grid">
+          <label className="si-field">
+            <span>Klasse</span>
+            <select className="si-input" value={selectedKlasse} onChange={e => {
               setSelectedKlasse(e.target.value);
               setSelectedOnderdeel("");
               setSelectedProef(null);
@@ -328,9 +325,9 @@ export default function ScoreInvoer() {
               {[...new Set(proeven.map(p => p.klasse))].map(k => <option key={k}>{k}</option>)}
             </select>
           </label>
-          <label>
-            Onderdeel:
-            <select value={selectedOnderdeel} onChange={e => {
+          <label className="si-field">
+            <span>Onderdeel</span>
+            <select className="si-input" value={selectedOnderdeel} onChange={e => {
               setSelectedOnderdeel(e.target.value);
               setSelectedProef(null);
               resetForm();
@@ -339,9 +336,9 @@ export default function ScoreInvoer() {
               {onderdelen.map(o => <option key={o}>{o}</option>)}
             </select>
           </label>
-          <label>
-            Proef:
-            <select value={selectedProef?.id || ""} onChange={e => {
+          <label className="si-field si-span-2">
+            <span>Proef</span>
+            <select className="si-input" value={selectedProef?.id || ""} onChange={e => {
               const proef = proeven.find(p => p.id === Number(e.target.value));
               setSelectedProef(proef || null);
               resetForm();
@@ -355,108 +352,130 @@ export default function ScoreInvoer() {
             </select>
           </label>
         </div>
-        <div style={{ display: "flex", gap: 20, alignItems: "center", marginBottom: 16 }}>
-          <label>
-            Ruiter:
-            <select value={selectedRuiter} onChange={e => setSelectedRuiter(e.target.value)}>
+        </section>
+
+        <section className="si-card">
+        <div className="si-form-grid si-form-grid-actions">
+          <label className="si-field si-span-2">
+            <span>Ruiter</span>
+            <select className="si-input" value={selectedRuiter} onChange={e => setSelectedRuiter(e.target.value)}>
               <option value="">---</option>
               {getRuitersVoorKlasse().map(r =>
                 <option key={r.id} value={r.id}>{r.naam} met {r.paard}</option>
               )}
             </select>
           </label>
-          <label>
-            {selectedOnderdeel === "Speedtrail" ? "Tijd (mm:ss:hh)" : "Score"}:
+          <label className="si-field">
+            <span>{selectedOnderdeel === "Speedtrail" ? "Tijd (mm:ss:hh)" : "Score"}</span>
             {selectedOnderdeel === "Speedtrail" ? (
               <input
+                className="si-input"
                 type="text"
                 pattern="[0-9]{2}:[0-9]{2}(:[0-9]{2})?"
                 value={scoreInput}
                 onChange={e => setScoreInput(e.target.value)}
                 placeholder="02:35:09"
                 disabled={dq}
-                style={{ width: 100 }}
               />
             ) : (
               <input
+                className="si-input"
                 type="number"
                 value={scoreInput}
                 onChange={e => setScoreInput(e.target.value)}
                 disabled={dq}
-                style={{ width: 70 }}
               />
             )}
             {selectedOnderdeel !== "Speedtrail" && selectedProef && selectedProef.max_score ? (
-              <span style={{ color: "#999", marginLeft: 4 }}>
+              <span className="si-max-score">
                 / {selectedProef.max_score}
               </span>
             ) : null}
           </label>
-          <label>
-            DQ:
+          <label className="si-check">
             <input
               type="checkbox"
               checked={dq}
               onChange={e => setDQ(e.target.checked)}
             />
+            <span>DQ</span>
           </label>
-          <button onClick={handleOpslaan} style={{
-            background: "#3a8bfd",
-            color: "#fff",
-            fontWeight: 700,
-            padding: "10px 22px",
-            border: "none",
-            borderRadius: 8,
-            fontSize: 18,
-            cursor: "pointer"
-          }}>
+          <button className="si-button" onClick={handleOpslaan}>
             {editingId ? "Bijwerken" : "Opslaan"}
           </button>
         </div>
-        {error && <div style={{ color: "red", marginBottom: 12 }}>{error}</div>}
+        {error && <div className="si-error">{error}</div>}
+        </section>
 
-        <h3 style={{
-          marginTop: 32, marginBottom: 8,
-          color: "#3a8bfd", textTransform: "uppercase",
-          fontWeight: 700, fontSize: 22
-        }}>
+        <section className="si-card si-overview">
+        <div className="si-card-head">
+          <h3>
           Tussenstand {selectedKlasse && `${selectedKlasse}`} {selectedOnderdeel && `– ${selectedOnderdeel}`}
-        </h3>
-        <table style={{ width: "100%", borderCollapse: "collapse", background: "#fafdff", borderRadius: 8 }}>
+          </h3>
+        </div>
+        <div className="si-table-wrap">
+        <table className="si-table">
           <thead>
-            <tr style={{ background: "#d3e6fd", color: "#174174" }}>
-              <th style={{ padding: 8 }}>Plaats</th>
-              <th style={{ padding: 8 }}>Ruiter</th>
-              <th style={{ padding: 8 }}>Paard</th>
-              <th style={{ padding: 8 }}>{selectedOnderdeel === "Speedtrail" ? "Tijd" : "Score"}</th>
-              <th style={{ padding: 8 }}>Punten</th>
-              <th style={{ padding: 8 }}>Acties</th>
+            <tr>
+              <th>Plaats</th>
+              <th>Ruiter</th>
+              <th>Paard</th>
+              <th>{selectedOnderdeel === "Speedtrail" ? "Tijd" : "Score"}</th>
+              <th>Punten</th>
+              <th>Acties</th>
             </tr>
           </thead>
           <tbody>
-            {berekenKlassement().length === 0 ? (
+            {klassement.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", padding: 16, color: "#777" }}>
+                <td colSpan={6} className="si-empty">
                   Nog geen scores ingevoerd voor deze proef/klasse.
                 </td>
               </tr>
             ) : (
-              berekenKlassement().map(item => (
+              klassement.map(item => (
                 <tr key={item.id || item.ruiter_id}>
-                  <td style={{ padding: 8 }}>{item.plaats}</td>
-                  <td style={{ padding: 8 }}>{item.naam}</td>
-                  <td style={{ padding: 8 }}>{item.paard}</td>
-                  <td style={{ padding: 8 }}>{item.scoreLabel}</td>
-                  <td style={{ padding: 8, fontWeight: 700 }}>{item.punten}</td>
-                  <td style={{ padding: 8 }}>
-                    <button onClick={() => handleEdit(item)} style={{ color: "#296fe6", border: "none", background: "none", fontWeight: 700, marginRight: 6, cursor: "pointer" }}>Bewerken</button>
-                    <button onClick={() => handleDelete(item.id)} style={{ color: "#b23e3e", border: "none", background: "none", fontWeight: 700, cursor: "pointer" }}>Verwijderen</button>
+                  <td>{item.plaats}</td>
+                  <td>{item.naam}</td>
+                  <td>{item.paard}</td>
+                  <td>{item.scoreLabel}</td>
+                  <td className="si-strong">{item.punten}</td>
+                  <td>
+                    <div className="si-actions">
+                      <button type="button" className="si-link-button" onClick={() => handleEdit(item)}>Bewerken</button>
+                      <button type="button" className="si-link-button si-link-danger" onClick={() => handleDelete(item.id)}>Verwijderen</button>
+                    </div>
                   </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
+        </div>
+        <div className="si-mobile-list">
+          {klassement.length === 0 ? (
+            <div className="si-empty si-mobile-empty">Nog geen scores ingevoerd voor deze proef/klasse.</div>
+          ) : klassement.map((item) => (
+            <article key={item.id || item.ruiter_id} className="si-mobile-card">
+              <div className="si-mobile-head">
+                <div>
+                  <strong>{item.naam}</strong>
+                  <div className="si-muted">{item.paard}</div>
+                </div>
+                <div className="si-pill">{item.plaats}</div>
+              </div>
+              <div className="si-mobile-grid">
+                <div><span>Score</span>{item.scoreLabel}</div>
+                <div><span>Punten</span>{item.punten}</div>
+              </div>
+              <div className="si-actions">
+                <button type="button" className="si-link-button" onClick={() => handleEdit(item)}>Bewerken</button>
+                <button type="button" className="si-link-button si-link-danger" onClick={() => handleDelete(item.id)}>Verwijderen</button>
+              </div>
+            </article>
+          ))}
+        </div>
+        </section>
       </div>
     </div>
   );

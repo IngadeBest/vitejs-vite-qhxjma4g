@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
+import "./ProefInstellingen.css";
 
 const klasses = ["Introductieklasse (WE0)", "WE1", "WE2", "WE2+", "WE3", "WE4", "Young Riders", "Junioren"];
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
@@ -105,20 +106,27 @@ export default function ProefInstellingen() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: "30px auto", background: "#fff", padding: 30, borderRadius: 14, boxShadow: "0 3px 15px #1a2a4131", fontFamily: "system-ui, sans-serif" }}>
-      <h2 style={{ fontWeight: 900, color: "#204574", marginBottom: 10 }}>Proefinstellingen</h2>
-      <p style={{ marginTop: 0, color: "#667085" }}>
+    <div className="pi-page">
+      <div className="pi-shell">
+      <div className="pi-hero">
+        <div>
+          <h2>Proefinstellingen</h2>
+          <p>
         {actieveWedstrijd ? `Actieve wedstrijd: ${actieveWedstrijd.naam}` : "Kies of selecteer eerst een wedstrijd om proeven gekoppeld te beheren."}
-      </p>
-      <div style={{ marginBottom: 18 }}>
-        <label style={{ fontWeight: 700, display: "block", marginBottom: 8 }}>Wedstrijd</label>
+          </p>
+        </div>
+      </div>
+
+      <section className="pi-card">
+      <div className="pi-field">
+        <label>Wedstrijd</label>
         <select
+          className="pi-input"
           value={actieveWedstrijdId}
           onChange={(e) => {
             setFilterWedstrijdId(e.target.value);
             setSelectedWedstrijdId(e.target.value);
           }}
-          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1", width: "100%" }}
         >
           <option value="">Alle wedstrijden</option>
           {wedstrijden.map((wedstrijd) => (
@@ -128,29 +136,32 @@ export default function ProefInstellingen() {
           ))}
         </select>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      </section>
+
+      <section className="pi-card">
+      <div className="pi-form-grid">
         <input
+          className="pi-input"
           name="naam"
           value={form.naam}
           onChange={e => setForm({ ...form, naam: e.target.value })}
           placeholder="Naam proef"
-          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
           disabled={loading}
         />
         <select
+          className="pi-input"
           name="klasse"
           value={form.klasse}
           onChange={e => setForm({ ...form, klasse: e.target.value })}
-          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
           disabled={loading}
         >
           {klasses.map(k => <option key={k}>{k}</option>)}
         </select>
         <select
+          className="pi-input"
           name="onderdeel"
           value={form.onderdeel}
           onChange={e => setForm({ ...form, onderdeel: e.target.value })}
-          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
           disabled={loading}
         >
           {onderdelen.map(o => <option key={o}>{o}</option>)}
@@ -158,47 +169,51 @@ export default function ProefInstellingen() {
         {/* Alleen voor niet-Speedtrail */}
         {form.onderdeel !== "Speedtrail" && (
           <input
+            className="pi-input"
             name="max_score"
             type="number"
             value={form.max_score}
             onChange={e => setForm({ ...form, max_score: e.target.value })}
             placeholder="Max punten"
-            style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
             disabled={loading}
           />
         )}
         <input
+          className="pi-input"
           name="datum"
           type="date"
           value={form.datum}
           onChange={e => setForm({ ...form, datum: e.target.value })}
-          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1" }}
           disabled={loading}
         />
-        <label style={{ fontSize: 16, fontWeight: 700 }}>
+        <label className="pi-check">
           <input
             type="checkbox"
             checked={form.jeugd}
             onChange={e => setForm({ ...form, jeugd: e.target.checked })}
-            style={{ marginRight: 7 }}
             disabled={loading}
           />
           Jeugd rubriek
         </label>
         <button
+          className="pi-button"
           onClick={handleAddOrUpdate}
-          style={{ marginTop: 8, background: "#3a8bfd", color: "#fff", border: "none", padding: "13px 0", fontSize: 18, borderRadius: 8, cursor: loading ? "not-allowed" : "pointer", fontWeight: "bold", boxShadow: "0 1px 7px #3a8bfd33" }}
           disabled={loading}
         >
           {editingId ? "Bijwerken" : "Toevoegen"}
         </button>
       </div>
-      {/* Overzicht */}
-      <div style={{ marginTop: 38 }}>
-        <h3 style={{ color: "#3a8bfd", fontWeight: 900 }}>Overzicht</h3>
-        <table style={{ width: "100%", background: "#fafdff", marginTop: 6, borderRadius: 8 }}>
+      </section>
+
+      <section className="pi-card pi-overview">
+        <div className="pi-card-head">
+          <h3>Overzicht</h3>
+          <p>{proeven.length} proeven gevonden</p>
+        </div>
+        <div className="pi-table-wrap">
+        <table className="pi-table">
           <thead>
-            <tr style={{ background: "#e6eefb" }}>
+            <tr>
               <th>Naam</th>
               <th>Klasse</th>
               <th>Onderdeel</th>
@@ -225,12 +240,35 @@ export default function ProefInstellingen() {
             ))}
           </tbody>
         </table>
-      </div>
+        </div>
+        <div className="pi-mobile-list">
+          {proeven.map((p) => (
+            <article key={p.id} className="pi-mobile-card">
+              <div className="pi-mobile-head">
+                <div>
+                  <strong>{p.naam}</strong>
+                  <div className="pi-muted">{p.onderdeel}</div>
+                </div>
+                <div className="pi-badge">{p.max_score ?? "-"}</div>
+              </div>
+              <div className="pi-mobile-grid">
+                <div><span>Klasse</span>{p.klasse}</div>
+                <div><span>Datum</span>{p.datum || "-"}</div>
+              </div>
+              <div className="pi-actions">
+                <button type="button" className="pi-link-button" onClick={() => handleEdit(p)} disabled={loading}>Bewerken</button>
+                <button type="button" className="pi-link-button pi-link-danger" onClick={() => handleDelete(p.id)} disabled={loading}>Verwijderen</button>
+              </div>
+            </article>
+          ))}
+        </div>
       {loading && (
-        <div style={{ textAlign: "center", marginTop: 20, color: "#666" }}>
+        <div className="pi-loading">
           Even geduld...
         </div>
       )}
+      </section>
+      </div>
     </div>
   );
 }
