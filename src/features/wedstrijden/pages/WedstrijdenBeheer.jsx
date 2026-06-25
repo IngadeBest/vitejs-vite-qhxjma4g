@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import ProefEditor from "@/features/wedstrijden/components/ProefEditor";
@@ -449,6 +450,9 @@ export default function WedstrijdenBeheer() {
               <p>Aanmaken, bewerken en configureren van wedstrijden op één plek.</p>
             </div>
             <div className="wb-hero-actions">
+              <Link className="wb-hero-link" to="/deelnemers">Naar Deelnemers</Link>
+              <Link className="wb-hero-link" to="/startlijst">Startlijst</Link>
+              <Link className="wb-hero-link" to="/wachtlijst">Wachtlijst</Link>
               <button type="button" className="wp-btn secondary" onClick={() => setShowNew((value) => !value)}>
                 {showNew ? "Nieuwe wedstrijd verbergen" : "Nieuwe wedstrijd"}
               </button>

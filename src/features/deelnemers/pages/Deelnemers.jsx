@@ -474,6 +474,9 @@ export default function Deelnemers() {
             <p>Deelnemers beheren, muteren en afmelden op één plek.</p>
           </div>
           <div className="dm-hero-actions">
+            <Link to="/wedstrijden" className="dm-btn dm-btn-ghost">
+              Naar Wedstrijden
+            </Link>
             <button
               type="button"
               onClick={loadDeelnemers}
@@ -482,6 +485,9 @@ export default function Deelnemers() {
             >
               Vernieuwen
             </button>
+            <Link to="/wachtlijst" className="dm-btn dm-btn-ghost">
+              Naar Wachtlijst
+            </Link>
             <Link to="/startlijst" className="dm-btn dm-btn-ghost">
               Naar Startlijst
             </Link>

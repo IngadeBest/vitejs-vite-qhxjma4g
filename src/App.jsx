@@ -1,6 +1,7 @@
 import React from "react";
 import { HashRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
 import DomainRedirect from "@/DomainRedirect";
+import "./App.css";
 
 // Pagina's
 import PublicInschrijven from "@/features/inschrijven/pages/PublicInschrijven";
@@ -17,13 +18,17 @@ import ScoreInvoer from "@/features/scoring/pages/ScoreInvoer";
 import TrailGenerator from "@/features/trailgenerator/pages/TrailGenerator";
 
 const navStyle = ({ isActive }) => ({
-  padding: "8px 10px",
-  borderRadius: 8,
+  padding: "8px 11px",
+  borderRadius: 999,
   textDecoration: "none",
-  color: isActive ? "#fff" : "#2b6cb0",
-  background: isActive ? "#2b6cb0" : "transparent",
+  color: isActive ? "#fff" : "#6b4827",
+  background: isActive ? "#8b5a2b" : "#fff7ed",
+  border: "1px solid " + (isActive ? "#7a4b20" : "#ecd9c2"),
   fontWeight: 700,
+  whiteSpace: "nowrap",
 });
+
+const navGroup = (title, links) => ({ title, links });
 
 function InnerApp() {
   const host = typeof window !== "undefined" ? window.location.hostname : "";
@@ -41,43 +46,52 @@ function InnerApp() {
     <>
       <DomainRedirect />
 
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "12px 16px",
-          borderBottom: "1px solid #eee",
-          position: "sticky",
-          top: 0,
-          background: "#fff",
-          zIndex: 10,
-        }}
-      >
-        <div style={{ fontWeight: 800, fontSize: 18, color: "#102754" }}>
-          Working Point
+      <header className="wp-app-header">
+        <div className="wp-app-brand">
+          <div className="wp-app-brand-title">Working Point</div>
+          <div className="wp-app-brand-subtitle">Beheer van inschrijving tot uitslag</div>
         </div>
 
-        <nav style={{ display: "flex", gap: 10, marginLeft: "auto", flexWrap: "wrap" }}>
+        <nav className="wp-app-nav">
           {onApp ? (
             <>
-              {/* Beheer op app.*: toon Wedstrijden als start en volgorde aanpassen */}
-              <NavLink to="/wedstrijden" style={navStyle}>Wedstrijden</NavLink>
-              <NavLink to="/wachtlijst" style={navStyle}>Wachtlijst</NavLink>
-              <NavLink to="/startlijst" style={navStyle}>Startlijst</NavLink>
-              <NavLink to="/deelnemers" style={navStyle}>Deelnemers</NavLink>
-              <NavLink to="/protocollen" style={navStyle}>Protocollen</NavLink>
-              <NavLink to="/trailgenerator" style={navStyle}>Trailgenerator</NavLink>
-              <NavLink to="/proeven" style={navStyle}>Proeven</NavLink>
-              <NavLink to="/scores" style={navStyle}>Score Invoer</NavLink>
-              <NavLink to="/uitslagen" style={navStyle}>Uitslagen</NavLink>
+              {[
+                navGroup("Wedstrijden", [
+                  ["/wedstrijden", "Wedstrijden"],
+                  ["/proeven", "Proeven"],
+                  ["/protocollen", "Protocollen"],
+                  ["/trailgenerator", "Trailgenerator"],
+                ]),
+                navGroup("Deelnemers", [
+                  ["/deelnemers", "Deelnemers"],
+                  ["/startlijst", "Startlijst"],
+                  ["/wachtlijst", "Wachtlijst"],
+                ]),
+                navGroup("Wedstrijddag", [
+                  ["/scores", "Score invoer"],
+                  ["/uitslagen", "Uitslagen"],
+                ]),
+              ].map((group) => (
+                <div key={group.title} className="wp-nav-group">
+                  <div className="wp-nav-group-title">{group.title}</div>
+                  <div className="wp-nav-group-links">
+                    {group.links.map(([to, label]) => (
+                      <NavLink key={to} to={to} style={navStyle}>
+                        {label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </>
           ) : (
-            <>
-              {/* Publiek op MAIN: géén "Beheer" knop zichtbaar */}
-              <NavLink to="/formulier" style={navStyle}>Inschrijven</NavLink>
-              <NavLink to="/contact" style={navStyle}>Contact</NavLink>
-            </>
+            <div className="wp-nav-group">
+              <div className="wp-nav-group-title">Publiek</div>
+              <div className="wp-nav-group-links">
+                <NavLink to="/formulier" style={navStyle}>Inschrijven</NavLink>
+                <NavLink to="/contact" style={navStyle}>Contact</NavLink>
+              </div>
+            </div>
           )}
         </nav>
       </header>

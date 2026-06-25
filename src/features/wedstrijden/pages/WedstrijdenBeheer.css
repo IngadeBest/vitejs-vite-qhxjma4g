@@ -50,6 +50,24 @@
   gap: 10px;
 }
 
+.wb-hero-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 11px;
+  border-radius: 999px;
+  border: 1px solid #ecd9c2;
+  background: #fff7ed;
+  color: #6b4827;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.wb-hero-link:hover {
+  background: #fdebd5;
+  color: #5d3d1f;
+}
+
 .wb-actions-row-end {
   justify-content: flex-end;
 }
