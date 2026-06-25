@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
+import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 // heavy libs: imported on-demand below to avoid module-init side-effects in the main bundle
 
 // HELPER: 'mm:ss:hh'
@@ -54,6 +55,7 @@ import Container from "@/ui/Container";
 
 export default function Einduitslag() {
   const { items: wedstrijden, loading: loadingWed } = useWedstrijden(false);
+  const { selectedWedstrijdId: appSelectedWedstrijdId } = useWedstrijdContext();
   const [selectedWedstrijdId, setSelectedWedstrijdId] = useState("");
   const [ruiters, setRuiters] = useState([]);
   const [proeven, setProeven] = useState([]);
@@ -63,12 +65,17 @@ export default function Einduitslag() {
 
   // Auto-selecteer vandaag of eerste wedstrijd
   useEffect(() => {
-    if (!loadingWed && wedstrijden.length > 0 && !selectedWedstrijdId) {
+    if (!loadingWed && wedstrijden.length > 0 && !selectedWedstrijdId && appSelectedWedstrijdId) {
+      setSelectedWedstrijdId(appSelectedWedstrijdId);
+      return;
+    }
+
+    if (!loadingWed && wedstrijden.length > 0 && !selectedWedstrijdId && !appSelectedWedstrijdId) {
       const today = new Date().toISOString().split('T')[0];
       const vandaag = wedstrijden.find(w => w.datum === today);
       setSelectedWedstrijdId(vandaag?.id || wedstrijden[0].id);
     }
-  }, [wedstrijden, loadingWed]);
+  }, [wedstrijden, loadingWed, appSelectedWedstrijdId, selectedWedstrijdId]);
 
   useEffect(() => {
     if (selectedWedstrijdId) {

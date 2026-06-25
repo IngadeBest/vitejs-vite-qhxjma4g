@@ -2,10 +2,12 @@ import React from "react";
 import { HashRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
 import DomainRedirect from "@/DomainRedirect";
 import "./App.css";
+import { WedstrijdProvider, useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 
 // Pagina's
 import PublicInschrijven from "@/features/inschrijven/pages/PublicInschrijven";
 import InschrijfFormulier from "@/features/inschrijven/pages/InschrijfFormulier";
+import WedstrijdStart from "@/features/wedstrijden/pages/WedstrijdStart";
 import Startlijst from "@/features/startlijst/pages/Startlijst";
 import Deelnemers from "@/features/deelnemers/pages/Deelnemers";
 import ProtocolGenerator from "@/features/protocollen/pages/ProtocolGenerator";
@@ -28,7 +30,79 @@ const navStyle = ({ isActive }) => ({
   whiteSpace: "nowrap",
 });
 
-const navGroup = (title, links) => ({ title, links });
+const navGroups = [
+  {
+    title: "Wedstrijdpoint",
+    to: "/wedstrijden",
+    links: [
+      ["/wedstrijden", "Wedstrijdbeheer"],
+      ["/proeven", "Proeven"],
+      ["/protocollen", "Protocollen"],
+      ["/trailgenerator", "Trailgenerator"],
+    ],
+  },
+  {
+    title: "Deelnemers",
+    to: "/deelnemers",
+    links: [
+      ["/deelnemers", "Deelnemers"],
+      ["/startlijst", "Startlijst"],
+      ["/wachtlijst", "Wachtlijst"],
+    ],
+  },
+  {
+    title: "Wedstrijddag",
+    to: "/scores",
+    links: [
+      ["/scores", "Score invoer"],
+      ["/uitslagen", "Uitslagen"],
+    ],
+  },
+];
+
+function AppHeader({ onApp, hasSelection }) {
+  const { selectedWedstrijd } = useWedstrijdContext();
+  const subtitle = onApp
+    ? (hasSelection ? `Geselecteerd: ${selectedWedstrijd?.naam || "wedstrijd"}` : "Kies eerst een wedstrijd")
+    : "Beheer van inschrijving tot uitslag";
+
+  return (
+    <header className="wp-app-header">
+      <div className="wp-app-brand">
+        <div className="wp-app-brand-title">Working Point</div>
+        <div className="wp-app-brand-subtitle">{subtitle}</div>
+      </div>
+
+      <nav className="wp-app-nav">
+        {onApp ? (
+          navGroups.map((group) => (
+            <div key={group.title} className="wp-nav-group wp-nav-dropdown">
+              <NavLink to={group.to} style={navStyle} className="wp-nav-top-link">
+                {group.title}
+              </NavLink>
+              <div className="wp-nav-group-title">{group.title}</div>
+              <div className="wp-nav-group-links">
+                {group.links.map(([to, label]) => (
+                  <NavLink key={to} to={to} style={navStyle}>
+                    {label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="wp-nav-group">
+            <div className="wp-nav-group-title">Publiek</div>
+            <div className="wp-nav-group-links">
+              <NavLink to="/formulier" style={navStyle}>Inschrijven</NavLink>
+              <NavLink to="/contact" style={navStyle}>Contact</NavLink>
+            </div>
+          </div>
+        )}
+      </nav>
+    </header>
+  );
+}
 
 function InnerApp() {
   const host = typeof window !== "undefined" ? window.location.hostname : "";
@@ -42,59 +116,17 @@ function InnerApp() {
   if (menuOverride === "public") onApp = false;
   if (menuOverride === "beheer" || menuOverride === "admin") onApp = true;
 
+  const { selectedWedstrijdId, selectedWedstrijd } = useWedstrijdContext();
+  const hasSelection = !!selectedWedstrijdId;
+  const appRootElement = onApp
+    ? (hasSelection ? <Navigate to="/wedstrijden" replace /> : <WedstrijdStart />)
+    : <Navigate to="/formulier" replace />;
+
   return (
     <>
       <DomainRedirect />
 
-      <header className="wp-app-header">
-        <div className="wp-app-brand">
-          <div className="wp-app-brand-title">Working Point</div>
-          <div className="wp-app-brand-subtitle">Beheer van inschrijving tot uitslag</div>
-        </div>
-
-        <nav className="wp-app-nav">
-          {onApp ? (
-            <>
-              {[
-                navGroup("Wedstrijden", [
-                  ["/wedstrijden", "Wedstrijden"],
-                  ["/proeven", "Proeven"],
-                  ["/protocollen", "Protocollen"],
-                  ["/trailgenerator", "Trailgenerator"],
-                ]),
-                navGroup("Deelnemers", [
-                  ["/deelnemers", "Deelnemers"],
-                  ["/startlijst", "Startlijst"],
-                  ["/wachtlijst", "Wachtlijst"],
-                ]),
-                navGroup("Wedstrijddag", [
-                  ["/scores", "Score invoer"],
-                  ["/uitslagen", "Uitslagen"],
-                ]),
-              ].map((group) => (
-                <div key={group.title} className="wp-nav-group">
-                  <div className="wp-nav-group-title">{group.title}</div>
-                  <div className="wp-nav-group-links">
-                    {group.links.map(([to, label]) => (
-                      <NavLink key={to} to={to} style={navStyle}>
-                        {label}
-                      </NavLink>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </>
-          ) : (
-            <div className="wp-nav-group">
-              <div className="wp-nav-group-title">Publiek</div>
-              <div className="wp-nav-group-links">
-                <NavLink to="/formulier" style={navStyle}>Inschrijven</NavLink>
-                <NavLink to="/contact" style={navStyle}>Contact</NavLink>
-              </div>
-            </div>
-          )}
-        </nav>
-      </header>
+      <AppHeader onApp={onApp} hasSelection={hasSelection} />
 
       <Routes>
   {/* Publiek */}
@@ -102,6 +134,7 @@ function InnerApp() {
         <Route path="/contact" element={<Contact />} />
 
   {/* Beheer */}
+  <Route path="/" element={onApp ? appRootElement : <Navigate to="/formulier" replace />} />
   <Route path="/startlijst" element={<Startlijst />} />
   <Route path="/deelnemers" element={<Deelnemers />} />
   <Route path="/protocollen" element={<ProtocolGenerator />} />
@@ -121,8 +154,10 @@ function InnerApp() {
 
 export default function App() {
   return (
-    <Router>
-      <InnerApp />
-    </Router>
+    <WedstrijdProvider>
+      <Router>
+        <InnerApp />
+      </Router>
+    </WedstrijdProvider>
   );
 }

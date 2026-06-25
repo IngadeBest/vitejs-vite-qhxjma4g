@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 
 // Helper: 'mm:ss:hh' (of 'mm:ss') => seconden (float)
 function parseTimeString(str) {
@@ -28,6 +29,7 @@ function formatTime(secs) {
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
 
 export default function ScoreInvoer() {
+  const { selectedWedstrijdId: activeWedstrijdId, selectedWedstrijd } = useWedstrijdContext();
   const [ruiters, setRuiters] = useState([]);
   const [proeven, setProeven] = useState([]);
   const [scores, setScores] = useState([]);
@@ -40,12 +42,23 @@ export default function ScoreInvoer() {
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
 
-  useEffect(() => { fetchRuiters(); fetchProeven(); }, []);
+  useEffect(() => {
+    fetchRuiters();
+    fetchProeven();
+    resetForm();
+    setSelectedKlasse("");
+    setSelectedOnderdeel("");
+    setSelectedProef(null);
+  }, [activeWedstrijdId]);
   useEffect(() => { if (selectedProef) { fetchScores(); } else { setScores([]); } }, [selectedProef]);
 
   async function fetchRuiters() {
     // Haal ruiters uit inschrijvingen tabel (nieuw systeem)
-    let { data } = await supabase.from("inschrijvingen").select("id, startnummer, ruiter, paard, klasse, wedstrijd_id, rubriek").order("startnummer");
+    let query = supabase.from("inschrijvingen").select("id, startnummer, ruiter, paard, klasse, wedstrijd_id, rubriek").order("startnummer");
+    if (activeWedstrijdId) {
+      query = query.eq("wedstrijd_id", activeWedstrijdId);
+    }
+    let { data } = await query;
     
     // Normaliseer klasse codes naar proeven formaat
     const klasseMap = {
@@ -98,7 +111,11 @@ export default function ScoreInvoer() {
     setRuiters(mapped);
   }
   async function fetchProeven() {
-    let { data } = await supabase.from("proeven").select("*").order("id");
+    let query = supabase.from("proeven").select("*").order("id");
+    if (activeWedstrijdId) {
+      query = query.eq("wedstrijd_id", activeWedstrijdId);
+    }
+    let { data } = await query;
     setProeven(data || []);
   }
   async function fetchScores() {
@@ -295,6 +312,9 @@ export default function ScoreInvoer() {
         <h2 style={{ fontSize: 33, fontWeight: 900, color: "#204574", letterSpacing: 1.2, marginBottom: 22 }}>
           Score-invoer
         </h2>
+        <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: "#fff7ed", border: "1px solid #ecd9c2", color: "#6b4827", fontWeight: 700 }}>
+          {selectedWedstrijd ? `Actieve wedstrijd: ${selectedWedstrijd.naam}` : "Geen actieve wedstrijd geselecteerd"}
+        </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginBottom: 20 }}>
           <label>
             Klasse:

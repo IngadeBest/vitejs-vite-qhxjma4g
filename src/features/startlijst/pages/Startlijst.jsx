@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
 import Container from "@/ui/Container";
+import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 import "./Startlijst.css";
 
 // ======= Helpers =======
@@ -813,6 +814,7 @@ export default function Startlijst() {
   // Filters met URL sync
   const [wedstrijd, setWedstrijd] = useState(getQueryParam("wedstrijd_id"));
   const { items: wedstrijden, loading: loadingWed } = useWedstrijden(false);
+  const { selectedWedstrijdId: appSelectedWedstrijdId } = useWedstrijdContext();
   const [klasse, setKlasse] = useState(getQueryParam("klasse"));
   const [rubriek, setRubriek] = useState(getQueryParam("rubriek"));
   useEffect(() => {
@@ -824,6 +826,13 @@ export default function Startlijst() {
   useEffect(() => {
     setQueryParam("rubriek", rubriek);
   }, [rubriek]);
+
+  useEffect(() => {
+    if (!getQueryParam("wedstrijd_id") && appSelectedWedstrijdId) {
+      setQueryParam("wedstrijd_id", appSelectedWedstrijdId);
+      setWedstrijd(appSelectedWedstrijdId);
+    }
+  }, [appSelectedWedstrijdId]);
 
   // Lijst (entries + breaks)
   // Start met lege lijst - data wordt geladen via loadDeelnemersFromDB wanneer wedstrijd geselecteerd is

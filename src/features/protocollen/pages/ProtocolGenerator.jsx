@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { padStartnummer, lookupOffset } from '@/lib/startnummer';
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
+import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 import obstakelsData from "@/data/obstakels.json";
 import defaultTemplates from "@/data/defaultTemplates.json";
 import jsPDF from 'jspdf';
@@ -555,6 +556,7 @@ function protocolToDoc(doc, p, items, autoTable) {
 
 export default function ProtocolGenerator() {
   const { items: wedstrijden } = useWedstrijden(false);
+  const { selectedWedstrijdId: appSelectedWedstrijdId } = useWedstrijdContext();
   const [stap, setStap] = useState(1);
   const [config, setConfig] = useState({
     wedstrijd_id: "",
@@ -567,6 +569,12 @@ export default function ProtocolGenerator() {
     () => wedstrijden.find(w => w.id === config.wedstrijd_id) || null,
     [wedstrijden, config.wedstrijd_id]
   );
+
+  useEffect(() => {
+    if (!config.wedstrijd_id && appSelectedWedstrijdId) {
+      setConfig(prev => ({ ...prev, wedstrijd_id: appSelectedWedstrijdId }));
+    }
+  }, [appSelectedWedstrijdId, config.wedstrijd_id]);
 
   useEffect(() => {
     if (selectedWedstrijd?.datum) {

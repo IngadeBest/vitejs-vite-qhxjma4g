@@ -5,10 +5,9 @@ export default function HostRedirect() {
   const nav = useNavigate();
   useEffect(() => {
     const host = window.location.hostname;
-    // Pas onderstaande paden evt. aan jouw routes aan:
     const target = host.startsWith("app.")
-      ? "/startlijst"   // beheer landing
-      : "/formulier";   // ruiterformulier
+      ? "/"           // app landing met wedstrijdkeuze
+      : "/formulier"; // ruiterformulier
     nav(target, { replace: true });
   }, [nav]);
   return null; // niets tonen; we redirecten meteen

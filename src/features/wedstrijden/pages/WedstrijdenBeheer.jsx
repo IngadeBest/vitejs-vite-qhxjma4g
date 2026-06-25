@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import ProefEditor from "@/features/wedstrijden/components/ProefEditor";
 import Container from "@/ui/Container";
 import "./WedstrijdenBeheer.css";
+import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 
 const KLASSEN = [
   { code: "we0", label: "Introductieklasse (WE0)" },
@@ -119,12 +120,15 @@ function hydrateStartlijstConfig(wedstrijd) {
 }
 
 export default function WedstrijdenBeheer() {
+  const location = useLocation();
+  const { selectedWedstrijdId, setSelectedWedstrijdId, clearSelectedWedstrijd } = useWedstrijdContext();
   const { items: wedstrijden, loading } = useWedstrijden(false);
   const [nieuw, setNieuw] = useState({ naam: "", datum: "", locatie: "", status: "open" });
   const [nieuwEmail, setNieuwEmail] = useState("");
   const [selectedId, setSelectedId] = useState("");
-  const gekozen = useMemo(() => wedstrijden.find(w => w.id === selectedId) || null, [selectedId, wedstrijden]);
-  const [showNew, setShowNew] = useState(false);
+  const chosenId = selectedId || selectedWedstrijdId || "";
+  const gekozen = useMemo(() => wedstrijden.find(w => w.id === chosenId) || null, [chosenId, wedstrijden]);
+  const [showNew, setShowNew] = useState(() => new URLSearchParams(location.search).get("nieuw") === "1");
   const [editForm, setEditForm] = useState(() => hydrateWedstrijdForm(null));
 
   const [cfg, setCfg] = useState({
@@ -149,6 +153,14 @@ export default function WedstrijdenBeheer() {
   // migration SQL UI removed per user request
 
   useEffect(() => {
+    if (new URLSearchParams(location.search).get("nieuw") === "1") {
+      setShowNew(true);
+      setSelectedId("");
+      clearSelectedWedstrijd();
+    }
+  }, []);
+
+  useEffect(() => {
     if (!gekozen) {
       setEditForm(hydrateWedstrijdForm(null));
       setAllowedKlassen([]);
@@ -163,6 +175,8 @@ export default function WedstrijdenBeheer() {
     }
 
     setEditForm(hydrateWedstrijdForm(gekozen));
+  setSelectedId(gekozen.id);
+  setSelectedWedstrijdId(gekozen.id);
     setAllowedKlassen(Array.isArray(gekozen.allowed_klassen) ? gekozen.allowed_klassen : []);
 
     const hydrated = hydrateStartlijstConfig(gekozen);
@@ -173,7 +187,7 @@ export default function WedstrijdenBeheer() {
     setAlternatesMap(hydrated.alternatesMap);
     setTotaalMaximum(hydrated.totaalMaximum);
     setWachtlijstEnabled(hydrated.wachtlijstEnabled);
-  }, [gekozen]);
+  }, [gekozen, clearSelectedWedstrijd, location.search, setSelectedWedstrijdId]);
 
     
 
@@ -191,6 +205,7 @@ export default function WedstrijdenBeheer() {
       setNieuw({ naam: "", datum: "", locatie: "", status: "open" });
       setMsg("Wedstrijd aangemaakt ✔️");
       setSelectedId(data.id);
+      setSelectedWedstrijdId(data.id);
     } catch (e) {
       setMsg("Fout: " + (e?.message || String(e)));
     }
@@ -220,6 +235,7 @@ export default function WedstrijdenBeheer() {
       const { error } = await supabase.from("wedstrijden").update(payload).eq("id", gekozen.id);
       if (error) throw error;
       setMsg("Wedstrijdgegevens opgeslagen ✔️");
+      setSelectedWedstrijdId(gekozen.id);
       window.dispatchEvent(new Event("wedstrijden:refresh"));
     } catch (e) {
       setMsg("Opslaan mislukt: " + (e?.message || String(e)));
@@ -291,6 +307,7 @@ export default function WedstrijdenBeheer() {
       }
 
       setSelectedId("");
+      clearSelectedWedstrijd();
       setMsg("Wedstrijd verwijderd ✔️");
       window.dispatchEvent(new Event("wedstrijden:refresh"));
     } catch (e) {

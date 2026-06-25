@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
 import Container from "@/ui/Container";
+import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 import "./Deelnemers.css";
 
 const DEFAULT_TARIEVEN = {
@@ -52,6 +53,7 @@ const persistTarieven = (wedstrijdId, tarieven) => {
 export default function Deelnemers() {
   const location = useLocation();
   const { items: wedstrijden, loading: wedstrijdenLoading } = useWedstrijden();
+  const { selectedWedstrijdId: appSelectedWedstrijdId, selectedWedstrijd: appSelectedWedstrijd } = useWedstrijdContext();
 
   const [wedstrijd, setWedstrijd] = useState(null);
   const [deelnemers, setDeelnemers] = useState([]);
@@ -75,14 +77,20 @@ export default function Deelnemers() {
   const [actieBusyId, setActieBusyId] = useState(null);
 
   useEffect(() => {
-    const wedstrijdId = location?.state?.wedstrijdId;
+    const wedstrijdId = location?.state?.wedstrijdId || appSelectedWedstrijdId;
     if (!wedstrijdId || !Array.isArray(wedstrijden) || wedstrijden.length === 0) return;
 
     const geselecteerd = wedstrijden.find((w) => w.id === wedstrijdId);
     if (!geselecteerd) return;
 
     setWedstrijd((current) => (current?.id === geselecteerd.id ? current : geselecteerd));
-  }, [location?.state, wedstrijden]);
+  }, [location?.state, appSelectedWedstrijdId, wedstrijden]);
+
+  useEffect(() => {
+    if (!wedstrijd && appSelectedWedstrijd) {
+      setWedstrijd(appSelectedWedstrijd);
+    }
+  }, [appSelectedWedstrijd, wedstrijd]);
 
   useEffect(() => {
     if (!wedstrijd) {

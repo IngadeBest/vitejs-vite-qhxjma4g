@@ -1,0 +1,95 @@
+.ws-shell {
+  min-height: 100vh;
+  padding: 36px 0;
+  background:
+    radial-gradient(circle at top left, rgba(255, 236, 220, 0.95), transparent 30%),
+    radial-gradient(circle at top right, rgba(241, 247, 255, 0.95), transparent 28%),
+    linear-gradient(180deg, #fbf7f1 0%, #f3ede6 100%);
+}
+
+.ws-container {
+  display: grid;
+  gap: 20px;
+}
+
+.ws-hero {
+  padding: 28px 30px;
+  border: 1px solid #ecd9c2;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14px 36px rgba(103, 62, 26, 0.08);
+}
+
+.ws-kicker {
+  margin-bottom: 8px;
+  color: #8b5a2b;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ws-hero h1 {
+  margin: 0;
+  color: #5b3418;
+  font-size: clamp(2rem, 3vw, 3rem);
+}
+
+.ws-hero p {
+  margin: 10px 0 0;
+  color: #7b5a3d;
+  max-width: 70ch;
+}
+
+.ws-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.ws-card {
+  padding: 20px;
+  border: 1px solid #ecd9c2;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 12px 28px rgba(103, 62, 26, 0.06);
+}
+
+.ws-card h2 {
+  margin: 0;
+  color: #633b1b;
+}
+
+.ws-card p {
+  margin: 8px 0 14px;
+  color: #7c6349;
+}
+
+.ws-card label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  color: #6a492d;
+}
+
+.ws-card select {
+  width: 100%;
+}
+
+.ws-card-feature {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.ws-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+@media (max-width: 960px) {
+  .ws-grid {
+    grid-template-columns: 1fr;
+  }
+}

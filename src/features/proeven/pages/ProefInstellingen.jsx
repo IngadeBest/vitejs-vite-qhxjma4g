@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 
 const klasses = ["Introductieklasse (WE0)", "WE1", "WE2", "WE2+", "WE3", "WE4", "Young Riders", "Junioren"];
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
 
 export default function ProefInstellingen() {
+  const { wedstrijden, selectedWedstrijdId, selectedWedstrijd, setSelectedWedstrijdId } = useWedstrijdContext();
   const [proeven, setProeven] = useState([]);
   const [form, setForm] = useState({
     naam: "",
@@ -16,11 +18,28 @@ export default function ProefInstellingen() {
   });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [filterWedstrijdId, setFilterWedstrijdId] = useState("");
 
-  useEffect(() => { fetchProeven(); }, []);
+  const actieveWedstrijdId = selectedWedstrijdId || filterWedstrijdId;
+  const actieveWedstrijd = useMemo(
+    () => wedstrijden.find((wedstrijd) => wedstrijd.id === actieveWedstrijdId) || null,
+    [actieveWedstrijdId, wedstrijden]
+  );
+
+  useEffect(() => {
+    if (selectedWedstrijdId && !filterWedstrijdId) {
+      setFilterWedstrijdId(selectedWedstrijdId);
+    }
+  }, [selectedWedstrijdId, filterWedstrijdId]);
+
+  useEffect(() => { fetchProeven(); }, [actieveWedstrijdId]);
 
   async function fetchProeven() {
-    const { data } = await supabase.from("proeven").select("*").order("id", { ascending: true });
+    let query = supabase.from("proeven").select("*").order("id", { ascending: true });
+    if (actieveWedstrijdId) {
+      query = query.eq("wedstrijd_id", actieveWedstrijdId);
+    }
+    const { data } = await query;
     setProeven(data || []);
   }
 
@@ -36,6 +55,7 @@ export default function ProefInstellingen() {
       onderdeel: form.onderdeel,
       max_score: form.onderdeel === "Speedtrail" ? null : Number(form.max_score),
       datum: form.datum || null, // Lege string wordt null
+      wedstrijd_id: actieveWedstrijdId || null,
     };
     try {
       let result;
@@ -62,6 +82,10 @@ export default function ProefInstellingen() {
   }
 
   function handleEdit(proef) {
+    if (proef.wedstrijd_id && proef.wedstrijd_id !== selectedWedstrijdId) {
+      setSelectedWedstrijdId(proef.wedstrijd_id);
+      setFilterWedstrijdId(proef.wedstrijd_id);
+    }
     setForm({
       naam: proef.naam,
       klasse: proef.klasse.replace(" - Jeugd", ""),
@@ -81,8 +105,29 @@ export default function ProefInstellingen() {
   }
 
   return (
-    <div style={{ maxWidth: 700, margin: "30px auto", background: "#fff", padding: 30, borderRadius: 14, boxShadow: "0 3px 15px #1a2a4131", fontFamily: "system-ui, sans-serif" }}>
-      <h2 style={{ fontWeight: 900, color: "#204574", marginBottom: 22 }}>Proefinstellingen</h2>
+    <div style={{ maxWidth: 900, margin: "30px auto", background: "#fff", padding: 30, borderRadius: 14, boxShadow: "0 3px 15px #1a2a4131", fontFamily: "system-ui, sans-serif" }}>
+      <h2 style={{ fontWeight: 900, color: "#204574", marginBottom: 10 }}>Proefinstellingen</h2>
+      <p style={{ marginTop: 0, color: "#667085" }}>
+        {actieveWedstrijd ? `Actieve wedstrijd: ${actieveWedstrijd.naam}` : "Kies of selecteer eerst een wedstrijd om proeven gekoppeld te beheren."}
+      </p>
+      <div style={{ marginBottom: 18 }}>
+        <label style={{ fontWeight: 700, display: "block", marginBottom: 8 }}>Wedstrijd</label>
+        <select
+          value={actieveWedstrijdId}
+          onChange={(e) => {
+            setFilterWedstrijdId(e.target.value);
+            setSelectedWedstrijdId(e.target.value);
+          }}
+          style={{ padding: 11, fontSize: 16, borderRadius: 8, border: "1px solid #b3c1d1", width: "100%" }}
+        >
+          <option value="">Alle wedstrijden</option>
+          {wedstrijden.map((wedstrijd) => (
+            <option key={wedstrijd.id} value={wedstrijd.id}>
+              {wedstrijd.naam} {wedstrijd.datum ? `(${wedstrijd.datum})` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <input
           name="naam"

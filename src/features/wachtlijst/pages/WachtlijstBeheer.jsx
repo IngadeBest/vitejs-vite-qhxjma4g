@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useWedstrijden } from '@/features/inschrijven/pages/hooks/useWedstrijden';
+import { useWedstrijdContext } from '@/features/wedstrijden/context/WedstrijdContext';
 import Container from '@/ui/Container';
 import { Card } from '@/ui/card';
 import { Button } from '@/ui/button';
@@ -8,6 +9,7 @@ import { Alert } from '@/ui/alert';
 
 export default function WachtlijstBeheer() {
   const { items: wedstrijden, loading: wedstrijdenLoading } = useWedstrijden(false);
+  const { selectedWedstrijdId: appSelectedWedstrijdId } = useWedstrijdContext();
   const [selectedWedstrijdId, setSelectedWedstrijdId] = useState('');
   const [wachtlijst, setWachtlijst] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -15,6 +17,12 @@ export default function WachtlijstBeheer() {
   const [busy, setBusy] = useState(false);
 
   const gekozenWedstrijd = wedstrijden.find(w => w.id === selectedWedstrijdId) || null;
+
+  useEffect(() => {
+    if (!selectedWedstrijdId && appSelectedWedstrijdId) {
+      setSelectedWedstrijdId(appSelectedWedstrijdId);
+    }
+  }, [appSelectedWedstrijdId, selectedWedstrijdId]);
 
   async function loadWachtlijst() {
     if (!selectedWedstrijdId) return;
