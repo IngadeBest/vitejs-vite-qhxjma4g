@@ -36,6 +36,15 @@ export function WedstrijdProvider({ children }) {
     [wedstrijden, selectedWedstrijdId]
   );
 
+  useEffect(() => {
+    // Guard against stale localStorage values (e.g. removed/hidden wedstrijd IDs).
+    if (!selectedWedstrijdId) return;
+    if (loading) return;
+    if (!selectedWedstrijd) {
+      setSelectedWedstrijdId("");
+    }
+  }, [loading, selectedWedstrijd, selectedWedstrijdId]);
+
   const value = useMemo(
     () => ({
       wedstrijden,

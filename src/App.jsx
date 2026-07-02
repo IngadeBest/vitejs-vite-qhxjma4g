@@ -120,10 +120,13 @@ function InnerApp() {
   if (menuOverride === "beheer" || menuOverride === "admin") onApp = true;
 
   const { selectedWedstrijdId, selectedWedstrijd } = useWedstrijdContext();
-  const hasSelection = !!selectedWedstrijdId;
+  const hasSelection = !!selectedWedstrijd;
   const appRootElement = onApp
     ? (hasSelection ? <Navigate to="/wedstrijden" replace /> : <WedstrijdStart />)
     : <Navigate to="/formulier" replace />;
+  const withSelection = (element) => (
+    onApp && !hasSelection ? <Navigate to="/" replace /> : element
+  );
 
   return (
     <>
@@ -138,15 +141,15 @@ function InnerApp() {
 
   {/* Beheer */}
   <Route path="/" element={onApp ? appRootElement : <Navigate to="/formulier" replace />} />
-  <Route path="/startlijst" element={<Startlijst />} />
-  <Route path="/deelnemers" element={<Deelnemers />} />
-  <Route path="/protocollen" element={<ProtocolGenerator />} />
-  <Route path="/trailgenerator" element={<TrailGenerator />} />
-  <Route path="/proeven" element={<ProefInstellingen />} />
-  <Route path="/scores" element={<ScoreInvoer />} />
-  <Route path="/uitslagen" element={<Einduitslag />} />
+  <Route path="/startlijst" element={withSelection(<Startlijst />)} />
+  <Route path="/deelnemers" element={withSelection(<Deelnemers />)} />
+  <Route path="/protocollen" element={withSelection(<ProtocolGenerator />)} />
+  <Route path="/trailgenerator" element={withSelection(<TrailGenerator />)} />
+  <Route path="/proeven" element={withSelection(<ProefInstellingen />)} />
+  <Route path="/scores" element={withSelection(<ScoreInvoer />)} />
+  <Route path="/uitslagen" element={withSelection(<Einduitslag />)} />
   <Route path="/wedstrijden" element={<WedstrijdenBeheer />} />
-  <Route path="/wachtlijst" element={<WachtlijstBeheer />} />
+  <Route path="/wachtlijst" element={withSelection(<WachtlijstBeheer />)} />
 
         {/* Fallback: on app.* default to wedstrijden, else formulier */}
         <Route path="*" element={<Navigate to={onApp ? "/wedstrijden" : "/formulier"} replace />} />
