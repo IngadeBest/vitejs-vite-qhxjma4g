@@ -7,6 +7,22 @@ const supabaseServer = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) 
   : null;
 
+function toDateKey(value) {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) return trimmed.slice(0, 10);
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default async function handler(req, res) {
   if (req.method === 'GET' && req.query?.ping) {
     return res.status(200).json({ ok: true });
@@ -43,7 +59,7 @@ async function handleWachtlijstAdd(req, res) {
     // Verify wedstrijd exists and has wachtlijst enabled
     const { data: wedstrijd, error: wErr } = await supabaseServer
       .from('wedstrijden')
-      .select('id, naam, wachtlijst_enabled, organisator_email')
+      .select('id, naam, status, datum, wachtlijst_enabled, organisator_email')
       .eq('id', wedstrijd_id)
       .single();
 
@@ -59,6 +75,25 @@ async function handleWachtlijstAdd(req, res) {
         ok: false, 
         error: 'WACHTLIJST_NOT_ENABLED',
         message: 'Wachtlijst is niet ingeschakeld voor deze wedstrijd' 
+      });
+    }
+
+    if (wedstrijd.status !== 'open') {
+      return res.status(400).json({
+        ok: false,
+        error: 'WEDSTRIJD_NIET_OPEN',
+        message: 'De wachtlijst is niet beschikbaar voor deze wedstrijdstatus.'
+      });
+    }
+
+    const wedstrijdDate = toDateKey(wedstrijd.datum);
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (wedstrijdDate && wedstrijdDate < today) {
+      return res.status(400).json({
+        ok: false,
+        error: 'WEDSTRIJD_AFGESLOTEN_DATUM',
+        message: 'De wachtlijst is gesloten omdat deze wedstrijd al is geweest.'
       });
     }
 

@@ -1,6 +1,32 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+function toDateKey(value) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) return trimmed.slice(0, 10);
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isOpenForRegistration(wedstrijd) {
+  if (!wedstrijd || wedstrijd.status !== "open") return false;
+  const wedstrijdDate = toDateKey(wedstrijd.datum);
+  if (!wedstrijdDate) return true;
+
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return wedstrijdDate >= today;
+}
+
 export function useWedstrijden(onlyOpen = false) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,10 +78,15 @@ export function useWedstrijden(onlyOpen = false) {
             }
           ];
           
-          const filteredData = onlyOpen ? mockData.filter(w => w.status === 'open') : mockData;
+          const filteredData = onlyOpen
+            ? mockData.filter((w) => isOpenForRegistration(w))
+            : mockData;
           if (alive) setItems(filteredData);
         } else {
-          if (alive) setItems(data || []);
+          const filteredData = onlyOpen
+            ? (data || []).filter((w) => isOpenForRegistration(w))
+            : (data || []);
+          if (alive) setItems(filteredData);
         }
       } catch (e) {
         console.error("Error fetching wedstrijden:", e);
@@ -84,7 +115,9 @@ export function useWedstrijden(onlyOpen = false) {
           }
         ];
         
-        const filteredData = onlyOpen ? mockData.filter(w => w.status === 'open') : mockData;
+        const filteredData = onlyOpen
+          ? mockData.filter((w) => isOpenForRegistration(w))
+          : mockData;
         if (alive) {
           setItems(filteredData);
           setError(null); // Clear error since we have fallback data

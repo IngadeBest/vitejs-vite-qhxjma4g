@@ -24,6 +24,31 @@ const KLASSEN = [
   { code: "junior", label: "Junioren" },
 ];
 
+function toDateKey(value) {
+  if (!value) return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) return trimmed.slice(0, 10);
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isPastWedstrijd(wedstrijd) {
+  if (!wedstrijd) return false;
+  const wedstrijdDate = toDateKey(wedstrijd.datum);
+  if (!wedstrijdDate) return false;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return wedstrijdDate < today;
+}
+
 export default function PublicInschrijven() {
   const { items: wedstrijden, loading } = useWedstrijden(true);
   const [sp] = useSearchParams();
@@ -58,13 +83,23 @@ export default function PublicInschrijven() {
     () => wedstrijden.find((w) => w.id === form.wedstrijd_id) || null,
     [wedstrijden, form.wedstrijd_id]
   );
+  const queryWedstrijdBestaat = useMemo(
+    () => !!qId && wedstrijden.some((w) => w.id === qId),
+    [wedstrijden, qId]
+  );
+  const wedstrijdNietBeschikbaar = !!form.wedstrijd_id && !gekozenWedstrijd;
 
   useEffect(() => {
-    if (qId) return;
+    if (qId && queryWedstrijdBestaat) {
+      if (form.wedstrijd_id !== qId) {
+        setForm((prev) => ({ ...prev, wedstrijd_id: qId }));
+      }
+      return;
+    }
     if (form.wedstrijd_id) return;
     if (!wedstrijden?.length) return;
     setForm((prev) => ({ ...prev, wedstrijd_id: wedstrijden[0].id }));
-  }, [form.wedstrijd_id, qId, wedstrijden]);
+  }, [form.wedstrijd_id, qId, wedstrijden, queryWedstrijdBestaat]);
 
   const allowedKlassenForWedstrijd = useMemo(() => {
     if (!gekozenWedstrijd) return KLASSEN.map((k) => k.code);
@@ -141,8 +176,12 @@ export default function PublicInschrijven() {
   // categorie removed, no per-klasse categorieen to enforce
 
   const disabled = useMemo(() => {
+    if (wedstrijdNietBeschikbaar) return true;
     // Check if wedstrijd is gesloten or concept
     if (gekozenWedstrijd && (gekozenWedstrijd.status === 'gesloten' || gekozenWedstrijd.status === 'concept')) {
+      return true;
+    }
+    if (gekozenWedstrijd && isPastWedstrijd(gekozenWedstrijd)) {
       return true;
     }
     if (!form.wedstrijd_id || !form.klasse) return true;
@@ -151,7 +190,7 @@ export default function PublicInschrijven() {
     if (form.leeftijd_ruiter && !/^[0-9]{1,3}$/.test(String(form.leeftijd_ruiter))) return true;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return true;
     return false;
-  }, [form, gekozenWedstrijd]);
+  }, [form, gekozenWedstrijd, wedstrijdNietBeschikbaar]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -175,6 +214,13 @@ export default function PublicInschrijven() {
     };
 
     try {
+      if (!gekozenWedstrijd) {
+        throw new Error("Deze wedstrijd is niet (meer) beschikbaar voor inschrijving.");
+      }
+      if (isPastWedstrijd(gekozenWedstrijd)) {
+        throw new Error("Inschrijven voor deze wedstrijd is niet meer mogelijk omdat de datum al voorbij is.");
+      }
+
       // client validation
       if (gekozenWedstrijd) {
         if (!allowedKlassenForWedstrijd.includes(payload.klasse)) throw new Error('Geselecteerde klasse is niet toegestaan voor deze wedstrijd.');
@@ -358,7 +404,13 @@ export default function PublicInschrijven() {
         </Alert>
       )}
 
-      <Card variant="info" className="pi-form-card">
+      {wedstrijdNietBeschikbaar && (
+        <Alert type="warning" className="pi-section-gap">
+          De gekozen wedstrijd is niet meer beschikbaar. Kies een andere open wedstrijd.
+        </Alert>
+      )}
+
+      <Card className="pi-form-card">
       <form
         onSubmit={onSubmit}
         className="pi-public-form"
@@ -368,7 +420,7 @@ export default function PublicInschrijven() {
           id="wedstrijd_select"
           value={form.wedstrijd_id}
           onChange={(e) => setForm((s) => ({ ...s, wedstrijd_id: e.target.value }))}
-          disabled={loading || !!qId}
+          disabled={loading || queryWedstrijdBestaat}
         >
           <option value="">{loading ? "Laden..." : "— kies een wedstrijd —"}</option>
           {wedstrijden.map((w) => (

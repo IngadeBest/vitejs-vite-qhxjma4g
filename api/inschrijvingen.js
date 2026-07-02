@@ -7,6 +7,22 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || proce
 
 const supabaseServer = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) : null;
 
+function toDateKey(value) {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) return trimmed.slice(0, 10);
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default async function handler(req, res) {
   console.log('inschrijvingen handler invoked', {
     has_supabase_url: !!process.env.VITE_SUPABASE_URL || !!process.env.SUPABASE_URL,
@@ -81,6 +97,25 @@ export default async function handler(req, res) {
 
     const wedstrijd = (wedstrijden && wedstrijden[0]) || null;
     if (!wedstrijd) return res.status(404).json({ ok: false, error: 'WEDSTRIJD_NOT_FOUND', message: 'Wedstrijd niet gevonden.' });
+
+    if (wedstrijd.status !== 'open') {
+      return res.status(400).json({
+        ok: false,
+        error: 'WEDSTRIJD_NIET_OPEN',
+        message: 'Inschrijven voor deze wedstrijd is niet geopend.'
+      });
+    }
+
+    const wedstrijdDate = toDateKey(wedstrijd.datum);
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (wedstrijdDate && wedstrijdDate < today) {
+      return res.status(400).json({
+        ok: false,
+        error: 'WEDSTRIJD_AFGESLOTEN_DATUM',
+        message: 'Inschrijven voor deze wedstrijd is niet meer mogelijk omdat de datum al voorbij is.'
+      });
+    }
 
     // validate class/cat
     const allowedKlassen = Array.isArray(wedstrijd.allowed_klassen) && wedstrijd.allowed_klassen.length ? wedstrijd.allowed_klassen : null;
