@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
@@ -10,6 +10,7 @@ import { Input } from "@/ui/input";
 import { Card } from "@/ui/card";
 import Container from "@/ui/Container";
 import { Alert } from "@/ui/alert";
+import "./PublicInschrijven.css";
 
 // Klassen incl. WE2+ en extra klassen voor leeftijdsgroepen
 const KLASSEN = [
@@ -57,6 +58,13 @@ export default function PublicInschrijven() {
     () => wedstrijden.find((w) => w.id === form.wedstrijd_id) || null,
     [wedstrijden, form.wedstrijd_id]
   );
+
+  useEffect(() => {
+    if (qId) return;
+    if (form.wedstrijd_id) return;
+    if (!wedstrijden?.length) return;
+    setForm((prev) => ({ ...prev, wedstrijd_id: wedstrijden[0].id }));
+  }, [form.wedstrijd_id, qId, wedstrijden]);
 
   const allowedKlassenForWedstrijd = useMemo(() => {
     if (!gekozenWedstrijd) return KLASSEN.map((k) => k.code);
@@ -287,8 +295,8 @@ export default function PublicInschrijven() {
 
   if (wachtlijstDone) {
     return (
-      <Container maxWidth={720}>
-        <Card>
+      <Container maxWidth={820}>
+        <Card className="pi-result-card">
           <h2>Je staat op de wachtlijst! 📋</h2>
           <p>
             Je bent toegevoegd aan de wachtlijst voor <b>{gekozenWedstrijd?.naam}</b> - klasse <b>{form.klasse}</b>.
@@ -306,8 +314,8 @@ export default function PublicInschrijven() {
 
   if (done) {
     return (
-      <Container maxWidth={720}>
-        <Card>
+      <Container maxWidth={820}>
+        <Card className="pi-result-card">
           <h2>Dank je wel!</h2>
           <p>
             Je inschrijving is ontvangen
@@ -320,9 +328,19 @@ export default function PublicInschrijven() {
   }
 
   return (
-    <Container maxWidth={1100}>
-      <h2>Inschrijfformulier Ruiters</h2>
-      <p style={{ color: "#555" }}>Velden met * zijn verplicht.</p>
+    <Container maxWidth={980}>
+      <section className="pi-public-shell">
+        <header className="pi-hero">
+          <div>
+            <div className="pi-kicker">Working Point</div>
+            <h1>Inschrijfformulier Ruiters</h1>
+            <p>Schrijf je in voor de geselecteerde wedstrijd. Velden met * zijn verplicht.</p>
+          </div>
+          <div className="pi-hero-badges">
+            <div className="pi-badge">{wedstrijden.length} wedstrijd(en) open</div>
+            {gekozenWedstrijd?.datum && <div className="pi-badge pi-badge-soft">Datum: {gekozenWedstrijd.datum}</div>}
+          </div>
+        </header>
 
       {/* Status controle */}
       {gekozenWedstrijd && gekozenWedstrijd.status === 'gesloten' && (
@@ -340,10 +358,10 @@ export default function PublicInschrijven() {
         </Alert>
       )}
 
-      <Card variant="info" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial" }}>
+      <Card variant="info" className="pi-form-card">
       <form
         onSubmit={onSubmit}
-        className="inschrijf-form"
+        className="pi-public-form"
       >
         <label htmlFor="wedstrijd_select">Wedstrijd*</label>
         <select
@@ -415,7 +433,7 @@ export default function PublicInschrijven() {
           style={{ width: '100%' }}
         />
         {/* inline validation */}
-        <div style={{ gridColumn: "2 / 3", color: form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "crimson" : "#666", fontSize: 13 }}>
+        <div className="pi-inline-note" style={{ color: form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "crimson" : "#666" }}>
           {form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "Voer een geldig e-mailadres in." : ""}
         </div>
 
@@ -446,10 +464,9 @@ export default function PublicInschrijven() {
           <span>WEH-lid</span>
         </label>
 
-        <div className="full"></div>
-        <div className="full" style={{ textAlign: 'right' }}>
+        <div className="pi-form-actions">
           {showWachtlijst ? (
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
+            <div className="pi-actions-inline">
               <Button 
                 type="button" 
                 onClick={() => setShowWachtlijst(false)}
@@ -476,22 +493,22 @@ export default function PublicInschrijven() {
     </Card>
 
     {showWachtlijst && !wachtlijstBusy && (
-      <Alert type="info" style={{ marginTop: 16 }}>
+      <Alert type="info" className="pi-section-gap">
         <strong>📋 Wachtlijst</strong>
-        <p style={{ marginTop: 8, marginBottom: 0 }}>
+        <p className="pi-alert-copy">
           Deze wedstrijd of klasse is vol. Je kunt je op de wachtlijst plaatsen en wordt gecontacteerd als er een plek vrijkomt.
         </p>
       </Alert>
     )}
       
-  {capacityLoading && <div style={{ marginTop: 8, color: '#666' }}>Controleren beschikbare plaatsen…</div>}
+  {capacityLoading && <div className="pi-section-gap pi-muted">Controleren beschikbare plaatsen…</div>}
 
   {totaalCapacityLimit !== null && totaalCurrentCount !== null && (
-    <div style={{ marginTop: 10, padding: '10px', background: '#f0f4f8', borderRadius: 6 }}>
+    <div className="pi-capacity-box pi-section-gap">
       {totaalCurrentCount >= totaalCapacityLimit ? (
         <Alert type="error">De wedstrijd is volledig volzet ({totaalCurrentCount}/{totaalCapacityLimit} deelnemers).</Alert>
       ) : (
-        <div style={{ color: '#333', fontSize: 13, fontWeight: 500 }}>
+        <div className="pi-capacity-copy">
           Wedstrijd capaciteit: {totaalCapacityLimit - totaalCurrentCount} van {totaalCapacityLimit} plaatsen beschikbaar
         </div>
       )}
@@ -499,16 +516,17 @@ export default function PublicInschrijven() {
   )}
 
   {capacityLimit !== null && currentCount !== null && (
-    <div style={{ marginTop: 10 }}>
+    <div className="pi-section-gap">
       {currentCount >= capacityLimit ? (
         <Alert type="error">De geselecteerde klasse is volzet ({currentCount}/{capacityLimit}).</Alert>
       ) : (
-        <div style={{ color: '#333', fontSize: 13 }}>Beschikbare plaatsen in klasse: {capacityLimit - currentCount} van {capacityLimit} beschikbaar.</div>
+        <div className="pi-capacity-copy">Beschikbare plaatsen in klasse: {capacityLimit - currentCount} van {capacityLimit} beschikbaar.</div>
       )}
     </div>
   )}
 
   {err && <Alert type="error">{String(err)}</Alert>}
+      </section>
     </Container>
   );
 }

@@ -317,8 +317,9 @@ export default function WedstrijdenBeheer() {
     if (!gekozen) return;
     // Ensure the link points to the public site (strip leading `app.` subdomain)
     const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
     const targetHost = host && host.startsWith('app.') ? host.replace(/^app\./, '') : host;
-    const url = `${location.protocol}//${targetHost}/#/formulier?wedstrijdId=${gekozen.id}`;
+    const url = `${protocol}//${targetHost}/#/formulier?wedstrijdId=${gekozen.id}`;
     try { navigator.clipboard.writeText(url); setMsg("Link gekopieerd: " + url); }
     catch (e) { setMsg("Kopie mislukt, kopieer handmatig: " + url); }
   }
