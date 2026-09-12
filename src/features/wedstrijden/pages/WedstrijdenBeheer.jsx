@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
+import { getAuthHeaders } from "@/lib/authHeaders";
 import ProefEditor from "@/features/wedstrijden/components/ProefEditor";
 import Container from "@/ui/Container";
 
@@ -118,11 +119,15 @@ export default function WedstrijdenBeheer() {
           .eq("wedstrijd_id", gekozen.id);
         if (inschrijvingenErr) throw inschrijvingenErr;
 
-        const { error: wachtlijstErr } = await supabase
-          .from("wachtlijst")
-          .delete()
-          .eq("wedstrijd_id", gekozen.id);
-        if (wachtlijstErr) throw wachtlijstErr;
+        const headers = await getAuthHeaders();
+        const wachtlijstRes = await fetch(`/api/wachtlijst?wedstrijd_id=${encodeURIComponent(gekozen.id)}`, {
+          method: "DELETE",
+          headers,
+        });
+        const wachtlijstJson = await wachtlijstRes.json().catch(() => ({}));
+        if (!wachtlijstRes.ok) {
+          throw new Error(wachtlijstJson.message || wachtlijstJson.error || "Wachtlijst verwijderen mislukt");
+        }
       }
 
       const { data: deletedRows, error: delErr } = await supabase

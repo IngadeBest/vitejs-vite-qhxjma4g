@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useWedstrijden } from '@/features/inschrijven/pages/hooks/useWedstrijden';
+import { getAuthHeaders } from '@/lib/authHeaders';
 import Container from '@/ui/Container';
 import { Card } from '@/ui/card';
 import { Button } from '@/ui/button';
@@ -21,7 +22,8 @@ export default function WachtlijstBeheer() {
     setLoading(true);
     setMsg('');
     try {
-      const res = await fetch(`/api/wachtlijst?wedstrijd_id=${selectedWedstrijdId}`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/wachtlijst?wedstrijd_id=${selectedWedstrijdId}`, { headers });
       const json = await res.json();
       if (!res.ok) {
         throw new Error(json.message || json.error || 'Laden mislukt');
@@ -101,7 +103,15 @@ export default function WachtlijstBeheer() {
       if (insertError) throw insertError;
 
       // Verwijder van wachtlijst
-      await supabase.from('wachtlijst').delete().eq('id', item.id);
+      const headers = await getAuthHeaders();
+      const deleteRes = await fetch(`/api/wachtlijst?id=${encodeURIComponent(item.id)}`, {
+        method: 'DELETE',
+        headers,
+      });
+      const deleteJson = await deleteRes.json().catch(() => ({}));
+      if (!deleteRes.ok) {
+        throw new Error(deleteJson.message || deleteJson.error || 'Verwijderen van wachtlijst mislukt');
+      }
 
       setMsg(`✅ ${item.ruiter} is toegevoegd als deelnemer!`);
       
@@ -125,12 +135,15 @@ export default function WachtlijstBeheer() {
     setBusy(true);
     setMsg('');
     try {
-      const { error } = await supabase
-        .from('wachtlijst')
-        .delete()
-        .eq('id', item.id);
-
-      if (error) throw error;
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/wachtlijst?id=${encodeURIComponent(item.id)}`, {
+        method: 'DELETE',
+        headers,
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.message || json.error || 'Verwijderen mislukt');
+      }
       
       setMsg(`✅ ${item.ruiter} is verwijderd van de wachtlijst`);
       await loadWachtlijst();
