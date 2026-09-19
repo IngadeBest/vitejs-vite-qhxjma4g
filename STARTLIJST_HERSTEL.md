@@ -238,3 +238,25 @@ Live rolcontrole: 55 zichtbare inschrijvingen, 0 uit andere wedstrijden.
 Stallen staan nog in de bestaande lokale browseropslag: de inzage toont dat
 uitdrukkelijk en presenteert ontbrekende lokale gegevens niet als 'geen stal'.
 Centrale opslag is nog niet toegevoegd. Er zijn geen nieuwe RLS-policies nodig.
+
+## Centrale stalopslag
+
+De latere uitbreiding vervangt de lokale-only beperking hierboven. Migratie
+`20260919115010_share_stable_assignments.sql` voegt een nullable JSONB-kolom
+`inschrijvingen.stal_toewijzing` en SECURITY INVOKER-functie
+`save_stal_toewijzingen(uuid,jsonb)` toe. Geen nieuwe tabel, geen ruimere policies.
+Bestaande admin-UPDATE en scorer-SELECT blijven gelden. Het secretariaat is geen
+admin. De functie controleert ook adminlidmaatschap, wedstrijd, geldige invoer en
+oude veldwaarde; de hele opslag is atomair en weigert verouderde wijzigingen.
+
+Beheerders openen Deelnemers in de oorspronkelijke browser en klikken op
+**Stalindeling centraal opslaan**. Alleen lokale toewijzingen zonder centrale
+waarde worden voorgesteld voor overname. Bestaande lokale opslag wordt niet gewist.
+Daarna ziet het secretariaat de stalnummers na Verversen, ook op andere computers.
+Nieuwe wijzigingen moeten eveneens expliciet centraal worden opgeslagen.
+
+Verificatie: 45 applicatietests (44 in volledige suite, nieuwe inzagetest apart)
+en productiebuild geslaagd. Live SQL-tests binnen ROLLBACK tonen admin opslaan,
+scorer lezen zonder schrijven, gewone deelnemer geweigerd en conflictcontrole.
+Controlesommen van alle bestaande velden in inschrijvingen, wedstrijden, scores,
+proeven, wachtlijst en admins zijn vóór/na de migratie gelijk.

@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
 import Container from "@/ui/Container";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 import "./Deelnemers.css";
+import { readLegacyStalls, loadStalls, changedStalls } from "../stalOpslag";
 
 const DEFAULT_TARIEVEN = {
   base: {
@@ -19,7 +20,7 @@ const DEFAULT_TARIEVEN = {
 
 const TARIEVEN_STORAGE_KEY = "deelnemers_tarieven_v1";
 const DUBBELEN_REVIEWED_KEY = "deelnemers_dubbelen_reviewed_v1";
-const STAL_TOEWIJZINGEN_KEY = "deelnemers_stal_toewijzingen_v1";
+
 
 const formatOmroeper = (deelnemer) => {
   const { ruiter, paard, omroeper } = deelnemer;
@@ -68,6 +69,11 @@ export default function Deelnemers() {
   const [tarieven, setTarieven] = useState(DEFAULT_TARIEVEN);
   const [gecontroleerdeDubbelen, setGecontroleerdeDubbelen] = useState(new Set());
   const [stalToewijzingen, setStalToewijzingen] = useState({});
+  const [savedStalls, setSavedStalls] = useState({});
+  const [savingStalls, setSavingStalls] = useState(false);
+  const [stallsLoadedFor, setStallsLoadedFor] = useState(null);
+  const loadGeneration = useRef(0);
+  const stallChanges = changedStalls(savedStalls, stalToewijzingen);
 
   const [editDeelnemerId, setEditDeelnemerId] = useState(null);
   const [editForm, setEditForm] = useState({ klasse: "", paard: "" });
@@ -125,41 +131,15 @@ export default function Deelnemers() {
   }, [wedstrijd]);
 
   useEffect(() => {
-    if (!wedstrijd) {
-      setStalToewijzingen({});
-      return;
-    }
-
-    try {
-      const raw = localStorage.getItem(STAL_TOEWIJZINGEN_KEY);
-      const data = raw ? JSON.parse(raw) : {};
-      setStalToewijzingen(data[wedstrijd.id] || {});
-    } catch (err) {
-      console.warn("Kon stal toewijzingen niet laden", err);
-      setStalToewijzingen({});
-    }
-  }, [wedstrijd]);
-
-  useEffect(() => {
-    if (!wedstrijd) return;
-    try {
-      const raw = localStorage.getItem(STAL_TOEWIJZINGEN_KEY);
-      const data = raw ? JSON.parse(raw) : {};
-      data[wedstrijd.id] = stalToewijzingen;
-      localStorage.setItem(STAL_TOEWIJZINGEN_KEY, JSON.stringify(data));
-    } catch (err) {
-      console.warn("Kon stal toewijzingen niet opslaan", err);
-    }
-  }, [wedstrijd, stalToewijzingen]);
-
-  useEffect(() => {
     if (!wedstrijd) return;
     persistTarieven(wedstrijd.id, tarieven);
   }, [wedstrijd, tarieven]);
 
   const loadDeelnemers = async () => {
     if (!wedstrijd) return;
+    const generation = ++loadGeneration.current;
     setLoading(true);
+    setStallsLoadedFor(null);
     setError(null);
 
     try {
@@ -167,6 +147,7 @@ export default function Deelnemers() {
         .from("inschrijvingen")
         .select(`
           id,
+          stal_toewijzing,
           created_at,
           wedstrijd_id,
           deelnemer_status,
@@ -185,13 +166,19 @@ export default function Deelnemers() {
         .eq("wedstrijd_id", wedstrijd.id)
         .order("created_at", { ascending: true });
 
+      if (generation !== loadGeneration.current) return;
       if (dbError) throw dbError;
       setDeelnemers(data || []);
+      const stalls = loadStalls(data || [], readLegacyStalls(wedstrijd.id));
+      setSavedStalls(stalls.saved);
+      setStalToewijzingen(stalls.draft);
+      setStallsLoadedFor(wedstrijd.id);
     } catch (err) {
+      if (generation !== loadGeneration.current) return;
       console.error("Fout bij laden deelnemers:", err);
       setError("Kon deelnemers niet laden: " + err.message);
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   };
 
@@ -399,10 +386,11 @@ export default function Deelnemers() {
   };
 
   const toggleStal = (deelnemerId) => {
+    if (savingStalls || loading || stallsLoadedFor !== wedstrijd?.id) return;
     setStalToewijzingen((prev) => {
       const next = { ...prev };
       if (next[deelnemerId]?.heeftStal) {
-        delete next[deelnemerId];
+        next[deelnemerId] = { heeftStal: false, stalnummer: "" };
       } else {
         next[deelnemerId] = { heeftStal: true, stalnummer: "" };
       }
@@ -411,6 +399,7 @@ export default function Deelnemers() {
   };
 
   const setStalnummer = (deelnemerId, stalnummer) => {
+    if (savingStalls || loading || stallsLoadedFor !== wedstrijd?.id) return;
     setStalToewijzingen((prev) => ({
       ...prev,
       [deelnemerId]: {
@@ -418,6 +407,24 @@ export default function Deelnemers() {
         stalnummer,
       },
     }));
+  };
+
+  const saveStalls = async () => {
+    if (savingStalls || loading || stallsLoadedFor !== wedstrijd?.id) return;
+    setSavingStalls(true);
+    setActieFout("");
+    setActieMelding("");
+    try {
+      const { data, error } = await supabase.rpc("save_stal_toewijzingen", {
+        p_wedstrijd_id: wedstrijd.id, p_changes: stallChanges,
+      });
+      if (error) throw error;
+      if (data !== Object.keys(stallChanges).length) throw new Error("Opslaan is niet bevestigd.");
+      setSavedStalls(previous => ({ ...previous, ...Object.fromEntries(Object.entries(stallChanges).map(([id, change]) => [id, change.after])) }));
+      setActieMelding("Stalindeling centraal opgeslagen. Het secretariaat kan deze nu bekijken.");
+    } catch (err) {
+      setActieFout("Stallen niet opgeslagen: " + err.message);
+    } finally { setSavingStalls(false); }
   };
 
   const klassen = [...new Set(deelnemers.map((d) => d.klasse).filter(Boolean))].sort();
@@ -454,7 +461,7 @@ export default function Deelnemers() {
             <button
               type="button"
               onClick={loadDeelnemers}
-              disabled={!wedstrijd || loading}
+              disabled={!wedstrijd || loading || savingStalls}
               className="dm-btn dm-btn-ghost"
             >
               Vernieuwen
@@ -469,11 +476,20 @@ export default function Deelnemers() {
         </section>
 
         <section className="dm-card">
+          <h2>Stalindeling delen</h2>
+          <p>Stalwijzigingen worden pas na opslaan zichtbaar op andere computers. Bestaande lokale toewijzingen worden meegenomen als er nog geen centrale toewijzing is.</p>
+          <button className="dm-btn dm-btn-primary" onClick={saveStalls} disabled={savingStalls || loading || stallsLoadedFor !== wedstrijd?.id || Object.keys(stallChanges).length === 0}>
+            {savingStalls ? "Stallen opslaan…" : "Stalindeling centraal opslaan"}
+          </button>
+          {Object.keys(stallChanges).length > 0 && <p role="status">{Object.keys(stallChanges).length} stalwijziging(en) nog niet centraal opgeslagen.</p>}
+        </section>
+        <section className="dm-card">
           <div className="dm-row dm-row-bottom">
             <div className="dm-grow">
               <label>Wedstrijd</label>
               <select
                 value={wedstrijd?.id || ""}
+                disabled={savingStalls}
                 onChange={(e) => {
                   const geselecteerd = wedstrijden.find((w) => w.id === e.target.value);
                   setWedstrijd(geselecteerd || null);
@@ -708,6 +724,8 @@ export default function Deelnemers() {
                                       value={stalToewijzingen[deelnemer.id]?.stalnummer || ""}
                                       onChange={(e) => setStalnummer(deelnemer.id, e.target.value)}
                                       placeholder="Stalnr"
+                                      maxLength={80}
+                                      disabled={savingStalls || loading}
                                     />
                                     <button
                                       type="button"
@@ -864,6 +882,8 @@ export default function Deelnemers() {
                                   value={stalToewijzingen[deelnemer.id]?.stalnummer || ""}
                                   onChange={(e) => setStalnummer(deelnemer.id, e.target.value)}
                                   placeholder="Stalnr"
+                                      maxLength={80}
+                                      disabled={savingStalls || loading}
                                 />
                                 <button
                                   type="button"
