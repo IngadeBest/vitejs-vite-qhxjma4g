@@ -10,6 +10,8 @@ import PublicInschrijven from "@/features/inschrijven/pages/PublicInschrijven";
 import InschrijfFormulier from "@/features/inschrijven/pages/InschrijfFormulier";
 import WedstrijdStart from "@/features/wedstrijden/pages/WedstrijdStart";
 import Startlijst from "@/features/startlijst/pages/Startlijst";
+import DeelnemersInzage from "@/features/deelnemers/pages/DeelnemersInzage";
+import { useAccess } from "@/features/auth/AdminGate";
 import Deelnemers from "@/features/deelnemers/pages/Deelnemers";
 import ProtocolGenerator from "@/features/protocollen/pages/ProtocolGenerator";
 import Einduitslag from "@/features/einduitslag/pages/Einduitslag";
@@ -109,6 +111,11 @@ function AppHeader({ onApp, hasSelection }) {
   );
 }
 
+function DeelnemersToegang() {
+  const { isAdmin } = useAccess();
+  return isAdmin ? <Deelnemers /> : <DeelnemersInzage />;
+}
+
 function InnerApp() {
   const defaultOnApp = isAppHost();
 
@@ -143,12 +150,12 @@ function InnerApp() {
   {/* Beheer */}
   <Route path="/" element={onApp ? <AdminGate>{appRootElement}</AdminGate> : <Navigate to="/formulier" replace />} />
   <Route path="/startlijst" element={withSelection(<Startlijst />)} />
-  <Route path="/deelnemers" element={withSelection(<Deelnemers />)} />
+  <Route path="/deelnemers" element={<AdminGate allowScorer><ScoreWerkplek title="Deelnemers"><DeelnemersToegang /></ScoreWerkplek></AdminGate>} />
   <Route path="/protocollen" element={withSelection(<ProtocolGenerator />)} />
   <Route path="/trailgenerator" element={withSelection(<TrailGenerator />)} />
   <Route path="/proeven" element={withSelection(<ProefInstellingen />)} />
   <Route path="/scores" element={<AdminGate allowScorer><ScoreWerkplek /></AdminGate>} />
-  <Route path="/uitslagen" element={withSelection(<Einduitslag />)} />
+  <Route path="/uitslagen" element={<AdminGate allowScorer><ScoreWerkplek title="Einduitslag"><Einduitslag /></ScoreWerkplek></AdminGate>} />
   <Route path="/wedstrijden" element={<AdminGate><WedstrijdenBeheer /></AdminGate>} />
   <Route path="/wachtlijst" element={withSelection(<WachtlijstBeheer />)} />
 

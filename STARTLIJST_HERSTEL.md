@@ -226,3 +226,15 @@ de twee migrations hierboven, `scripts/run_migrations.sh`, `scripts/test-startli
 `scripts/provision-score-account.sql`, `src/features/auth/AdminGate.test.jsx`,
 `src/features/startlijst/startlijstPersistence.test.js`,
 `src/features/startlijst/pages/Startlijst.test.jsx` en dit verslag.
+
+## Secretariaattoegang 19 september 2026
+
+Het bevestigde account wedstrijdsecretariaat@workingpoint.nl heeft inmiddels
+scoretoegang voor Onstwedde (26 september 2026), zonder admins-lidmaatschap.
+De routes /deelnemers en /uitslagen staan nu ook open voor toegewezen scorers:
+deelnemers alleen bekijken, uitslagen bekijken/exporteren. De scope-selectie
+mount geen pagina voor een andere wedstrijd; RLS blijft de databasegrens.
+Live rolcontrole: 55 zichtbare inschrijvingen, 0 uit andere wedstrijden.
+Stallen staan nog in de bestaande lokale browseropslag: de inzage toont dat
+uitdrukkelijk en presenteert ontbrekende lokale gegevens niet als 'geen stal'.
+Centrale opslag is nog niet toegevoegd. Er zijn geen nieuwe RLS-policies nodig.

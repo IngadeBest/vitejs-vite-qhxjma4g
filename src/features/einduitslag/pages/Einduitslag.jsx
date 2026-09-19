@@ -1,3 +1,4 @@
+import { useAccess } from "@/features/auth/AdminGate";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
@@ -55,7 +56,9 @@ function sorteerKlasses(klasses) {
 import Container from "@/ui/Container";
 
 export default function Einduitslag() {
-  const { items: wedstrijden, loading: loadingWed } = useWedstrijden(false);
+  const { items: alleWedstrijden, loading: loadingWed } = useWedstrijden(false);
+  const { isAdmin, scoreWedstrijdIds } = useAccess();
+  const wedstrijden = alleWedstrijden.filter(w => isAdmin || scoreWedstrijdIds.includes(w.id));
   const { selectedWedstrijdId: appSelectedWedstrijdId } = useWedstrijdContext();
   const [selectedWedstrijdId, setSelectedWedstrijdId] = useState("");
   const [ruiters, setRuiters] = useState([]);
@@ -101,9 +104,10 @@ export default function Einduitslag() {
     
     // 1. Haal proeven op voor deze datum (of voor deze wedstrijd_id als die bestaat)
     let proevenQuery = supabase.from("proeven").select("*");
+    if (!isAdmin) proevenQuery = proevenQuery.eq("wedstrijd_id", selectedWedstrijdId);
     
     // Probeer eerst op wedstrijd_id, anders op datum
-    if (selectedWedstrijd.datum) {
+    if (isAdmin && selectedWedstrijd.datum) {
       proevenQuery = proevenQuery.eq("datum", selectedWedstrijd.datum);
     }
     
