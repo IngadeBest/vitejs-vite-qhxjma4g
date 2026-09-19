@@ -274,7 +274,9 @@ export default function Deelnemers() {
       const { error: dbError } = await supabase
         .from("inschrijvingen")
         .update({ klasse: nieuweKlasse, paard: nieuwPaard })
-        .eq("id", deelnemer.id);
+        .eq("id", deelnemer.id)
+        .eq("wedstrijd_id", deelnemer.wedstrijd_id)
+        .select("id").single();
 
       if (dbError) throw dbError;
 
@@ -298,65 +300,27 @@ export default function Deelnemers() {
     setActieMelding("");
 
     try {
-      const { error: dbError } = await supabase
-        .from("inschrijvingen")
-        .update({
-          deelnemer_status: "afgemeld",
-          afgemeld_at: new Date().toISOString(),
-          afgemeld_reden: "Afgemeld via deelnemersbeheer",
-        })
-        .eq("id", deelnemer.id);
-
-      if (dbError) throw dbError;
-
-      const { data: wachtlijstKandidaten, error: wachtlijstError } = await supabase
-        .from("wachtlijst")
-        .select("*")
-        .eq("wedstrijd_id", deelnemer.wedstrijd_id)
-        .eq("klasse", deelnemer.klasse)
-        .order("created_at", { ascending: true })
-        .limit(1);
-
-      if (wachtlijstError) throw wachtlijstError;
-
-      const kandidaat = wachtlijstKandidaten?.[0] || null;
-      if (kandidaat) {
-        const wilPromoten = confirm(
-          `Er staat iemand op de wachtlijst voor ${deelnemer.klasse}: ${kandidaat.ruiter}. Meteen promoveren naar deelnemer?`
-        );
-
-        if (wilPromoten) {
-          const inschrijving = {
-            wedstrijd_id: deelnemer.wedstrijd_id,
-            wedstrijd: wedstrijd?.naam || null,
-            klasse: kandidaat.klasse,
-            weh_lid: kandidaat.weh_lid || false,
-            ruiter: kandidaat.ruiter,
-            paard: kandidaat.paard,
-            leeftijd_ruiter: kandidaat.leeftijd_ruiter,
-            geslacht_paard: kandidaat.geslacht_paard,
-            email: kandidaat.email,
-            telefoon: kandidaat.telefoon,
-            opmerkingen: kandidaat.opmerkingen,
-            omroeper: kandidaat.omroeper,
-            rubriek: "Algemeen",
-          };
-
-          const { error: insertError } = await supabase.from("inschrijvingen").insert(inschrijving);
-          if (insertError) throw insertError;
-
-          const { error: delWaitError } = await supabase.from("wachtlijst").delete().eq("id", kandidaat.id);
-          if (delWaitError) throw delWaitError;
-
-          setActieMelding(
-            `${deelnemer.ruiter} is afgemeld. ${kandidaat.ruiter} is gepromoveerd vanuit de wachtlijst.`
-          );
-        } else {
-          setActieMelding(`${deelnemer.ruiter} is afgemeld.`);
-        }
-      } else {
-        setActieMelding(`${deelnemer.ruiter} is afgemeld.`);
+      // Read and ask before changing anything. Cancel + optional promotion commit together.
+      let kandidaat = null;
+      if (wedstrijd?.wachtlijst_enabled) {
+        const { data, error } = await supabase.from("wachtlijst").select("id,ruiter")
+          .eq("wedstrijd_id", deelnemer.wedstrijd_id).eq("klasse", deelnemer.klasse)
+          .order("created_at", { ascending: true }).order("id", { ascending: true }).limit(1);
+        if (error) throw error;
+        kandidaat = data?.[0] || null;
       }
+      const promotie = kandidaat && confirm(
+        `Er staat iemand op de wachtlijst voor ${deelnemer.klasse}: ${kandidaat.ruiter}. Meteen promoveren naar deelnemer?`
+      );
+      const { error } = await supabase.rpc("afmelden_deelnemer", {
+        p_wedstrijd_id: deelnemer.wedstrijd_id,
+        p_deelnemer_id: deelnemer.id,
+        p_wachtlijst_id: promotie ? kandidaat.id : null,
+      });
+      if (error) throw error;
+      setActieMelding(promotie
+        ? `${deelnemer.ruiter} is afgemeld. ${kandidaat.ruiter} is gepromoveerd vanuit de wachtlijst.`
+        : `${deelnemer.ruiter} is afgemeld. De inschrijving is bewaard en kan worden heractiveerd.`);
 
       await loadDeelnemers();
     } catch (err) {
@@ -379,7 +343,9 @@ export default function Deelnemers() {
           afgemeld_at: null,
           afgemeld_reden: null,
         })
-        .eq("id", deelnemer.id);
+        .eq("id", deelnemer.id)
+        .eq("wedstrijd_id", deelnemer.wedstrijd_id)
+        .select("id").single();
 
       if (dbError) throw dbError;
 

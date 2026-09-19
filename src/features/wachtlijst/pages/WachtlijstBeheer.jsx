@@ -64,58 +64,11 @@ export default function WachtlijstBeheer() {
     setBusy(true);
     setMsg('');
     try {
-      // Check capaciteit voordat we toevoegen
-      const cfg = gekozenWedstrijd?.startlijst_config || {};
-      
-      // Check totaal capaciteit
-      if (cfg.totaalMaximum) {
-        const { count: totaalCount } = await supabase
-          .from('inschrijvingen')
-          .select('id', { count: 'exact', head: true })
-          .eq('wedstrijd_id', selectedWedstrijdId);
-        
-        if ((totaalCount || 0) >= Number(cfg.totaalMaximum)) {
-          throw new Error(`⚠️ Wedstrijd is nog steeds vol (${totaalCount}/${cfg.totaalMaximum}). Verhoog de limiet eerst in Wedstrijden Beheer.`);
-        }
-      }
-
-      // Check klasse capaciteit
-      if (cfg.capacities && cfg.capacities[item.klasse]) {
-        const { count } = await supabase
-          .from('inschrijvingen')
-          .select('id', { count: 'exact', head: true })
-          .eq('wedstrijd_id', selectedWedstrijdId)
-          .eq('klasse', item.klasse);
-        
-        if ((count || 0) >= Number(cfg.capacities[item.klasse])) {
-          throw new Error(`⚠️ Klasse ${item.klasse} is nog steeds vol (${count}/${cfg.capacities[item.klasse]}). Verhoog de limiet eerst.`);
-        }
-      }
-
-      // Voeg toe als deelnemer
-      const inschrijving = {
-        wedstrijd_id: selectedWedstrijdId,
-        wedstrijd: gekozenWedstrijd?.naam || null,
-        klasse: item.klasse,
-        weh_lid: item.weh_lid || false,
-        ruiter: item.ruiter,
-        paard: item.paard,
-        leeftijd_ruiter: item.leeftijd_ruiter,
-        geslacht_paard: item.geslacht_paard,
-        email: item.email,
-        opmerkingen: item.opmerkingen,
-        omroeper: item.omroeper,
-        rubriek: "Algemeen",
-      };
-
-      const { error: insertError } = await supabase
-        .from('inschrijvingen')
-        .insert(inschrijving);
-
-      if (insertError) throw insertError;
-
-      // Verwijder van wachtlijst
-      await supabase.from('wachtlijst').delete().eq('id', item.id);
+      const { error } = await supabase.rpc('promoveer_wachtlijst', {
+        p_wedstrijd_id: selectedWedstrijdId,
+        p_wachtlijst_id: item.id,
+      });
+      if (error) throw error;
 
       setMsg(`✅ ${item.ruiter} is toegevoegd als deelnemer!`);
       
@@ -142,7 +95,9 @@ export default function WachtlijstBeheer() {
       const { error } = await supabase
         .from('wachtlijst')
         .delete()
-        .eq('id', item.id);
+        .eq('id', item.id)
+        .eq('wedstrijd_id', selectedWedstrijdId)
+        .select('id').single();
 
       if (error) throw error;
       

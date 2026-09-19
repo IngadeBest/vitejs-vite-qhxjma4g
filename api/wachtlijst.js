@@ -39,6 +39,51 @@ export default async function handler(req, res) {
   return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
 }
 
+async function requireAdmin(req, res) {
+  if (!supabaseServer) {
+    res.status(500).json({
+      ok: false,
+      error: 'NO_SUPABASE_SERVER',
+      message: 'Server credentials not configured',
+    });
+    return null;
+  }
+
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+
+  if (!token) {
+    res.status(401).json({ ok: false, error: 'NO_AUTH', message: 'Inloggen als admin is vereist.' });
+    return null;
+  }
+
+  const { data: userData, error: userError } = await supabaseServer.auth.getUser(token);
+  const user = userData?.user;
+
+  if (userError || !user) {
+    res.status(401).json({ ok: false, error: 'INVALID_AUTH', message: 'Ongeldige of verlopen sessie.' });
+    return null;
+  }
+
+  const { data: admin, error: adminError } = await supabaseServer
+    .from('admins')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (adminError) {
+    res.status(500).json({ ok: false, error: 'ADMIN_CHECK_FAILED', message: adminError.message });
+    return null;
+  }
+
+  if (!admin) {
+    res.status(403).json({ ok: false, error: 'NOT_ADMIN', message: 'Alleen admins mogen de wachtlijst beheren.' });
+    return null;
+  }
+
+  return user;
+}
+
 async function handleWachtlijstAdd(req, res) {
   const b = req.body || {};
   const wedstrijd_id = b.wedstrijd_id;
@@ -216,6 +261,7 @@ async function handleWachtlijstAdd(req, res) {
 }
 
 async function handleWachtlijstGet(req, res) {
+  if (!await requireAdmin(req, res)) return;
   const wedstrijd_id = req.query.wedstrijd_id;
 
   if (!wedstrijd_id) {

@@ -8,6 +8,7 @@ import React, {
 import { Link } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
+import { saveStartlijst, sortStartlijst, configForScope, startlijstScope } from "../startlijstPersistence";
 import Container from "@/ui/Container";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 import "./Startlijst.css";
@@ -1480,145 +1481,44 @@ Plak je data hieronder:`);
     // Create timestamped backup BEFORE any database operations
     const timestamp = new Date().toISOString();
     const backupKey = `backup_${timestamp.slice(0, 16).replace(/[:-]/g, '')}`;
-    localStorage.setItem(backupKey, JSON.stringify(rows));
-    localStorage.setItem("last_backup", JSON.stringify({ key: backupKey, timestamp, wedstrijd }));
+    let backupCreated = false;
+    try {
+      localStorage.setItem(backupKey, JSON.stringify(rows));
+      localStorage.setItem("last_backup", JSON.stringify({ key: backupKey, timestamp, wedstrijd }));
+      backupCreated = true;
+    } catch (storageError) {
+      console.warn('Lokale backup niet beschikbaar:', storageError);
+    }
     
     setSaving(true);
     setDbMessage("Opslaan...");
 
     try {
-      // BACKUP check - ensure we have data in current rows
-      const entries = rows
-        .filter(row => row.type === 'entry')
-        .filter(row => row.ruiter && row.ruiter.trim());
-      
-      if (entries.length === 0) {
-        throw new Error("Geen geldige deelnemers om op te slaan. Operatie geannuleerd voor veiligheid.");
-      }
-      
-      // Stap 1: Sla pauzes en configuratie op in wedstrijden.startlijst_config
-      const breaks = rows.filter(row => row.type === 'break').map((br, idx) => ({
-        id: br.id,
-        label: br.label || 'Pauze',
-        duration: br.duration || 15,
-        position: rows.indexOf(br) // bewaar positie in lijst
-      }));
-      
       const startlijstConfig = {
         dressuurStart: dressuurStarttijd,
         trailStart: trailStarttijd,
         interval: tussenPauze,
-        trailOmbouwtijd: trailOmbouwtijd,
-        pauzeMinuten: pauzeMinuten,
-        pauses: breaks,
-        klasseStartTimes: klasseStartTimes,
-        rowOrder: rows.map(r => ({ id: r.id, type: r.type })) // bewaar volgorde
+        trailOmbouwtijd,
+        pauzeMinuten,
+        klasseStartTimes,
       };
-      
-      const { error: configError } = await supabase
-        .from('wedstrijden')
-        .update({ startlijst_config: startlijstConfig })
-        .eq('id', wedstrijd);
-      
-      if (configError) {
-        console.warn("Kon startlijst_config niet opslaan:", configError);
-        // Ga door - dit is niet kritisch
+      const savedRows = await saveStartlijst(supabase, wedstrijd, rows.map(row => row.type === 'entry'
+        ? { ...row, klasse: normalizeKlasse(row.klasse) } : row), startlijstConfig,
+        startlijstScope(normalizeKlasseCode(klasse), rubriek));
+      setRows(savedRows);
+      try {
+        localStorage.setItem(`startlijst_${wedstrijd}`, JSON.stringify(savedRows));
+      } catch (storageError) {
+        console.warn('Database opgeslagen; lokale backup niet beschikbaar:', storageError);
       }
-      
-      // Stap 2: Werk bestaande inschrijvingen bij en voeg alleen nieuwe toe.
-      // Zo blijven niet-geladen kolommen op bestaande records behouden.
-      const rowsWithOrder = entries.map((row) => ({
-        ...row,
-        volgorde: rows.indexOf(row),
-      }));
-
-      const applySaveScopeFilters = (query) => {
-        let scopedQuery = query.eq('wedstrijd_id', wedstrijd);
-        scopedQuery = scopedQuery.or('deelnemer_status.is.null,deelnemer_status.eq.actief');
-        const klasseCode = normalizeKlasseCode(klasse);
-        if (klasseCode) scopedQuery = scopedQuery.eq('klasse', klasseCode);
-
-        if (rubriek) {
-          const rubriekValue = String(rubriek).trim();
-          if (/^algemeen$/i.test(rubriekValue)) {
-            scopedQuery = scopedQuery.or('rubriek.is.null,rubriek.eq.Algemeen,rubriek.eq.');
-          } else {
-            scopedQuery = scopedQuery.eq('rubriek', rubriekValue);
-          }
-        }
-
-        return scopedQuery;
-      };
-
-      const existingEntries = rowsWithOrder.filter((row) => row.dbId);
-      const newEntries = rowsWithOrder.filter((row) => !row.dbId);
-
-      if (existingEntries.length > 0) {
-        const updates = existingEntries.map((row) =>
-          supabase
-            .from('inschrijvingen')
-            .update({
-              ruiter: row.ruiter.trim(),
-              paard: row.paard ? row.paard.trim() : null,
-              startnummer: row.startnummer || null,
-              klasse: normalizeKlasse(row.klasse),
-              rubriek: row.rubriek || 'Algemeen',
-              volgorde: row.volgorde,
-            })
-            .eq('id', row.dbId)
-            .eq('wedstrijd_id', wedstrijd)
-        );
-
-        const updateResults = await Promise.all(updates);
-        const updateError = updateResults.find((result) => result.error)?.error;
-        if (updateError) {
-          console.error("Database update error:", updateError);
-          throw new Error(`Database fout bij bijwerken: ${updateError.message || JSON.stringify(updateError)}`);
-        }
-      }
-
-      if (newEntries.length > 0) {
-        const entriesToInsert = newEntries.map((row) => ({
-          wedstrijd_id: wedstrijd,
-          ruiter: row.ruiter.trim(),
-          paard: row.paard ? row.paard.trim() : null,
-          startnummer: row.startnummer || null,
-          klasse: normalizeKlasse(row.klasse),
-          rubriek: row.rubriek || 'Algemeen',
-          volgorde: row.volgorde,
-        }));
-
-        const { error: insertError } = await supabase
-          .from('inschrijvingen')
-          .insert(entriesToInsert);
-
-        if (insertError) {
-          console.error("Database insert error:", insertError);
-          throw new Error(`Database fout bij invoegen: ${insertError.message || JSON.stringify(insertError)}`);
-        }
-      }
-
-      // Deelnemer lifecycle (afmelden/heractiveren) gebeurt uitsluitend in Deelnemersbeheer.
-      // Startlijst bewaart alleen volgorde/gegevens van zichtbare actieve deelnemers.
-      
-      // Save to localStorage as backup (after successful database save)
-      // Alleen wedstrijd-specifieke key gebruiken, GEEN algemene cache meer
-      const storageKey = `startlijst_${wedstrijd}`;
-      localStorage.setItem(storageKey, JSON.stringify(rows));
-      setSavedRowsSignature(getRowsSignature(rows));
-      
-      setDbMessage(`✅ ${entries.length} deelnemers + ${breaks.length} pauzes opgeslagen`);
-      
-      // NIET herladen - dat verpest de volgorde!
-      // setTimeout(() => {
-      //   loadDeelnemersFromDB();
-      // }, 1000);
+      setSavedRowsSignature(getRowsSignature(savedRows));
+      setDbMessage(`✅ ${savedRows.filter(r => r.type === 'entry').length} deelnemers en instellingen opgeslagen`);
 
     } catch (error) {
       console.error('Error saving to database:', error);
       const errorMsg = error?.message || String(error);
       setDbMessage(`❌ Fout bij opslaan naar database: ${errorMsg}`);
-      alert(`Fout bij opslaan naar database:\n\n${errorMsg}\n\nBackup gemaakt in localStorage: ${backupKey}`);
+      alert(`Fout bij opslaan naar database:\n\n${errorMsg}${backupCreated ? `\n\nLokale backup: ${backupKey}` : ''}`);
     } finally {
       setSaving(false);
     }
@@ -1698,19 +1598,17 @@ Plak je data hieronder:`);
         .eq("id", wedstrijd)
         .maybeSingle();
       
-      if (wedstrijdError) {
-        console.warn("Kon startlijst_config niet laden, ga door zonder config:", wedstrijdError);
-      }
-      const config = wedstrijdData?.startlijst_config || {};
-      console.log("Loaded startlijst_config:", config);
-      
+      if (wedstrijdError) throw wedstrijdError;
+      const config = configForScope(wedstrijdData?.startlijst_config,
+        startlijstScope(normalizeKlasseCode(klasse), rubriek));
+
       // Herstel instellingen
       setDressuurStarttijd(config.dressuurStart ?? "");
-      if (config.trailStart) setTrailStarttijd(config.trailStart);
-      if (config.interval) setTussenPauze(config.interval);
-      if (config.trailOmbouwtijd !== undefined) setTrailOmbouwtijd(config.trailOmbouwtijd);
-      if (config.pauzeMinuten) setPauzeMinuten(config.pauzeMinuten);
-      if (config.klasseStartTimes) setKlasseStartTimes(config.klasseStartTimes);
+      setTrailStarttijd(config.trailStart ?? "");
+      setTussenPauze(config.interval ?? 6);
+      setTrailOmbouwtijd(config.trailOmbouwtijd ?? 0);
+      setPauzeMinuten(config.pauzeMinuten ?? 15);
+      setKlasseStartTimes(config.klasseStartTimes ?? {});
       
       // Stap 2: Laad deelnemers (sorteer op volgorde veld indien aanwezig)
       const baseFilters = (q, includeRubriek = true) => {
@@ -1732,7 +1630,7 @@ Plak je data hieronder:`);
       let query = baseFilters(
         supabase
           .from("inschrijvingen")
-          .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde,deelnemer_status")
+          .select("id,ruiter,paard,startnummer,klasse,rubriek,wedstrijd_id,volgorde,deelnemer_status,created_at")
       );
 
       let { data, error } = await query;
@@ -1760,68 +1658,8 @@ Plak je data hieronder:`);
         throw error;
       }
 
-      if (!data || data.length === 0) {
-        // Try localStorage fallback - ALLEEN voor deze specifieke wedstrijd
-        console.log("No database data, trying localStorage for this wedstrijd only");
-        const storageKey = `startlijst_${wedstrijd}`;
-        const stored = localStorage.getItem(storageKey); // GEEN fallback naar algemene LS_KEY!
-        
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          let filteredRows = parsed;
-          if (klasse) {
-            const klasseCode = normalizeKlasseCode(klasse);
-            if (klasseCode) {
-              filteredRows = filteredRows.filter(r => normalizeKlasseCode(r.klasse) === klasseCode);
-            }
-          }
-          if (rubriek) {
-            const rubriekValue = String(rubriek).trim();
-            if (/^algemeen$/i.test(rubriekValue)) {
-              filteredRows = filteredRows.filter(r => !r.rubriek || String(r.rubriek).trim().toLowerCase() === "algemeen");
-            } else {
-              filteredRows = filteredRows.filter(r => String(r.rubriek || "").trim() === rubriekValue);
-            }
-          }
-          setRows(filteredRows);
-          setSavedRowsSignature(getRowsSignature(filteredRows));
-          setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage)`);
-          setLoadingFromDB(false);
-          return;
-        } else {
-          // Geen data voor deze wedstrijd - lege lijst
-          console.log("No data found for this wedstrijd");
-          setRows([]);
-          setSavedRowsSignature(getRowsSignature([]));
-          setDbMessage("ℹ️ Geen deelnemers gevonden voor deze wedstrijd");
-          setLoadingFromDB(false);
-          return;
-        }
-      }
-
-      // Sorteer op klasse (alfabetisch) en binnen klasse op tijdstip inschrijving (created_at)
-      const sortedData = (data || []).sort((a, b) => {
-        // Eerst sorteren op klasse
-        const klasseA = normalizeKlasse(a.klasse || '');
-        const klasseB = normalizeKlasse(b.klasse || '');
-        if (klasseA !== klasseB) {
-          return klasseA.localeCompare(klasseB);
-        }
-        
-        // Binnen dezelfde klasse: sorteer op created_at (tijdstip inschrijving)
-        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-        if (timeA !== timeB) {
-          return timeA - timeB; // Oudste eerst (eerste inschrijving eerst)
-        }
-        
-        // Als volgorde veld bestaat, gebruik dat als laatste fallback
-        if (a.volgorde !== undefined && b.volgorde !== undefined) {
-          return a.volgorde - b.volgorde;
-        }
-        
-        return 0; // behoud huidige volgorde
-      });
+      // An empty DB result is authoritative: never resurrect cancelled participants from cache.
+      const sortedData = sortStartlijst(data || [], config);
 
       const loadedRows = sortedData.map((r, i) => ({
         id: r.id || `db_${Date.now()}_${i}`,
@@ -1874,43 +1712,10 @@ Plak je data hieronder:`);
       console.log("Loaded rows with pauses:", combined);
     } catch (e) {
       const errorMsg = e?.message || String(e);
-      console.error("Error loading participants, trying localStorage:", e);
-      
-      // Fallback to localStorage - ALLEEN voor deze specifieke wedstrijd
-      const storageKey = `startlijst_${wedstrijd}`;
-      const stored = localStorage.getItem(storageKey); // GEEN fallback naar algemene LS_KEY!
-      
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          let filteredRows = parsed;
-          if (klasse) {
-            const klasseCode = normalizeKlasseCode(klasse);
-            if (klasseCode) {
-              filteredRows = filteredRows.filter(r => normalizeKlasseCode(r.klasse) === klasseCode);
-            }
-          }
-          if (rubriek) {
-            const rubriekValue = String(rubriek).trim();
-            if (/^algemeen$/i.test(rubriekValue)) {
-              filteredRows = filteredRows.filter(r => !r.rubriek || String(r.rubriek).trim().toLowerCase() === "algemeen");
-            } else {
-              filteredRows = filteredRows.filter(r => String(r.rubriek || "").trim() === rubriekValue);
-            }
-          }
-          setRows(filteredRows);
-          setSavedRowsSignature(getRowsSignature(filteredRows));
-          setDbMessage(`✅ ${filteredRows.filter(r => r.type === 'entry').length} deelnemers geladen (localStorage - database niet beschikbaar)`);
-        } catch (parseErr) {
-          setDbMessage(`❌ Fout bij laden: ${errorMsg}`);
-          setRows([]); // Lege lijst bij parse error
-          setSavedRowsSignature(getRowsSignature([]));
-        }
-      } else {
-        setDbMessage(`❌ Database fout bij laden deelnemers: ${errorMsg}`);
-        setRows([]); // Lege lijst als er geen data is
-        setSavedRowsSignature(getRowsSignature([]));
-      }
+      console.error("Error loading participants:", e);
+      setDbMessage(`❌ Laden mislukt: ${errorMsg}. Probeer opnieuw; lokale backups zijn niet geladen.`);
+      setRows([]);
+      setSavedRowsSignature(getRowsSignature([]));
     } finally {
       setLoadingFromDB(false);
     }
@@ -2684,7 +2489,7 @@ Plak je data hieronder:`);
                                     to="/deelnemers"
                                     state={deelnemersLinkState}
                                     className="px-2 py-1 text-xs border rounded hover:bg-blue-50 text-blue-700"
-                                    title="Beheer deelnemers via Deelnemers"
+                                    title="Afmelden of heractiveren via Deelnemers; de inschrijving blijft bewaard"
                                   >
                                     Beheer
                                   </Link>
@@ -2810,7 +2615,7 @@ Plak je data hieronder:`);
                           to="/deelnemers"
                           state={deelnemersLinkState}
                           className="px-2 py-1 text-xs border rounded hover:bg-blue-50 text-blue-700"
-                          title="Beheer deelnemers via Deelnemers"
+                          title="Afmelden of heractiveren via Deelnemers; de inschrijving blijft bewaard"
                         >
                           Beheer
                         </Link>
@@ -2886,7 +2691,7 @@ Plak je data hieronder:`);
                 <button
                   className={`px-4 py-2 rounded text-white font-medium ${saving ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
                   onClick={saveList}
-                  disabled={saving || !wedstrijd}
+                  disabled={saving || loadingFromDB || !wedstrijd}
                   title={!wedstrijd ? "Selecteer eerst een wedstrijd" : "Sla wijzigingen op naar database"}
                 >
                   {saving ? 'Bezig...' : 'Opslaan'}

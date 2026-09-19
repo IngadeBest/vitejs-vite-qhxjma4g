@@ -1,5 +1,6 @@
 import React from "react";
 import { HashRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
+import AdminGate from "@/features/auth/AdminGate";
 import DomainRedirect from "@/DomainRedirect";
 import "./App.css";
 import { WedstrijdProvider, useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
@@ -16,7 +17,7 @@ import Contact from "@/features/public/pages/Contact";
 import WedstrijdenBeheer from "@/features/wedstrijden/pages/WedstrijdenBeheer";
 import WachtlijstBeheer from "@/features/wachtlijst/pages/WachtlijstBeheer";
 import ProefInstellingen from "@/features/proeven/pages/ProefInstellingen";
-import ScoreInvoer from "@/features/scoring/pages/ScoreInvoer";
+import ScoreWerkplek from "@/features/scoring/pages/ScoreWerkplek";
 import TrailGenerator from "@/features/trailgenerator/pages/TrailGenerator";
 import { isAppHost } from "@/lib/isAppHost";
 
@@ -125,7 +126,7 @@ function InnerApp() {
     ? (hasSelection ? <Navigate to="/wedstrijden" replace /> : <WedstrijdStart />)
     : <Navigate to="/formulier" replace />;
   const withSelection = (element) => (
-    onApp && !hasSelection ? <Navigate to="/" replace /> : element
+    <AdminGate>{onApp && !hasSelection ? <Navigate to="/" replace /> : element}</AdminGate>
   );
 
   return (
@@ -136,19 +137,19 @@ function InnerApp() {
 
       <Routes>
   {/* Publiek */}
-  <Route path="/formulier" element={onApp ? <InschrijfFormulier /> : <PublicInschrijven />} />
+  <Route path="/formulier" element={onApp ? <AdminGate><InschrijfFormulier /></AdminGate> : <PublicInschrijven />} />
         <Route path="/contact" element={<Contact />} />
 
   {/* Beheer */}
-  <Route path="/" element={onApp ? appRootElement : <Navigate to="/formulier" replace />} />
+  <Route path="/" element={onApp ? <AdminGate>{appRootElement}</AdminGate> : <Navigate to="/formulier" replace />} />
   <Route path="/startlijst" element={withSelection(<Startlijst />)} />
   <Route path="/deelnemers" element={withSelection(<Deelnemers />)} />
   <Route path="/protocollen" element={withSelection(<ProtocolGenerator />)} />
   <Route path="/trailgenerator" element={withSelection(<TrailGenerator />)} />
   <Route path="/proeven" element={withSelection(<ProefInstellingen />)} />
-  <Route path="/scores" element={withSelection(<ScoreInvoer />)} />
+  <Route path="/scores" element={<AdminGate allowScorer><ScoreWerkplek /></AdminGate>} />
   <Route path="/uitslagen" element={withSelection(<Einduitslag />)} />
-  <Route path="/wedstrijden" element={<WedstrijdenBeheer />} />
+  <Route path="/wedstrijden" element={<AdminGate><WedstrijdenBeheer /></AdminGate>} />
   <Route path="/wachtlijst" element={withSelection(<WachtlijstBeheer />)} />
 
         {/* Fallback: on app.* default to wedstrijden, else formulier */}

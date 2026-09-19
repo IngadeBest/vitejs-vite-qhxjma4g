@@ -59,7 +59,8 @@ export default function ScoreInvoer() {
     if (activeWedstrijdId) {
       query = query.eq("wedstrijd_id", activeWedstrijdId);
     }
-    let { data } = await query;
+    let { data, error: readError } = await query.or('deelnemer_status.is.null,deelnemer_status.eq.actief');
+    if (readError) { setError(readError.message); setRuiters([]); return; }
     
     // Normaliseer klasse codes naar proeven formaat
     const klasseMap = {
@@ -116,16 +117,18 @@ export default function ScoreInvoer() {
     if (activeWedstrijdId) {
       query = query.eq("wedstrijd_id", activeWedstrijdId);
     }
-    let { data } = await query;
+    let { data, error: readError } = await query;
+    if (readError) { setError(readError.message); setProeven([]); return; }
     setProeven(data || []);
   }
   async function fetchScores() {
     if (!selectedProef) return;
-    let { data } = await supabase
+    let { data, error: readError } = await supabase
       .from("scores")
       .select("*")
       .eq("proef_id", selectedProef.id)
       .order("id");
+    if (readError) { setError(readError.message); setScores([]); return; }
     setScores(data || []);
   }
   function resetForm() {
@@ -178,6 +181,7 @@ export default function ScoreInvoer() {
     
     try {
       let insertObj = {
+        wedstrijd_id: activeWedstrijdId,
         proef_id: selectedProef.id,
         ruiter_id: selectedRuiter,
         dq: dq,
@@ -190,9 +194,9 @@ export default function ScoreInvoer() {
       
       let result;
       if (editingId) {
-        result = await supabase.from("scores").update(insertObj).eq("id", editingId);
+        result = await supabase.from("scores").update(insertObj).eq("id", editingId).eq("proef_id", selectedProef.id).select('id').single();
       } else {
-        result = await supabase.from("scores").insert([insertObj]);
+        result = await supabase.from("scores").insert([insertObj]).select('id').single();
       }
       
       if (result.error) {
@@ -222,8 +226,10 @@ export default function ScoreInvoer() {
     setError("");
   }
   async function handleDelete(id) {
-    await supabase.from("scores").delete().eq("id", id);
-    fetchScores();
+    const { error: deleteError } = await supabase.from("scores").delete().eq("id", id)
+      .eq("proef_id", selectedProef.id).select('id').single();
+    if (deleteError) { setError(deleteError.message); return; }
+    await fetchScores();
   }
   function berekenKlassement() {
     if (!scores.length) return [];
