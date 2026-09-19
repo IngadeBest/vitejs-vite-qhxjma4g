@@ -7,17 +7,32 @@ De reparatie staat op `codex/startlijst-rechten-herstel`, gebaseerd op de actuel
 `Autorisatie-administratie` bevatte oudere code en lokale wijzigingen; die zijn
 ongemoeid gelaten. Deze werkmap bevat de reparatie voor het actuele dashboard.
 
-**Nog niet gepubliceerd en de nieuwe migrations zijn nog niet blijvend toegepast.**
-De migraties zijn wel op het echte Supabase-project
-`hpfixcuxayjkfyhqbbnn` uitgevoerd en getest binnen transacties met `ROLLBACK`.
-De enige blijvende databasewijziging is de expliciet gevraagde beheerkoppeling
-voor de inmiddels bestaande en bevestigde accounts `info@ingadebest.nl` en
-`info@jenniferdekiewit.nl` in `public.admins`.
+**Gepubliceerd op 19 september 2026.** Productiecommit `74a3d73` staat op
+`main`; Vercel deployment `dpl_9XEKoDpy4djgjXinTZDNDmqdxgMK` is READY en gekoppeld
+aan `app.workingpoint.nl`, `workingpoint.nl` en `www.workingpoint.nl`.
+Beide nieuwe migrations zijn blijvend toegepast op `hpfixcuxayjkfyhqbbnn`.
+Daarna zijn de SQL-roltests opnieuw uitgevoerd tegen de geïnstalleerde functies,
+in een transactie met ROLLBACK; alle controles slaagden.
 
-Na de tests: 148 bestaande inschrijvingen, 6 wedstrijden, 0 wachtlijstregels,
-geen testwedstrijden achtergebleven. Er zijn geen bestaande wedstrijdregels
-gewijzigd of verwijderd. Zoals bij Postgres gebruikelijk kan een rollback-test
-wel gaten in een SERIAL/IDENTITY-nummerreeks veroorzaken.
+Vooraf is een afgeschermde lokale herstelkopie gemaakt in
+`../herstelkopie-startlijsten-20260919/business-data-and-policies.json`.
+Deze bevat de negen bedrijfstabellen, policies en grants en staat niet in Git.
+SHA256: `7c664837c29835a3c4d728de1f04db244dcd93a62b4d28f35c237ed12f8c6886`.
+Na publicatie zijn ALLE rijen en velden uit alle negen tabellen vergeleken met
+deze kopie: exact gelijk. Aantallen: 148 inschrijvingen, 6 wedstrijden,
+153 scores, 41 proeven, 24 ruiters, 2 admins, 0 wachtlijstregels,
+0 legacy-startlijsten en 0 proeven_items. Geen testregels achtergebleven.
+SERIAL/IDENTITY-reeksen kunnen wel oplopen door rollback-tests.
+Dit bewijst behoud gedurende deze uitrol, niet dat vóór de eerste controle
+nooit gegevens zijn gewijzigd door de eerdere fout.
+
+De twee bevestigde beheeraccounts staan in `public.admins`:
+`info@ingadebest.nl` en `info@jenniferdekiewit.nl`.
+
+Het migratiescript weigert zonder expliciete bestandsnamen te starten.
+De bestaande GitHub-workflow roept het zonder argumenten aan en stopt daarom
+veilig met een fout, voordat SQL draait. De huidige GitHub-token mist de scope
+om de workflow zelf te wijzigen; historische migraties worden niet herhaald.
 
 ## Exacte oorzaak
 
@@ -129,7 +144,7 @@ Er is geen organisatie-lidmaatschapstabel en een contactadres in
 
 ## Inloggen en vrijwilligersaccount
 
-- Beheerders: `https://app.workingpoint.nl`, na publicatie van deze versie.
+- Beheerders: `https://app.workingpoint.nl` (live).
 - Vrijwilliger: `https://app.workingpoint.nl/#/scores`. Deze route heeft een eigen
   selector met alleen toegewezen wedstrijden, zonder vooraf een beheerpagina te
   hoeven openen. Andere beheerlinks verlenen geen toegang.
@@ -159,9 +174,9 @@ rekening met de geldigheidsduur van al uitgegeven access tokens.
   deelnemerswrite geweigerd, zelfpromotie geweigerd, vervalste user_metadata geweigerd.
 - Aanvullende echte Postgres-tests voor de scorevrijwilliger: eigen wedstrijd
   toegestaan; andere wedstrijd, startlijst, inschrijvingen en proeven muteren verboden.
-- Browser: lokale loginpagina opent en rendert correct.
+- Browser: lokale én live beheerlogin en scorelogin renderen correct, zonder consolefouten. Het openbare inschrijfformulier opent zonder login.
 - **Niet uitgevoerd:** volledige browseracceptatie met de echte wachtwoorden
-  van beide beheerders en een live gedeployde nieuwe versie. Er zijn geen
+  van beide beheerders. Er zijn geen
   wachtwoorden opgevraagd en geen fictief vrijwilligersaccount aangemaakt.
 
 Herhaal lokaal met `npm run test:run` en `npm run build`.
@@ -175,10 +190,8 @@ Zie [Supabase database-linter](https://supabase.com/docs/guides/database/databas
 
 ## Zelf testen na uitrollen
 
-Voer uitsluitend de twee nieuwe migrations uit met foutstop en publiceer deze
-frontendversie gecoördineerd; alleen de policies omschakelen zou de oude anonieme
-beheerfrontend blokkeren. Gebruik niet blind `npm run migrate`, dat alle historische
-migrations opnieuw uitvoert.
+De twee migrations en de frontend zijn al uitgerold; voer ze niet opnieuw uit.
+Gebruik voor eigen controles een testwedstrijd, zodat wedstrijdgegevens intact blijven.
 
 1. Log met elk beheeraccount in op app.workingpoint.nl en kies een testwedstrijd.
 2. Open Startlijst, verander de volgorde over minstens twee klassen, voeg een pauze
@@ -208,7 +221,7 @@ Applicatie:
 `api/wachtlijst.js`.
 
 Migraties/test/documentatie:
-de twee migrations hierboven, `scripts/test-startlijst-rls.sql`,
+de twee migrations hierboven, `scripts/run_migrations.sh`, `scripts/test-startlijst-rls.sql`,
 `scripts/test-score-access.sql`, `scripts/test-startlijst-rls.sh`,
 `scripts/provision-score-account.sql`, `src/features/auth/AdminGate.test.jsx`,
 `src/features/startlijst/startlijstPersistence.test.js`,
