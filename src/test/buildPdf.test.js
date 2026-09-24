@@ -245,7 +245,7 @@ describe('complete official PDF content', () => {
   expect(content).toContain('(Test Ruiter) Tj');
   expect(doc.internal.pages[1].join('\n')).toContain('(Percentage) Tj');
   expect(doc.internal.pages[1].join('\n')).toContain('(Plaatsing) Tj');
-  expect(content).toContain('(Correctie) Tj');
+  expect(content).toContain('(Corr.) Tj');
   expect(content).toContain('Naam en handtekening jury');
  });
  it('rejects a prohibited speed class and an invalid style course', () => {

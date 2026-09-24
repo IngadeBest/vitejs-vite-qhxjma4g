@@ -33,10 +33,10 @@ export function buildWehProtocolPdf(p, items = [], existingDoc = null) {
  let y=doc.lastAutoTable.finalY+12, max=null;
  if(component==='Dressuur') {
   const test=dressageTest(c.code);max=dressageMaximum(c.code);
-  table({startY:y, head:[['Nr.','Letters','Oefening / beoordelingscriteria','C.','Heel','Half','Correctie','Opmerkingen']],
+  table({startY:y, head:[['Nr.','Letters','Oefening / beoordelingscriteria','C.','Heel','Half','Corr.','Opmerkingen']],
    styles:{fontSize:8,cellPadding:4,lineWidth:0.4,lineColor:[170,170,170],overflow:'linebreak',valign:'middle'},
    body:test.items.map(r=>[r.number,r.letters,`${reflow(r.text)}${r.criteria ? '\n'+reflow(r.criteria) : ''}`,String(r.coefficient),'','','','']),
-   columnStyles:{0:{cellWidth:25},1:{cellWidth:42},2:{cellWidth:238,minCellHeight:28},3:{cellWidth:23},4:{cellWidth:25},5:{cellWidth:25},6:{cellWidth:45}},
+   columnStyles:{0:{cellWidth:25},1:{cellWidth:42},2:{cellWidth:238,minCellHeight:28},3:{cellWidth:23},4:{cellWidth:25},5:{cellWidth:25},6:{cellWidth:28}},
    didParseCell:({section,row,cell})=>{if(section==='body' && test.items[row.index]?.kind==='general')cell.styles.fillColor=[235,241,250];}});
   y=doc.lastAutoTable.finalY+10;
   table({startY:y,pageBreak:'avoid',body:[['Proef / uitvoering',`${test.version}. ${test.lettersRequired?'Met letters':'Lettervrij'}; ${test.handUse==='one'?'eenhandig':test.handUse==='two'?'tweehandig':'een- of tweehandig'}. ${test.readAloudAllowed?'Voorlezen toegestaan.':'Uit het hoofd.'} ${test.timeLimitSeconds ? `Maximaal ${test.timeLimitSeconds/60} minuten.` : test.suggestedTimeSeconds ? `Circa ${test.suggestedTimeSeconds/60} minuten.` : ''}`],['Start / vergissingen','Start binnen 60 seconden na de bel; eigen muziek. Eerste vergissing: -5; tweede: -5; derde: diskwalificatie.']],columnStyles:{0:{cellWidth:90}}});
