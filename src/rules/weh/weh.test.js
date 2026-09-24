@@ -41,7 +41,7 @@ describe('style and obstacles',()=>{
   expect(styleMaximum(c,min)).toBe((min+g)*10);expect(styleMaximum(c,max)).toBe((max+g)*10);
   expect(()=>styleMaximum(c,min-1)).toThrow();expect(()=>styleMaximum(c,max+1)).toThrow();
  });
- it('does not invent JR/YR general coefficients',()=>{expect(()=>styleMaximum('junior',12)).toThrow(/REVIEW REQUIRED/);expect(()=>styleMaximum('yr',12)).toThrow(/REVIEW REQUIRED/);});
+ it('uses the organizer-confirmed advanced style protocol for JR/YR',()=>{expect(styleMaximum('junior',12)).toBe(170);expect(styleMaximum('yr',12)).toBe(170);expect(()=>styleMaximum('junior',0)).toThrow();});
  it('normalizes aliases and rejects prohibited variants',()=>{
   expect(resolveObstacle('3 vaten','we1').obstacleId).toBe(resolveObstacle('3 tonnen','we1').obstacleId);
   expect(validateCourse('WE0','Stijltrail',Array(6).fill('Sprong')).valid).toBe(false);

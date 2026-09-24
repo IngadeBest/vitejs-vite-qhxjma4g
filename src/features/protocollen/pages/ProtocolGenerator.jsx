@@ -587,7 +587,7 @@ export default function ProtocolGenerator() {
         </div>
         <div style={{ marginTop: 6, fontSize: 12, color: "#555" }}>{dbMsg}</div>
         {config.onderdeel === 'stijl' && ['junior', 'yr'].includes(config.klasse) && (
-          <p role="status">Voor het stijlprotocol van Junioren en Young Riders wachten de algemene beoordelingspunten nog op bevestiging van de jury (RR08). Dressuur en speed zijn beschikbaar.</p>
+          <p role="status">Junioren en Young Riders gebruiken dezelfde vijf algemene stijlbeoordelingen als WE2, WE2+, WE3 en WE4, volgens afspraak met de organisatie.</p>
         )}
         <div style={{ marginTop: 18 }}>
           <button onClick={() => setStap(2)} disabled={!config.wedstrijd_id || !config.klasse || !config.onderdeel}>Volgende: Items & Deelnemers</button>

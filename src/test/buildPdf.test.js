@@ -259,4 +259,12 @@ describe('complete official PDF content', () => {
   expect(doc.internal.pages[2].join('\n')).not.toContain('Tweede ruiter');
   expect(doc.internal.pages[4].join('\n')).toContain('(2/2) Tj');
  });
+ it.each(['junior','yr'])('prints the agreed advanced style protocol for %s', klasse => {
+  const items = ['Slalom','2 tonnen','Gang met bel','Parallelslalom','Brug','3 Tonnen','Round pen rechts','Sprong','Poort achterwaarts','Garrocha ABC','Slalom achterwaarts','Zijwaarts over een balk'];
+  const doc = buildWehProtocolPdf({klasse,onderdeel:'stijl',startnummer:1},items);
+  const content = doc.internal.pages.flat().join('\n');
+  expect(content).toContain('(170) Tj');
+  expect(content).toContain('Stap/galop/stap overgangen');
+  expect(content).toContain('(17) Tj');
+ });
 });

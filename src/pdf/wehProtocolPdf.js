@@ -44,8 +44,9 @@ export function buildWehProtocolPdf(p, items = [], existingDoc = null) {
   if(!validation.valid) throw new Error(validation.errors.join(' '));
   const rules=styleRules(c.code);max=styleMaximum(c.code,items.length);
   table({startY:y,head:[['Nr.','Hindernis / algemeen cijfer','Heel','Half','Opmerkingen']],
+   styles:{fontSize:8,cellPadding:5,lineWidth:0.4,lineColor:[170,170,170],overflow:'linebreak',valign:'middle'},
    body:[['','Groeten / startlijn passeren','—','—',''],...items.map((r,i)=>[String(i+1),typeof r==='string'?r:r.officialName||r.name||r.obstacleId,'','','']),['','Finishlijn passeren / groeten','—','—',''],...rules.generalPoints.map((r,i)=>[String(items.length+i+1),r,'','',''])],
-   columnStyles:{0:{cellWidth:28},1:{cellWidth:225,minCellHeight:26},2:{cellWidth:32},3:{cellWidth:32}}});
+   columnStyles:{0:{cellWidth:28},1:{cellWidth:225,minCellHeight:items.length>10?22:26},2:{cellWidth:32},3:{cellWidth:32}}});
  } else {
   table({startY:y,head:[['Correctie','Regel','Aantal','Seconden / opmerking']],
    body:speedEventRules(c.code).filter(r=>r.kind!=='disqualification').map(r=>[

@@ -10,7 +10,7 @@ De protocolgenerator gebruikt één PDF-builder voor preview, download en batcha
 - Stijlonderdelen worden via `proeven.uuid` geladen, passend bij het UUID-type van `proeven_items.proef_id`.
 - Bestaande lokale parcoursopslag is nu expliciet aangeduid als opslag op dit apparaat. Deze release voegt geen centrale parcoursopslag of wedstrijdproeven toe.
 
-Open regelvragen blijven open. Voor Junioren/Young Riders verhindert RR08 (onbevestigde algemene stijlpunten) het genereren van een stijlprotocol; dressuur en speed zijn beschikbaar. De afwijkende titel van de Young Riders-bron is niet overgenomen; geen vier-teugeleis toegevoegd. Overige reviewpunten zijn terug te vinden in de centrale regelmetadata.
+Organisator heeft op 24 september expliciet bevestigd: Junioren en Young Riders gebruiken voor stijl hetzelfde protocol en dezelfde vijf algemene cijfers als WE2/WE2+/WE3/WE4. Deze werkafspraak heft de RR08-blokkade voor de protocolgenerator op; bij twaalf hindernissen is het maximum 170 punten. Dit is geen nieuwe officiële WEH-bevestiging van de nog open minimale/maximale hindernisaantallen (RR03). De afwijkende titel van de Young Riders-bron is niet overgenomen; geen vier-teugeleis toegevoegd.
 
 Verificatie: 132 tests in 10 bestanden, productiebuild en diffcontrole geslaagd. Tien voorbeeld-PDF's met samen 19 pagina's gerenderd en visueel gecontroleerd. Tests dekken volledige proefinhoud/maxima, twee pagina's per dressuurproef, batchidentiteit, Jeugd-selectie, UUID-koppeling en uitsluiten van verouderde lokale deelnemers bij verbindingsfouten.
 
