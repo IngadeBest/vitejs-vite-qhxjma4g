@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import { configForScope, saveStartlijst, sortStartlijst, startlijstScope } from './startlijstPersistence';
+import { configForScope, saveStartlijst, sortStartlijst, startlijstScope, formatStartnummer } from './startlijstPersistence';
 
 describe('startlijst persistence', () => {
+  it('restores zeroes for numbers returned by the database', async () => {
+    expect(formatStartnummer(null)).toBe('');
+    expect(formatStartnummer(1)).toBe('001');
+    expect(formatStartnummer(20)).toBe('020');
+    expect(formatStartnummer(101)).toBe('101');
+    const client = { rpc: async () => ({ data: [{ type: 'entry', startnummer: 7 }], error: null }) };
+    expect((await saveStartlijst(client, 'w', [{}], {}, ''))[0].startnummer).toBe('007');
+  });
   it('restores explicit cross-class order after a fresh load', () => {
     const rows = [{ id: 'a', klasse: 'WE0', volgorde: 1 }, { id: 'b', klasse: 'WE4', volgorde: 0 }];
     expect(sortStartlijst(rows).map(r => r.id)).toEqual(['b', 'a']);

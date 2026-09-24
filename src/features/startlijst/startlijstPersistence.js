@@ -25,5 +25,11 @@ export async function saveStartlijst(client, wedstrijdId, rows, config, scope) {
   if (!Array.isArray(data) || data.length !== rows.length) {
     throw new Error('Opslaan kon niet worden bevestigd. Laad de startlijst opnieuw.');
   }
-  return data;
+  return data.map(row => row.type === 'entry'
+    ? { ...row, startnummer: formatStartnummer(row.startnummer) } : row);
+}
+export function formatStartnummer(value) {
+  if (value == null || value === '') return '';
+  const text = String(value).trim();
+  return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
 }

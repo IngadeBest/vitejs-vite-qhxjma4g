@@ -10,10 +10,12 @@ vi.mock('@/features/wedstrijden/context/WedstrijdContext', () => ({ useWedstrijd
 vi.mock('@/lib/supabaseClient', () => ({ supabase: {
   rpc: (...args) => db.rpc(...args),
   from: table => {
+    const filters = [];
     const query = {
-      select: () => query, eq: () => query, or: () => query,
+      select: () => query, eq: (key, value) => { filters.push([key, value]); return query; }, or: () => query,
       maybeSingle: async () => ({ data: { startlijst_config: db.config } }),
-      then: resolve => Promise.resolve({ data: table === 'inschrijvingen' ? db.entries : [] }).then(resolve),
+      then: resolve => Promise.resolve({ data: table === 'inschrijvingen'
+        ? db.entries.filter(row => filters.every(([key, value]) => row[key] === value)) : [] }).then(resolve),
     };
     return query;
   },
@@ -35,7 +37,7 @@ beforeEach(async () => {
   ];
   db.rpc.mockReset();
   db.rpc.mockImplementation(async (_name, { p_rows, p_config, p_scope }) => {
-    db.entries = p_rows.filter(r => r.type === 'entry').map((r, i) => ({ ...r, volgorde: i }));
+    db.entries = p_rows.filter(r => r.type === 'entry').map((r, i) => ({ ...r, wedstrijd_id: 'w', startnummer: Number(r.startnummer), volgorde: i }));
     const saved = { ...p_config, rowOrder: p_rows.map(r => ({ id: r.id, type: r.type })), pauses: [] };
     db.config = { ...saved, startlijstScopes: { [p_scope]: saved } };
     return { data: p_rows };
@@ -65,6 +67,25 @@ it('does not bring cancelled participants back from localStorage on an empty lis
   await mount();
   expect(container.textContent).not.toContain('Afgemelde ruiter');
   expect(visibleOrder()).toEqual([]);
+});
+
+it('loads WE0 aliases and preserves padded numbers after save and reload', async () => {
+  db.entries.push({ id: 'c', ruiter: 'Jeugdruiter', paard: 'Pony', klasse: '0', rubriek: 'Jeugd', startnummer: 7, wedstrijd_id: 'w', volgorde: 2 });
+  await mount();
+  const select = [...container.querySelectorAll('select')].find(el =>
+    [...el.options].some(option => option.textContent === 'Alle klassen'));
+  await act(async () => { select.value = 'WE0'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+  expect(container.textContent).toContain('Ruiter A');
+  expect(container.textContent).toContain('Jeugdruiter');
+  expect(container.textContent).not.toContain('Ruiter B');
+  expect(container.textContent).toContain('001');
+  expect(container.textContent).toContain('007');
+  const save = [...container.querySelectorAll('button')].find(button => button.textContent.trim() === 'Opslaan');
+  await act(async () => save.click());
+  await act(async () => root.unmount());
+  await mount();
+  expect(container.textContent).toContain('001');
+  expect(container.textContent).toContain('007');
 });
 
 it('shows a failed save without a success notification', async () => {

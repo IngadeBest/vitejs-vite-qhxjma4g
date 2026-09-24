@@ -8,7 +8,7 @@ import React, {
 import { Link } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
-import { saveStartlijst, sortStartlijst, configForScope, startlijstScope } from "../startlijstPersistence";
+import { saveStartlijst, sortStartlijst, configForScope, startlijstScope, formatStartnummer } from "../startlijstPersistence";
 import Container from "@/ui/Container";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 import "./Startlijst.css";
@@ -230,7 +230,7 @@ const normalizeKlasse = (input) => {
   
   // Map common variations to standard names
   const klasseMap = {
-    'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0', 'introductieklasse': 'WE0',
+    '0': 'WE0', 'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0', 'introductieklasse': 'WE0', 'introductieklasse (we0)': 'WE0',
     'we1': 'WE1', 'we 1': 'WE1', 'we-1': 'WE1', 
     'we2': 'WE2', 'we 2': 'WE2', 'we-2': 'WE2',
     'we2+': 'WE2+', 'we 2+': 'WE2+', 'we-2+': 'WE2+', 'we2plus': 'WE2+', 'we2p': 'WE2+',
@@ -251,7 +251,7 @@ const normalizeKlasseCode = (input) => {
   const stripped = clean.replace(/\s*-\s*jeugd|\s+jeugd/g, '').trim();
 
   const klasseCodeMap = {
-    'we0': 'we0', 'we 0': 'we0', 'we-0': 'we0', 'introductieklasse': 'we0', 'introductieklasse (we0)': 'we0',
+    '0': 'we0', 'we0': 'we0', 'we 0': 'we0', 'we-0': 'we0', 'introductieklasse': 'we0', 'introductieklasse (we0)': 'we0',
     'we1': 'we1', 'we 1': 'we1', 'we-1': 'we1',
     'we2': 'we2', 'we 2': 'we2', 'we-2': 'we2',
     'we2+': 'we2p', 'we 2+': 'we2p', 'we-2+': 'we2p', 'we2plus': 'we2p', 'we2p': 'we2p',
@@ -1614,8 +1614,6 @@ Plak je data hieronder:`);
       const baseFilters = (q, includeRubriek = true) => {
         let qq = q.eq("wedstrijd_id", wedstrijd);
         qq = qq.or("deelnemer_status.is.null,deelnemer_status.eq.actief");
-        const klasseCode = normalizeKlasseCode(klasse);
-        if (klasseCode) qq = qq.eq("klasse", klasseCode);
         if (includeRubriek && rubriek) {
           const rubriekValue = String(rubriek).trim();
           if (/^algemeen$/i.test(rubriekValue)) {
@@ -1659,14 +1657,16 @@ Plak je data hieronder:`);
       }
 
       // An empty DB result is authoritative: never resurrect cancelled participants from cache.
-      const sortedData = sortStartlijst(data || [], config);
+      // Stored labels include both display names and codes; compare their normalized values.
+      const sortedData = sortStartlijst((data || []).filter(row =>
+        !klasse || normalizeKlasseCode(row.klasse) === normalizeKlasseCode(klasse)), config);
 
       const loadedRows = sortedData.map((r, i) => ({
         id: r.id || `db_${Date.now()}_${i}`,
         type: "entry",
         ruiter: r.ruiter || "",
         paard: r.paard || "",
-        startnummer: (r.startnummer || "").toString(),
+        startnummer: formatStartnummer(r.startnummer),
         klasse: normalizeKlasse(r.klasse) || "",
         rubriek: r.rubriek || "Algemeen",
         starttijd: "",
