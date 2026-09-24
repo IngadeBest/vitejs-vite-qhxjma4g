@@ -1,3 +1,4 @@
+import { protocolKey, readLocalProtocol, saveProtocol, validItems } from '../protocolPersistence';
 import { buildWehProtocolPdf } from "@/pdf/wehProtocolPdf";
 import { dressageRows, dressageMaximum } from "@/rules/weh/dressage";
 import { WEH_METADATA } from "@/rules/weh/metadata";
@@ -59,6 +60,10 @@ export default function ProtocolGenerator() {
 
   const [dbMsg, setDbMsg] = useState("");
   const [dbMax, setDbMax] = useState(null);
+  const [savedItems, setSavedItems] = useState(null);
+  const [savingItems, setSavingItems] = useState(false);
+  const savingItemsRef = useRef(false);
+  const [reloadItems, setReloadItems] = useState(0);
   const [items, setItems] = useState([]);
   const [dbHint, setDbHint] = useState('');
   const [csvRows, setCsvRows] = useState([]);
@@ -96,38 +101,48 @@ export default function ProtocolGenerator() {
     }));
   }, [selectedWedstrijd, config.datum]);
 
-  const saveItemsConfig = () => {
-    const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
-    localStorage.setItem(key, JSON.stringify(items));
-    alert(`Configuratie op dit apparaat opgeslagen voor ${config.klasse} ${config.onderdeel}`);
+  const saveItemsConfig = async () => {
+    if (savingItemsRef.current) return;
+    savingItemsRef.current = true; setSavingItems(true);
+    const snapshot = [...items];
+    try {
+      try { localStorage.setItem(protocolKey(config.wedstrijd_id, config.klasse), JSON.stringify(snapshot)); } catch { /* Central storage remains available. */ }
+      const saved = await saveProtocol(supabase, config.wedstrijd_id, config.klasse, snapshot, savedItems);
+      setSavedItems(saved);
+      setDbMsg(`Opgeslagen bij de wedstrijd: ${saved.length} hindernissen. Beschikbaar op andere apparaten.`);
+    } catch (error) { setDbMsg('Niet centraal opgeslagen: ' + error.message); }
+    finally { savingItemsRef.current = false; setSavingItems(false); }
   };
 
-  const loadItemsConfig = () => {
-    const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setItems(parsed);
-        setDbMsg(`✅ Configuratie geladen: ${parsed.length} items`);
-        return true;
-      } catch (e) {
-        console.error('Error loading config:', e);
+  const loadItemsConfig = () => setReloadItems(v => v + 1);
+  const restoreLocalItems = () => {
+    const local = readLocalProtocol(localStorage, config.wedstrijd_id, config.klasse);
+    if (local) { setItems(local); setDbMsg('Lokale configuratie teruggehaald. Klik Opslaan bij wedstrijd om deze centraal te bewaren.'); }
+    else setDbMsg('Geen lokale configuratie gevonden op dit apparaat.');
+  };
+  const recoverLocalProtocols = async () => {
+    if (!config.wedstrijd_id || savingItemsRef.current) return;
+    savingItemsRef.current = true; setSavingItems(true);
+    let count = 0;
+    try {
+      const {data, error} = await supabase.from('wedstrijden').select('protocol_config').eq('id', config.wedstrijd_id).maybeSingle();
+      if (error) throw error;
+      for (const c of CLASSES) {
+        const local = readLocalProtocol(localStorage, config.wedstrijd_id, c.code);
+        if (local?.length && data?.protocol_config?.[c.code] === undefined) {
+          await saveProtocol(supabase, config.wedstrijd_id, c.code, local, null);
+          count++;
+        }
       }
-    }
-    return false;
-  };
-
-  const clearItemsConfig = () => {
-    const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
-    localStorage.removeItem(key);
-    alert('🗑️ Opgeslagen configuratie verwijderd');
+      setDbMsg(count ? `${count} lokale stijlparcoursen teruggevonden en centraal opgeslagen.` : 'Geen extra lokale parcoursen gevonden. Bestaande centrale parcoursen zijn behouden.');
+    } catch (error) { setDbMsg(`${count} parcoursen opgeslagen. Herstel gestopt: ${error.message}`); }
+    finally { savingItemsRef.current = false; setSavingItems(false); }
   };
 
   useEffect(() => {
     let alive = true;
     (async () => {
-      setDbMsg(""); setDbMax(null); setItems([]);
+      setDbMsg(""); setDbMax(null); setItems([]); setSavedItems(null);
       if (!config.wedstrijd_id || !config.klasse || !config.onderdeel) return;
       
       if (config.onderdeel === 'dressuur') {
@@ -142,27 +157,29 @@ export default function ProtocolGenerator() {
         return;
       }
 
-      // Voor stijl: haal uit database of localStorage
+      // Shared course per class; the youth section rides the same course.
       try {
+        const { data: wedstrijd, error: configError } = await supabase.from('wedstrijden')
+          .select('protocol_config').eq('id', config.wedstrijd_id).maybeSingle();
+        if (configError) throw configError;
+        if (!alive) return;
+        const central = wedstrijd?.protocol_config?.[normalizeClass(config.klasse)];
+        if (validItems(central)) {
+          setSavedItems(central); setItems(central);
+          setDbMsg(`Opgeslagen parcours geladen: ${central.length} hindernissen.`); return;
+        }
+        const local = readLocalProtocol(localStorage, config.wedstrijd_id, config.klasse);
+        if (local) {
+          setItems(local); setDbMsg('Eerder op dit apparaat opgeslagen parcours teruggevonden. Klik Opslaan bij wedstrijd om het centraal te bewaren.'); return;
+        }
         const { data: candidates, error: e1 } = await supabase
           .from("proeven").select("id, uuid, max_score, naam, klasse, onderdeel")
           .eq("wedstrijd_id", config.wedstrijd_id);
         if (e1) throw e1;
         if (!alive) return;
         const matches = (candidates || []).filter(p => normalizeClass(p.klasse) === normalizeClass(config.klasse) && normalizeComponent(p.onderdeel) === normalizeComponent(config.onderdeel));
-        if (matches.length > 1) throw new Error('Meerdere proefconfiguraties gevonden; maak de klasse/rubriekselectie eenduidig.');
         const proef = matches[0];
         
-        const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
-        const saved = localStorage.getItem(key);
-        if (saved) {
-          const parsedItems = JSON.parse(saved);
-          setItems(parsedItems);
-          setDbMax(proef?.max_score || null);
-          setDbMsg(`✅ Opgeslagen configuratie geladen: ${parsedItems.length} items`);
-          return;
-        }
-
         if (!proef?.uuid) { setDbMsg("Nog geen parcours opgeslagen bij deze proef. Selecteer hieronder de hindernissen."); return; }
         const { data: its, error: e2 } = await supabase
           .from("proeven_items").select("nr, omschrijving").eq("proef_id", proef.uuid).order("nr", { ascending: true });
@@ -178,7 +195,7 @@ export default function ProtocolGenerator() {
       }
     })();
     return () => { alive = false; };
-  }, [config.wedstrijd_id, config.klasse, config.onderdeel]);
+  }, [config.wedstrijd_id, config.klasse, config.onderdeel, reloadItems]);
 
   async function loadDeelnemersFromDB() {
     if (!config.wedstrijd_id || !config.klasse) { setDbMsg('⚠️ Selecteer eerst wedstrijd en klasse'); return; }
@@ -590,6 +607,7 @@ export default function ProtocolGenerator() {
           <p role="status">Junioren en Young Riders gebruiken dezelfde vijf algemene stijlbeoordelingen als WE2, WE2+, WE3 en WE4, volgens afspraak met de organisatie.</p>
         )}
         <div style={{ marginTop: 18 }}>
+          <button onClick={recoverLocalProtocols} disabled={!config.wedstrijd_id || savingItems}>Lokale stijlparcoursen veiligstellen</button>
           <button onClick={() => setStap(2)} disabled={!config.wedstrijd_id || !config.klasse || !config.onderdeel}>Volgende: Items & Deelnemers</button>
         </div>
       </div>
@@ -660,11 +678,11 @@ export default function ProtocolGenerator() {
         <div style={{display:"grid",gridTemplateColumns:"1fr 420px",gap:24,alignItems:"start"}}>
           <div>
             {renderItemsEditor()}
-            {config.onderdeel === 'stijl' && items.length > 0 && (
+            {config.onderdeel === 'stijl' && (
               <div style={{ marginTop: 12, display: 'flex', gap: 8, padding: 12, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
-                <button onClick={saveItemsConfig} style={{ flex: 1, background: '#0ea5e9', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>Opslaan op dit apparaat</button>
-                <button onClick={loadItemsConfig} style={{ flex: 1, background: '#06b6d4', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>Laden op dit apparaat</button>
-                <button onClick={clearItemsConfig} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>🗑️</button>
+                <button disabled={savingItems} onClick={saveItemsConfig} style={{ flex: 1, background: '#0ea5e9', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>{savingItems ? 'Opslaan…' : 'Opslaan bij wedstrijd'}</button>
+                <button onClick={loadItemsConfig} style={{ flex: 1, background: '#06b6d4', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>Opgeslagen parcours laden</button>
+                <button onClick={restoreLocalItems} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>Lokale configuratie terughalen</button>
               </div>
             )}
             <div style={{ marginTop: 16 }}>
@@ -712,6 +730,7 @@ export default function ProtocolGenerator() {
       <div style={{ maxWidth: 1100, margin: "24px auto" }} className="pg-content">
         <h2>Overzicht & export</h2>
         <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", margin:"8px 0 16px" }}>
+          <button onClick={() => setStap(2)}>Terug naar hindernissen</button>
           <button onClick={downloadBatch}>Download batch PDF</button>
           <button onClick={printBatch}>Print batch PDF</button>
           <button onClick={() => setShowParcoursMaker(v => !v)}>

@@ -30,7 +30,7 @@ export const OBSTACLES = Object.freeze(rows.map(([id,officialName,aliases,allowe
 // Bijlage 3 p.86: ophalen, ringsteken en terugzetten mogen samen één cijfer krijgen.
 export const COMBINED_OBSTACLES = Object.freeze([Object.freeze({
  id:'garrocha_combined', officialName:'Garrocha uitnemen, ringsteken en terugzetten (ABC)',
- aliases:['Garrocha combinatie','Garrocha ABC'], allowedClasses:from1,
+ aliases:['Garrocha combinatie','Garrocha ABC','Garrocha: a. uit een ton pakken, b. ringsteken, c. in een ton zetten'], allowedClasses:from1,
  members:['garrocha_pickup','ring','garrocha_return'], variants:['standard'], sourcePages:[86],
  styleTrail:true, speedTrail:true,
 })]);

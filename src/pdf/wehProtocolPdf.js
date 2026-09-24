@@ -28,14 +28,15 @@ export function buildWehProtocolPdf(p, items = [], existingDoc = null) {
   ['Klasse',c.naam,'Rubriek',identity.section === 'jeugd' ? 'Jeugd' : (p.rubriek || 'Algemeen')],
   ['Ruiter',p.ruiter || '', 'Startnummer',startnummer],
   ['Paard',p.paard || '', 'Jury',p.jury || ''],
+  ['Percentage',p.percentage || '', 'Plaatsing',p.plaatsing || ''],
  ],columnStyles:{0:{cellWidth:60,fontStyle:'bold'},1:{cellWidth:190},2:{cellWidth:72,fontStyle:'bold'}}});
  let y=doc.lastAutoTable.finalY+12, max=null;
  if(component==='Dressuur') {
   const test=dressageTest(c.code);max=dressageMaximum(c.code);
-  table({startY:y, head:[['Nr.','Letters','Oefening / beoordelingscriteria','C.','Heel','Half','Opmerkingen']],
+  table({startY:y, head:[['Nr.','Letters','Oefening / beoordelingscriteria','C.','Heel','Half','Correctie','Opmerkingen']],
    styles:{fontSize:8,cellPadding:4,lineWidth:0.4,lineColor:[170,170,170],overflow:'linebreak',valign:'middle'},
-   body:test.items.map(r=>[r.number,r.letters,`${reflow(r.text)}${r.criteria ? '\n'+reflow(r.criteria) : ''}`,String(r.coefficient),'','','']),
-   columnStyles:{0:{cellWidth:25},1:{cellWidth:42},2:{cellWidth:238,minCellHeight:28},3:{cellWidth:23},4:{cellWidth:29},5:{cellWidth:29}},
+   body:test.items.map(r=>[r.number,r.letters,`${reflow(r.text)}${r.criteria ? '\n'+reflow(r.criteria) : ''}`,String(r.coefficient),'','','','']),
+   columnStyles:{0:{cellWidth:25},1:{cellWidth:42},2:{cellWidth:238,minCellHeight:28},3:{cellWidth:23},4:{cellWidth:25},5:{cellWidth:25},6:{cellWidth:45}},
    didParseCell:({section,row,cell})=>{if(section==='body' && test.items[row.index]?.kind==='general')cell.styles.fillColor=[235,241,250];}});
   y=doc.lastAutoTable.finalY+10;
   table({startY:y,pageBreak:'avoid',body:[['Proef / uitvoering',`${test.version}. ${test.lettersRequired?'Met letters':'Lettervrij'}; ${test.handUse==='one'?'eenhandig':test.handUse==='two'?'tweehandig':'een- of tweehandig'}. ${test.readAloudAllowed?'Voorlezen toegestaan.':'Uit het hoofd.'} ${test.timeLimitSeconds ? `Maximaal ${test.timeLimitSeconds/60} minuten.` : test.suggestedTimeSeconds ? `Circa ${test.suggestedTimeSeconds/60} minuten.` : ''}`],['Start / vergissingen','Start binnen 60 seconden na de bel; eigen muziek. Eerste vergissing: -5; tweede: -5; derde: diskwalificatie.']],columnStyles:{0:{cellWidth:90}}});
@@ -43,10 +44,10 @@ export function buildWehProtocolPdf(p, items = [], existingDoc = null) {
   const validation=validateCourse(c.code,component,items);
   if(!validation.valid) throw new Error(validation.errors.join(' '));
   const rules=styleRules(c.code);max=styleMaximum(c.code,items.length);
-  table({startY:y,head:[['Nr.','Hindernis / algemeen cijfer','Heel','Half','Opmerkingen']],
+  table({startY:y,head:[['Nr.','Hindernis / algemeen cijfer','Heel','Half','Correctie','Opmerkingen']],
    styles:{fontSize:8,cellPadding:5,lineWidth:0.4,lineColor:[170,170,170],overflow:'linebreak',valign:'middle'},
-   body:[['','Groeten / startlijn passeren','—','—',''],...items.map((r,i)=>[String(i+1),typeof r==='string'?r:r.officialName||r.name||r.obstacleId,'','','']),['','Finishlijn passeren / groeten','—','—',''],...rules.generalPoints.map((r,i)=>[String(items.length+i+1),r,'','',''])],
-   columnStyles:{0:{cellWidth:28},1:{cellWidth:225,minCellHeight:items.length>10?22:26},2:{cellWidth:32},3:{cellWidth:32}}});
+   body:[['','Groeten / startlijn passeren','—','—','—',''],...items.map((r,i)=>[String(i+1),typeof r==='string'?r:r.officialName||r.name||r.obstacleId,'','','','']),['','Finishlijn passeren / groeten','—','—','—',''],...rules.generalPoints.map((r,i)=>[String(items.length+i+1),r,'','','',''])],
+   columnStyles:{0:{cellWidth:28},1:{cellWidth:225,minCellHeight:items.length>10?20:26},2:{cellWidth:28},3:{cellWidth:28},4:{cellWidth:45}}});
  } else {
   table({startY:y,head:[['Correctie','Regel','Aantal','Seconden / opmerking']],
    body:speedEventRules(c.code).filter(r=>r.kind!=='disqualification').map(r=>[
