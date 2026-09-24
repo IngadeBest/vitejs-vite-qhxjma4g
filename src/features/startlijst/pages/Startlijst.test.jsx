@@ -69,6 +69,18 @@ it('does not bring cancelled participants back from localStorage on an empty lis
   expect(visibleOrder()).toEqual([]);
 });
 
+it('continues the WE0 row number and times after a pause', async () => {
+  db.entries = Array.from({ length: 12 }, (_, i) => ({ id: `r${i}`, ruiter: `Deelnemer ${i + 1}`, klasse: 'WE0', startnummer: i + 1, wedstrijd_id: 'w', volgorde: i }));
+  db.config = { interval: 7, klasseStartTimes: { WE0: { dressuur: '13:00', trail: '16:30' } }, pauses: [{ id: 'pause', position: 11, duration: 15 }] };
+  await mount();
+  const rows = [...container.querySelectorAll('tbody tr[draggable]')];
+  const last = rows.find(row => row.textContent.includes('Deelnemer 12'));
+  expect(last.querySelector('td').textContent.replace(/⋮/g, '').trim()).toBe('12');
+  expect(last.textContent).toContain('14:32');
+  expect(last.textContent).toContain('18:02');
+  expect(last.textContent).toContain('012');
+});
+
 it('loads WE0 aliases and preserves padded numbers after save and reload', async () => {
   db.entries.push({ id: 'c', ruiter: 'Jeugdruiter', paard: 'Pony', klasse: '0', rubriek: 'Jeugd', startnummer: 7, wedstrijd_id: 'w', volgorde: 2 });
   await mount();

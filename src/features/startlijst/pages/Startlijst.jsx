@@ -2301,7 +2301,7 @@ Plak je data hieronder:`);
                     // Gebruik filtered rows in huidige volgorde (geen extra sorting)
                     // De volgorde wordt nu bepaald door moveClassUp/Down functies
                     let currentKlasse = null;
-                    let klasseItemNumber = 0;
+                    const klasseItemNumbers = new Map();
                     const seenKlasses = new Set(); // Track which class headers we've shown
                     return filtered.map((row, index) => {
                       // Ensure every row has a valid ID
@@ -2315,12 +2315,11 @@ Plak je data hieronder:`);
                       
                       if (showClassHeader) {
                         currentKlasse = rowKlasse;
-                        klasseItemNumber = 0;
                         seenKlasses.add(rowKlasse);
                       }
                       
                       if (row.type !== 'break') {
-                        klasseItemNumber++;
+                        klasseItemNumbers.set(rowKlasse, (klasseItemNumbers.get(rowKlasse) || 0) + 1);
                       }
 
                       const times = calculatedTimesForView[row.id || index] || {};
@@ -2379,7 +2378,7 @@ Plak je data hieronder:`);
                                 <span className="cursor-move text-gray-400 hover:text-gray-600" title="Sleep hier om rij te verplaatsen">
                                   ⋮⋮
                                 </span>
-                                {row.type === 'break' ? '—' : klasseItemNumber}
+                                {row.type === 'break' ? '—' : klasseItemNumbers.get(rowKlasse)}
                               </div>
                             </td>
                             <td className="px-4 py-4">
