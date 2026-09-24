@@ -42,6 +42,7 @@ export const fixture_we1_stijl = {
     "Parallelslalom",
     "Slalom",
     "3 vaten",
+    "Poort",
   ]
 };
 
@@ -94,6 +95,7 @@ export const fixture_jeugd_we1_stijl = {
     onderdeel: "stijl",
     klasse: "we1",
     klasse_naam: "WE1 - Jeugd",
+    rubriek: "Jeugd",
     wedstrijd_naam: "Jeugd Trail Kampioenschap",
     datum: "2025-06-15",
     jury: "S. Mulder",
@@ -109,6 +111,7 @@ export const fixture_jeugd_we1_stijl = {
     "Tafel met kan",
     "Gang met beker omzetten",
     "Door water rijden",
+    "Brug",
   ]
 };
 
@@ -132,9 +135,9 @@ export const fixture_we1_stijl_8_obstakels = {
     "Parallelslalom",
     "Slalom",
     "3 vaten",
-    "Poort openen en sluiten",
-    "Gang met beker",
-    "Achterwaarts in L-vorm",
+    "Poort",
+    "Gang met beker omzetten",
+    "Rechte gang met bel",
   ]
 };
 

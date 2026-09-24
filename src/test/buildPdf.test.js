@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { CLASSES } from '../rules/weh/classes';
+import { dressageTest, dressageMaximum } from '../rules/weh/dressage';
+import { buildWehProtocolPdf } from '../pdf/wehProtocolPdf';
 import { buildProtocolPdf, generatePdfBlob, KLASSEN, ONDERDELEN } from '../pdf/buildPdf';
 import {
   fixture_we0_dressuur,
@@ -156,10 +159,10 @@ describe('Protocol PDF Generation', () => {
   });
 
   describe('Error Handling', () => {
-    it('should handle invalid protocol gracefully', () => {
+    it('rejects an unknown class instead of producing an unverified protocol', () => {
       expect(() => {
         buildProtocolPdf({}, []);
-      }).not.toThrow();
+      }).toThrow(/Onbekende WEH-klasse/);
     });
 
     it('should handle null items gracefully', () => {
@@ -226,4 +229,34 @@ describe('PDF Snapshot Tests', () => {
     
     expect(pageCount).toMatchSnapshot('we2plus-dressuur-pages');
   });
+});
+
+// Verify semantic content as well as pagination, so a shortened template cannot pass.
+describe('complete official PDF content', () => {
+ it.each(CLASSES.map(c => [c.code]))('%s includes every exercise and general assessment', code => {
+  const doc = buildProtocolPdf({klasse:code,onderdeel:'Dressuur',ruiter:'Test Ruiter'}, []);
+  const content = doc.internal.pages.flat().join('\n');
+  expect(doc.internal.getNumberOfPages()).toBe(2);
+  for (const row of dressageTest(code).items) {
+   // jsPDF emits each table cell as a text operand; numbers include final exercise/general row.
+   expect(content).toContain(`(${row.number}) Tj`);
+  }
+  expect(content).toContain(`(${dressageMaximum(code)}) Tj`);
+  expect(content).toContain('(Test Ruiter) Tj');
+  expect(content).toContain('Naam en handtekening jury');
+ });
+ it('rejects a prohibited speed class and an invalid style course', () => {
+  expect(()=>buildProtocolPdf({klasse:'WE1',onderdeel:'Speedtrail'},[])).toThrow(/niet toegestaan/);
+  expect(()=>buildProtocolPdf({klasse:'WE0',onderdeel:'Stijltrail'},Array(6).fill('Sprong'))).toThrow(/niet toegestaan/);
+ });
+ it('keeps participant headers and page numbering separate in a batch', () => {
+  const doc = buildWehProtocolPdf({ klasse:'we0', onderdeel:'dressuur', ruiter:'Eerste ruiter', startnummer:1 }, []);
+  doc.addPage();
+  buildWehProtocolPdf({ klasse:'we1', onderdeel:'dressuur', ruiter:'Tweede ruiter', startnummer:7 }, [], doc);
+  expect(doc.internal.getNumberOfPages()).toBe(4);
+  expect(doc.internal.pages[2].join('\n')).toContain('001  Eerste ruiter');
+  expect(doc.internal.pages[4].join('\n')).toContain('007  Tweede ruiter');
+  expect(doc.internal.pages[2].join('\n')).not.toContain('Tweede ruiter');
+  expect(doc.internal.pages[4].join('\n')).toContain('(2/2) Tj');
+ });
 });

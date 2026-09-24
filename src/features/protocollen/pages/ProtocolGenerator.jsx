@@ -1,558 +1,26 @@
+import { buildWehProtocolPdf } from "@/pdf/wehProtocolPdf";
+import { dressageRows, dressageMaximum } from "@/rules/weh/dressage";
+import { WEH_METADATA } from "@/rules/weh/metadata";
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { padStartnummer, lookupOffset } from '@/lib/startnummer';
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
-import obstakelsData from "@/data/obstakels.json";
-import defaultTemplates from "@/data/defaultTemplates.json";
+import { obstacleOptions, validateCourse } from "@/rules/weh/obstacles";
+import { CLASSES, supportsComponent, normalizeClass, normalizeComponent } from "@/rules/weh/classes";
+import { speedEventRules } from "@/rules/weh/speedTrail";
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { generatePdfBlob, KLASSEN as PDF_KLASSEN, ONDERDELEN as PDF_ONDERDELEN } from '@/pdf/buildPdf';
 import './ProtocolGenerator.css';
 
 /* Klassen & Onderdelen - gebruik de geëxporteerde constanten uit buildPdf */
 const KLASSEN = PDF_KLASSEN;
 const ONDERDELEN = PDF_ONDERDELEN;
-const TRAIL_LEVELS = [
-  { code: 'we0', label: 'WE0' },
-  { code: 'we1', label: 'WE1' },
-  { code: 'we2p', label: 'WE2 / WE2+' },
-];
+const TRAIL_LEVELS = CLASSES.map(c => ({code:c.code,label:c.naam}));
 
 /* Backwards compatible wrapper voor makePdfBlob */
 async function makePdfBlob(protocol, items) {
   return generatePdfBlob(protocol, items);
-}
-
-function resolveTemplateByKlasse(templateGroup, klasseKey) {
-  if (!templateGroup || !klasseKey) return null;
-  const direct = templateGroup[klasseKey];
-  if (direct) return direct;
-
-  // Ondersteun zowel WE2+ als WE2PLUS keys in templates.
-  if (klasseKey.includes("+")) {
-    return templateGroup[klasseKey.replace("+", "PLUS")] || null;
-  }
-  if (klasseKey.includes("PLUS")) {
-    return templateGroup[klasseKey.replace("PLUS", "+")] || null;
-  }
-  return null;
-}
-
-/* Algemene punten (Stijltrail) */
-const ALG_PUNTEN_WE0_WE1 = [
-  "Zuiverheid van de gangen en regelmatigheid van de bewegingen van het paard",
-  "Schwung, dynamiek, elasticiteit van de overgangen, losheid van de rugspieren",
-  "Gehoorzaamheid, reactie op de hulpen, oplettendheid richting ruiter en vertrouwen in de ruiter",
-  "Zit en rijwijze van de ruiter",
-];
-const ALG_PUNTEN_WE2PLUS = [
-  "Stap/galop/stap overgangen",
-  "Zuiverheid van de gangen en regelmatigheid van de bewegingen van het paard",
-  "Schwung, dynamiek, elasticiteit van de overgangen, losheid van de rugspieren",
-  "Gehoorzaamheid, reactie op de hulpen, oplettendheid richting ruiter en vertrouwen in de ruiter",
-  "Zit en rijwijze van de ruiter, effectiviteit van de hulpen",
-];
-
-/* PDF Layout Constanten */
-const BLUE = [16, 39, 84];
-const MARGIN = { left: 40, right: 40 };
-const BORDER_COLOR = [160, 160, 160];
-const HEADER_COLOR = [220, 230, 245];
-const BORDER = BORDER_COLOR; 
-
-// DRESSUUR & STIJL INDELING
-// Veel ruimte voor notities, iets minder voor oefening tekst
-const COL_WIDTHS = {
-  NUM: 25,
-  LETTER: 40,
-  EXERCISE: 140,
-  HEEL: 35,
-  HALF: 35,
-  PENALTY: 50,
-  NOTE: 190
-};
-
-// SPEEDTRAIL INDELING
-const COL_WIDTHS_SPEED = {
-  NUM: 25,
-  OBSTACLE: 140,    
-  RULE: 100,        
-  SCORE: 45,
-  NOTE: 205
-};
-
-function titleBar(doc, title, subtitle) {
-  const W = doc.internal.pageSize.getWidth();
-  doc.setFillColor(...BLUE);
-  doc.rect(0, 0, W, 64, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text(title, 40, 40);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  if (subtitle) doc.text(subtitle, 40, 56);
-  doc.setTextColor(0, 0, 0);
-}
-
-function infoBoxesSideBySide(doc, info, autoTable) {
-  const startY = 74;
-  autoTable(doc, {
-    startY,
-    head: [],
-    body: [
-      ["Wedstrijd", info.wedstrijd_naam || ""],
-      ["Datum", info.datum || ""],
-      ["Jury", info.jury || ""],
-      ["Klasse", info.klasse_naam || info.klasse || ""],
-      ["Onderdeel", info.onderdeel_label || info.onderdeel || ""],
-    ],
-    styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5 },
-    theme: "grid",
-    margin: { left: MARGIN.left, right: 280 },
-    tableWidth: "auto",
-    columnStyles: { 0: { cellWidth: 100, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
-  });
-  const leftY = doc.lastAutoTable.finalY;
-  autoTable(doc, {
-    startY,
-    head: [],
-    body: [
-      ["Ruiter", info.ruiter || ""],
-      ["Paard", info.paard || ""],
-      ["Startnummer", info.startnummer || ""],
-    ],
-    styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5 },
-    theme: "grid",
-    margin: { left: MARGIN.left + 280, right: MARGIN.right },
-    tableWidth: "auto",
-    columnStyles: {
-      0: { cellWidth: 90, fontStyle: "bold" },
-      1: { cellWidth: "auto" },
-    },
-  });
-
-  autoTable(doc, {
-    startY: doc.lastAutoTable.finalY,
-    head: [["Percentage", "Plaatsing"]],
-    body: [["", ""]],
-    styles: { fontSize: 9, cellPadding: 4, lineColor: BORDER, lineWidth: 0.5, minCellHeight: 18 },
-    headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: "bold" },
-    theme: "grid",
-    margin: { left: MARGIN.left + 280, right: MARGIN.right },
-    tableWidth: "auto",
-    columnStyles: {
-      0: { cellWidth: 90 },
-      1: { cellWidth: 90 },
-    },
-  });
-
-  const rightY = doc.lastAutoTable.finalY;
-  return Math.max(leftY, rightY);
-}
-
-function obstaclesTable(doc, items, startY, autoTable, options = {}) {
-  const { compact = false } = options;
-  const isSpeedData = items.length > 0 && Array.isArray(items[0]);
-  let head, body, colStyles;
-
-  if (isSpeedData) {
-    head = [["#", "Hindernis", "Strafbepaling", "Straf", "Opmerking"]];
-    body = items.map((row, i) => [i + 1, row[0], row[1], "", ""]);
-    colStyles = {
-      0: { cellWidth: COL_WIDTHS_SPEED.NUM, halign: "center" },
-      1: { cellWidth: COL_WIDTHS_SPEED.OBSTACLE, halign: "left" },
-      2: { cellWidth: COL_WIDTHS_SPEED.RULE, fontSize: 8, fontStyle: "italic", textColor: 80 },
-      3: { cellWidth: COL_WIDTHS_SPEED.SCORE, halign: "center" },
-      4: { cellWidth: COL_WIDTHS_SPEED.NOTE }
-    };
-  } else {
-    head = [["#", "Onderdeel / obstakel", "Heel", "Half", "Correctie", "Opmerking"]];
-    body = items.map((o, i) => [i + 1, o, "", "", "", ""]);
-    colStyles = {
-      0: { cellWidth: COL_WIDTHS.NUM, halign: "center" },
-      1: { cellWidth: COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE },
-      2: { cellWidth: COL_WIDTHS.HEEL, halign: "center" },
-      3: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
-      4: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" },
-      5: { cellWidth: COL_WIDTHS.NOTE }
-    };
-  }
-
-  autoTable(doc, {
-    startY,
-    head: head,
-    body: body,
-    styles: { 
-      fontSize: compact ? 8.5 : 9,
-      cellPadding: compact ? { top: 6, right: 3, bottom: 6, left: 3 } : { top: 8, right: 3, bottom: 8, left: 3 },
-      lineColor: BORDER_COLOR, 
-      lineWidth: 0.5, 
-      valign: "middle",
-      minCellHeight: compact ? 40 : 50
-    },
-    headStyles: { 
-      fillColor: HEADER_COLOR, 
-      textColor: 0, 
-      fontStyle: "bold", 
-      fontSize: 6,
-      cellPadding: 0.5,
-      halign: "left",
-      minCellHeight: 8
-    },
-    theme: "grid",
-    margin: MARGIN,
-    columnStyles: colStyles
-  });
-  return doc.lastAutoTable.finalY;
-}
-
-function generalPointsTable(doc, punten, startY, startIndex, autoTable, options = {}) {
-  const { compact = false } = options;
-  const rows = punten.map((naam, i) => {
-    const text = String(naam || "").trim();
-    const m = text.match(/^([A-E])\s+[\-–:]?\s*(.+)$/i);
-    if (m) {
-      return [m[1].toUpperCase(), m[2], "", "", ""];
-    }
-    return [startIndex + i, naam, "", "", ""];
-  });
-  autoTable(doc, {
-    startY,
-    head: [["#", "Algemene punten", "Heel", "Half", "Correctie", "Opmerking"]],
-    body: rows,
-    styles: { 
-      fontSize: compact ? 8.5 : 9,
-      cellPadding: compact ? { top: 6, right: 3, bottom: 6, left: 3 } : { top: 8, right: 3, bottom: 8, left: 3 },
-      lineColor: BORDER_COLOR, 
-      lineWidth: 0.5,
-      valign: "middle",
-      minCellHeight: compact ? 34 : 45
-    },
-    headStyles: { 
-      fillColor: HEADER_COLOR, 
-      textColor: 0, 
-      fontStyle: "bold", 
-      fontSize: 6,
-      cellPadding: 0.5,
-      halign: "left",
-      minCellHeight: 8
-    },
-    theme: "grid",
-    margin: MARGIN,
-    columnStyles: {
-      0: { cellWidth: COL_WIDTHS.NUM,  halign: "center" },
-      1: { cellWidth: COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE },
-      2: { cellWidth: COL_WIDTHS.HEEL,    halign: "center" },
-      3: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
-      4: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" },
-      5: { cellWidth: COL_WIDTHS.NOTE },
-    },
-  });
-  return doc.lastAutoTable.finalY;
-}
-
-function totalsBox(doc, startY, maxPoints = null, extraLabel = null, showPuntenaftrek = true, isDressuur = false, isSpeed = false, autoTable = null) {
-  let bodyRows = [];
-  let colStyles = {};
-
-  if (isSpeed) {
-    bodyRows = [
-      ["Totaal straftijd", "", ""],
-      ["Gereden tijd", "", ""],
-      ["Totaal tijd", "", ""]
-    ];
-    const labelWidth = COL_WIDTHS_SPEED.NUM + COL_WIDTHS_SPEED.OBSTACLE + COL_WIDTHS_SPEED.RULE;
-    colStyles = {
-      0: { cellWidth: labelWidth, halign: "left", fontStyle: "bold" }, 
-      1: { cellWidth: COL_WIDTHS_SPEED.SCORE, halign: "center" },
-      2: { cellWidth: COL_WIDTHS_SPEED.NOTE }
-    };
-  } else {
-    const totalLabel = maxPoints ? `Totaal (max. ${maxPoints})` : "Totaal";
-    bodyRows.push(["Subtotaal", "", "", "", ""]);
-    if (showPuntenaftrek) {
-      bodyRows.push(["Puntenaftrek en reden", "", "", "", ""]);
-    }
-    bodyRows.push([extraLabel || totalLabel, "", "", "", ""]);
-
-    const labelWidth = COL_WIDTHS.NUM + COL_WIDTHS.LETTER + COL_WIDTHS.EXERCISE;
-    colStyles = { 
-      0: { cellWidth: labelWidth, halign: "left" },
-      1: { cellWidth: COL_WIDTHS.HEEL, halign: "center" },
-      2: { cellWidth: COL_WIDTHS.HALF, halign: "center" },
-      3: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" },
-      4: { cellWidth: COL_WIDTHS.NOTE }
-    };
-  }
-  
-  autoTable(doc, {
-    startY, 
-    head: [],
-    body: bodyRows,
-    styles: { 
-      fontSize: 9, 
-      cellPadding: 5, 
-      lineColor: BORDER_COLOR, 
-      lineWidth: 0.5, 
-      fontStyle: "bold" 
-    },
-    theme: "grid", 
-    margin: MARGIN, 
-    columnStyles: colStyles
-  });
-  return doc.lastAutoTable.finalY;
-}
-
-function signatureLine(doc) {
-  const pageH = doc.internal.pageSize.getHeight();
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("Handtekening jury:", MARGIN.left, pageH - 24);
-  doc.line(MARGIN.left + 110, pageH - 26, doc.internal.pageSize.getWidth() - MARGIN.right, pageH - 26);
-}
-
-function isGeneralDressuurPunt(text) {
-  const t = String(text || "").toLowerCase();
-  return (
-    t.includes("gangen") ||
-    t.includes("impuls") ||
-    t.includes("gehoorzaamheid") ||
-    t.includes("harmonie") ||
-    t.includes("submission") ||
-    t.includes("rijden op zit") ||
-    t.includes("presentatie") ||
-    t.includes("ruiter") ||
-    t.includes("artistiek")
-  );
-}
-
-function shouldAppendDressuurLine(currentGroup, letter, beoordeling, oefening) {
-  if (!currentGroup || letter || beoordeling) return false;
-  const trimmed = String(oefening || "").trim();
-  if (!trimmed) return false;
-
-  if (currentGroup.hasAnchor) return true;
-
-  const firstChar = trimmed[0] || "";
-  const startsAsContinuation = firstChar === "(" || firstChar === "," || (firstChar >= "a" && firstChar <= "z");
-  return startsAsContinuation;
-}
-
-function alignedDressuurLetterText(doc, letters, oefeningen) {
-  const maxLen = Math.max(letters.length, oefeningen.length);
-  const letterLines = [];
-
-  const oefeningTextWidth = COL_WIDTHS.EXERCISE - 6;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-
-  for (let i = 0; i < maxLen; i++) {
-    const letter = letters[i] ?? "";
-    const oefening = oefeningen[i] ?? "";
-    letterLines.push(letter);
-
-    if (i < maxLen - 1) {
-      const wrapped = doc.splitTextToSize(String(oefening), oefeningTextWidth);
-      const visualLines = Array.isArray(wrapped) ? Math.max(1, wrapped.length) : 1;
-      for (let j = 1; j < visualLines; j++) letterLines.push("");
-    }
-  }
-
-  return letterLines.join("\n");
-}
-
-function protocolToDoc(doc, p, items, autoTable) {
-  const title = p.onderdeel === "dressuur" ? "Working Point • Dressuurprotocol"
-               : p.onderdeel === "stijl" ? "Working Point • Stijltrail Protocol"
-               : "Working Point • Speedtrail Protocol";
-  titleBar(doc, title, `${p.klasse_naam || p.klasse}`);
-  const infoY = infoBoxesSideBySide(doc, p, autoTable);
-  
-  // DRESSUUR LOGICA
-  if (p.onderdeel === "dressuur") {
-    const tableData = [];
-    const algemenePuntenData = [];
-    let currentGroup = null;
-    let groupNumber = 0;
-    let inAlgemenePunten = false;
-    
-    items.forEach((item) => {
-      if (Array.isArray(item) && item.length >= 2) {
-        const letter = item[0] || "";
-        const oefening = item[1] || "";
-        const beoordeling = item[3] || item[2] || "";
-        
-        // Detecteer algemene punten (o.a. 'Gangen', 'Impuls', etc)
-        // Als letter en beoordeling leeg zijn, en oefening bevat trefwoorden
-        if (!letter && !beoordeling && isGeneralDressuurPunt(oefening)) {
-          inAlgemenePunten = true;
-          currentGroup = null;
-        }
-        
-        if (inAlgemenePunten) {
-          algemenePuntenData.push(oefening);
-          return;
-        }
-
-        const isNewGroup = letter && beoordeling; // Nieuwe groep als letter én beoordeling bestaan
-        
-        // Als er geen letter is, maar wel tekst, is het vaak een vervolgregel
-        // Tenzij we expliciet nummeren (wat we in de JSON nu doen)
-        if (isNewGroup || (oefening && !currentGroup)) {
-          groupNumber++;
-          currentGroup = {
-            nummer: groupNumber.toString(),
-            letters: [letter],
-            oefeningen: [oefening],
-            beoordeling: beoordeling,
-            puntenHeel: "",
-            puntenHalf: "",
-            isHeader: false,
-            hasAnchor: Boolean(letter || beoordeling)
-          };
-          tableData.push(currentGroup);
-        } else if (shouldAppendDressuurLine(currentGroup, letter, beoordeling, oefening)) {
-          // Vervolgregel binnen een oefening
-          currentGroup.letters.push("");
-          currentGroup.oefeningen.push(oefening);
-        } else if (letter && !beoordeling) {
-          // Oefening met alleen een letter (soms bij figuren)
-          groupNumber++;
-          currentGroup = {
-            nummer: groupNumber.toString(),
-            letters: [letter],
-            oefeningen: [oefening],
-            beoordeling: "",
-            puntenHeel: "",
-            puntenHalf: "",
-            isHeader: false,
-            hasAnchor: Boolean(letter || beoordeling)
-          };
-          tableData.push(currentGroup);
-        } else if (oefening) {
-          groupNumber++;
-          currentGroup = {
-            nummer: groupNumber.toString(),
-            letters: [letter],
-            oefeningen: [oefening],
-            beoordeling: beoordeling,
-            puntenHeel: "",
-            puntenHalf: "",
-            isHeader: false,
-            hasAnchor: Boolean(letter || beoordeling)
-          };
-          tableData.push(currentGroup);
-        }
-      }
-    });
-    
-    const formattedData = tableData.map(group => [
-      group.nummer,
-      alignedDressuurLetterText(doc, group.letters, group.oefeningen),
-      group.oefeningen.join("\n"),
-      group.puntenHeel,
-      group.puntenHalf,
-      "",
-      group.beoordeling
-    ]);
-    
-    autoTable(doc, {
-      startY: infoY + 16,
-      head: [["#", "Letter", "Oefening", "Heel", "Half", "Correctie", "Beoordeling/Opmerkingen"]],
-      body: formattedData,
-      styles: { 
-        fontSize: 9, 
-        cellPadding: { top: 8, right: 3, bottom: 8, left: 3 }, 
-        lineColor: BORDER_COLOR, 
-        lineWidth: 0.5,
-        valign: "top",
-        overflow: 'linebreak',
-        minCellHeight: 60  // <--- HIERMEE GEGARANDEERD SCHRIJFRUIMTE
-      },
-      headStyles: { 
-        fillColor: HEADER_COLOR, 
-        textColor: 0, 
-        fontStyle: "bold", 
-        fontSize: 6, 
-        cellPadding: 0.5, 
-        halign: "left",
-        valign: "middle",
-        minCellHeight: 8
-      },
-      theme: "grid",
-      margin: MARGIN,
-      columnStyles: {
-        0: { cellWidth: COL_WIDTHS.NUM, halign: "center" }, 
-        1: { cellWidth: COL_WIDTHS.LETTER, halign: "left" }, 
-        2: { cellWidth: COL_WIDTHS.EXERCISE, halign: "left" }, 
-        3: { cellWidth: COL_WIDTHS.HEEL, halign: "center" }, 
-        4: { cellWidth: COL_WIDTHS.HALF, halign: "center" }, 
-        5: { cellWidth: COL_WIDTHS.PENALTY, halign: "center" }, 
-        6: { cellWidth: COL_WIDTHS.NOTE } 
-      }
-    });
-    
-    const afterOefeningen = doc.lastAutoTable.finalY;
-    
-    let afterAlg = afterOefeningen;
-    if (algemenePuntenData.length > 0) {
-      // SLIMME PAGINA-BREAK:
-      // Als er minder dan 150 punten ruimte over is, begin op een nieuwe pagina.
-      // Dit voorkomt dat de header op pagina 1 staat en de tabel op pagina 2.
-      const pageHeight = doc.internal.pageSize.height;
-      const spaceLeft = pageHeight - afterOefeningen - MARGIN.bottom;
-      
-      let startY = afterOefeningen + 12;
-      if (spaceLeft < 150) {
-        doc.addPage();
-        startY = 40; 
-      }
-
-      afterAlg = generalPointsTable(doc, algemenePuntenData, startY, groupNumber + 1, autoTable);
-    }
-    
-    totalsBox(doc, afterAlg + 6, p.max_score ? Number(p.max_score) : null, null, true, true, false, autoTable);
-    signatureLine(doc);
-    return;
-  }
-  
-  // STIJL & SPEED LOGICA
-  const isSpeed = p.onderdeel === "speed";
-  const isStijl = p.onderdeel === "stijl";
-  const useCompactStijlLayout = isStijl && Array.isArray(items) && items.length >= 8;
-  const afterItems = obstaclesTable(doc, items, infoY + 16, autoTable, { compact: useCompactStijlLayout });
-  let afterAlg = afterItems;
-
-  if (isStijl) {
-    const punten = (p.klasse === "we0" || p.klasse === "we1") ? ALG_PUNTEN_WE0_WE1 : ALG_PUNTEN_WE2PLUS;
-    
-    // Check ruimte voor stijltrail
-    const pageHeight = doc.internal.pageSize.height;
-    const spaceLeft = pageHeight - afterItems - MARGIN.bottom;
-    
-    let startY = afterItems + (useCompactStijlLayout ? 8 : 12);
-    if (spaceLeft < 150) {
-      doc.addPage();
-      startY = 40;
-    }
-
-    afterAlg = generalPointsTable(doc, punten, startY, items.length + 1, autoTable, { compact: useCompactStijlLayout });
-  }
-
-  totalsBox(
-    doc, 
-    afterAlg + (useCompactStijlLayout ? 4 : 6), 
-    p.max_score ? Number(p.max_score) : null, 
-    isSpeed ? "Tijd / Strafseconden / Totaal" : null, 
-    false, // Geen puntenaftrek voor stijl en speed
-    false,    
-    isSpeed,
-    autoTable   
-  );
-  
-  signatureLine(doc);
 }
 
 export default function ProtocolGenerator() {
@@ -596,7 +64,7 @@ export default function ProtocolGenerator() {
   const [csvRows, setCsvRows] = useState([]);
   const [dbRows, setDbRows] = useState([]);
   const [selectIndex, setSelectIndex] = useState(0);
-  const [selectedRubriek, setSelectedRubriek] = useState('senior');
+  const [selectedRubriek, setSelectedRubriek] = useState('');
   const [pdfUrl, setPdfUrl] = useState(null);
   const [showParcoursMaker, setShowParcoursMaker] = useState(false);
   const [parcoursImage, setParcoursImage] = useState('');
@@ -608,13 +76,15 @@ export default function ProtocolGenerator() {
     datum: '',
     piste: '',
   });
-  const [parcoursByLevel, setParcoursByLevel] = useState({
-    we0: '',
-    we1: '',
-    we2p: '',
-  });
+  const [parcoursByLevel, setParcoursByLevel] = useState(() => Object.fromEntries(CLASSES.map(c => [c.code, ''])));
   const draggedItem = useRef(null);
   const draggedFromAvailable = useRef(false);
+  const participantRequest = useRef(0);
+
+  useEffect(() => {
+    participantRequest.current += 1;
+    setDbRows([]); setCsvRows([]); setSelectIndex(0); setPdfUrl(null);
+  }, [config.wedstrijd_id, config.klasse, selectedRubriek]);
 
   useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
 
@@ -629,7 +99,7 @@ export default function ProtocolGenerator() {
   const saveItemsConfig = () => {
     const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
     localStorage.setItem(key, JSON.stringify(items));
-    alert(`✅ Configuratie opgeslagen voor ${config.klasse} ${config.onderdeel}`);
+    alert(`Configuratie op dit apparaat opgeslagen voor ${config.klasse} ${config.onderdeel}`);
   };
 
   const loadItemsConfig = () => {
@@ -660,55 +130,42 @@ export default function ProtocolGenerator() {
       setDbMsg(""); setDbMax(null); setItems([]);
       if (!config.wedstrijd_id || !config.klasse || !config.onderdeel) return;
       
-      if (config.onderdeel === "dressuur" || config.onderdeel === "speed") {
-        try {
-          const klasseMap = {
-            'we0': 'WE0', 'we1': 'WE1', 'we2': 'WE2', 'we2p': 'WE2+', 'we2+': 'WE2+',
-            'we2plus': 'WE2+', 'we3': 'WE3', 'we4': 'WE4',
-            'junior': 'JUNIOR', 'junioren': 'JUNIOR', 'young riders': 'YOUNG_RIDERS', 'yr': 'YOUNG_RIDERS'
-          };
-          const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
-          const templateType = config.onderdeel === "dressuur" ? "dressuur" : "speed";
-          const template = resolveTemplateByKlasse(defaultTemplates[templateType], normalizedKlasse);
-          
-          if (template && template.sections && template.sections[0]) {
-            const section = template.sections[0];
-            setItems(section.rows);
-            setDbMsg(`✅ ${config.onderdeel} geladen: ${section.title} (${section.rows.length} items)`);
-          } else {
-            setDbMsg(`⚠️ Geen ${templateType} protocol gevonden voor klasse ${config.klasse}`);
-          }
-          return;
-        } catch (e) {
-          setDbMsg(`Kon ${config.onderdeel} protocol niet laden: ` + e.message);
-          return;
-        }
+      if (config.onderdeel === 'dressuur') {
+        setItems(dressageRows(config.klasse));
+        setDbMax(dressageMaximum(config.klasse));
+        setDbMsg('Officiële dressuurproef geladen (WEH 2026 v10).');
+        return;
       }
-      
+      if (config.onderdeel === 'speed') {
+        setItems(speedEventRules(config.klasse).map(r => [r.label, r.kind === 'review' ? r.reviewRequired : r.kind === 'disqualification' ? 'DQ' : `${r.kind === 'bonus' ? '-' : '+'}${r.seconds} sec${r.decisionStatus === 'user_agreed_pending_weh' ? ' (werkafspraak; WEH volgt)' : ''}`]));
+        setDbMsg('Speedregels geladen uit het centrale WEH-regelboek.');
+        return;
+      }
+
       // Voor stijl: haal uit database of localStorage
       try {
-        const { data: proef, error: e1 } = await supabase
-          .from("proeven").select("id, max_score, naam")
-          .eq("wedstrijd_id", config.wedstrijd_id)
-          .eq("klasse", config.klasse)
-          .eq("onderdeel", config.onderdeel)
-          .order("created_at", { ascending: true })
-          .limit(1).maybeSingle();
+        const { data: candidates, error: e1 } = await supabase
+          .from("proeven").select("id, uuid, max_score, naam, klasse, onderdeel")
+          .eq("wedstrijd_id", config.wedstrijd_id);
         if (e1) throw e1;
-        if (!proef) { setDbMsg("Geen proefconfig gevonden voor deze selectie."); return; }
+        if (!alive) return;
+        const matches = (candidates || []).filter(p => normalizeClass(p.klasse) === normalizeClass(config.klasse) && normalizeComponent(p.onderdeel) === normalizeComponent(config.onderdeel));
+        if (matches.length > 1) throw new Error('Meerdere proefconfiguraties gevonden; maak de klasse/rubriekselectie eenduidig.');
+        const proef = matches[0];
         
         const key = `protocol_items_${config.wedstrijd_id}_${config.klasse}_${config.onderdeel}`;
         const saved = localStorage.getItem(key);
         if (saved) {
           const parsedItems = JSON.parse(saved);
           setItems(parsedItems);
-          setDbMax(proef.max_score || null);
+          setDbMax(proef?.max_score || null);
           setDbMsg(`✅ Opgeslagen configuratie geladen: ${parsedItems.length} items`);
           return;
         }
 
+        if (!proef?.uuid) { setDbMsg("Nog geen parcours opgeslagen bij deze proef. Selecteer hieronder de hindernissen."); return; }
         const { data: its, error: e2 } = await supabase
-          .from("proeven_items").select("nr, omschrijving").eq("proef_id", proef.id).order("nr", { ascending: true });
+          .from("proeven_items").select("nr, omschrijving").eq("proef_id", proef.uuid).order("nr", { ascending: true });
         if (e2) throw e2;
         if (!alive) return;
         
@@ -725,50 +182,27 @@ export default function ProtocolGenerator() {
 
   async function loadDeelnemersFromDB() {
     if (!config.wedstrijd_id || !config.klasse) { setDbMsg('⚠️ Selecteer eerst wedstrijd en klasse'); return; }
+    const request = ++participantRequest.current;
     setDbMsg('Laden...');
     setDbRows([]);
     setCsvRows([]);
     
-    // Fallback LocalStorage logic
-    const loadFromLocalStorage = () => {
-      const storageKey = `startlijst_${config.wedstrijd_id}`;
-      const stored = localStorage.getItem(storageKey);
-      if (!stored) return null;
-      try {
-        const parsed = JSON.parse(stored);
-        const klasseNorm = config.klasse.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const filtered = parsed.filter(r => r.type === 'entry' && (r.klasse||'').toLowerCase().replace(/[^a-z0-9]/g, '') === klasseNorm);
-        if (filtered.length === 0) return null;
-        return filtered.map((r, i) => ({
-          ruiter: r.ruiter || '', paard: r.paard || '', rubriek: r.rubriek || selectedRubriek || 'senior',
-          startnummer: r.startnummer || String(lookupOffset(config.klasse, (r.rubriek || selectedRubriek || 'senior'), selectedWedstrijd?.startlijst_config) + i),
-          percentage: r.percentage || '',
-          plaatsing: r.plaatsing || ''
-        }));
-      } catch { return null; }
-    };
-    
     try {
-      const klasseMap = { 
-        'we0':'WE0', 'we1':'WE1', 'we2':'WE2', 'we2p':'WE2+', 'we2+':'WE2+', 'we2plus':'WE2+',
-        'we3':'WE3', 'we4':'WE4', 
-        'yr':'Young Riders', 'young riders':'Young Riders', 'youngriders':'Young Riders',
-        'junior':'Junioren', 'junioren':'Junioren' 
-      };
-      const normalizedKlasse = klasseMap[config.klasse.toLowerCase()] || config.klasse.toUpperCase();
-      
-      const { data, error } = await supabase
+      const { data: candidates, error } = await supabase
         .from('inschrijvingen')
-        .select('ruiter,paard,startnummer,rubriek')
+        .select('ruiter,paard,startnummer,rubriek,klasse')
         .eq('wedstrijd_id', config.wedstrijd_id)
-        .eq('klasse', normalizedKlasse)
+        .or('deelnemer_status.is.null,deelnemer_status.eq.actief')
         .order('startnummer', { ascending: true });
       
       if (error) throw error;
+      if (request !== participantRequest.current) return;
+      const data = (candidates || []).filter(r => normalizeClass(r.klasse) === normalizeClass(config.klasse)
+        && (!selectedRubriek || (String(r.rubriek || '').toLowerCase() === 'jeugd' ? 'jeugd' : 'senior') === selectedRubriek));
       if (data && data.length > 0) {
         setDbRows(data.map((r, i) => ({
           ruiter: r.ruiter || '', paard: r.paard || '', rubriek: r.rubriek || selectedRubriek || 'senior',
-          startnummer: (r.startnummer != null && r.startnummer !== '') ? String(r.startnummer) : String(lookupOffset(config.klasse, r.rubriek || selectedRubriek || 'senior', selectedWedstrijd?.startlijst_config) + i),
+          startnummer: (r.startnummer != null && r.startnummer !== '') ? padStartnummer(r.startnummer) : '',
           percentage: '',
           plaatsing: ''
         })));
@@ -779,13 +213,9 @@ export default function ProtocolGenerator() {
       setDbMsg('⚠️ Geen deelnemers gevonden in database voor deze selectie');
       setDbHint('Ga naar Startlijst en klik Opslaan voor deze wedstrijd/klasse, daarna opnieuw laden.');
     } catch (e) {
-      const localData = loadFromLocalStorage();
-      if (localData && localData.length > 0) {
-        setDbRows(localData);
-        setDbMsg(`✅ ${localData.length} deelnemers geladen (localStorage)`);
-      } else {
-        setDbMsg('❌ Database error en geen lokale data');
-      }
+      if (request !== participantRequest.current) return;
+      setDbRows([]);
+      setDbMsg('Deelnemers konden niet worden geladen. Probeer opnieuw: ' + e.message);
     }
   }
 
@@ -880,6 +310,7 @@ export default function ProtocolGenerator() {
   const protocollen = useMemo(() => {
     const src = (dbRows && dbRows.length) ? dbRows : csvRows;
     return (src || []).map((d, idx) => ({
+      rulesVersion: WEH_METADATA.rulebookVersion,
       onderdeel: config.onderdeel,
       klasse: config.klasse,
       klasse_naam: KLASSEN.find((k) => k.code === config.klasse)?.naam || config.klasse,
@@ -888,7 +319,7 @@ export default function ProtocolGenerator() {
       datum: config.datum || "",
       jury: config.jury || "",
       rubriek: d.rubriek || selectedRubriek || 'senior',
-      startnummer: padStartnummer(d.startnummer || String( (dbRows && dbRows.length) ? (Number(d.startnummer) || String( lookupOffset(config.klasse, d.rubriek || selectedRubriek || 'senior', selectedWedstrijd?.startlijst_config) + idx )) : String(idx + 1) )),
+      startnummer: d.startnummer === '' || d.startnummer == null ? '' : padStartnummer(d.startnummer),
       ruiter: d.ruiter || "",
       paard: d.paard || "",
       percentage: d.percentage || "",
@@ -896,7 +327,7 @@ export default function ProtocolGenerator() {
       max_score: dbMax,
       onderdeel_label: ONDERDELEN.find(o=>o.code===config.onderdeel)?.label || config.onderdeel
     }));
-  }, [csvRows, dbRows, config, selectedWedstrijd, dbMax]);
+  }, [csvRows, dbRows, config, selectedWedstrijd, dbMax, selectedRubriek]);
 
   const previewPdf = async () => {
     try {
@@ -936,7 +367,7 @@ export default function ProtocolGenerator() {
       const doc = new jsPDF({ unit: "pt", format: "A4" });
       protocollen.forEach((p, i) => {
         if (i > 0) doc.addPage();
-        protocolToDoc(doc, p, items, autoTable);
+        buildWehProtocolPdf(p, items, doc);
       });
       doc.save(`protocollen_${config.onderdeel}.pdf`);
     } catch (error) { console.error(error); alert('Fout bij batch download: ' + error.message); }
@@ -948,7 +379,7 @@ export default function ProtocolGenerator() {
       const doc = new jsPDF({ unit: "pt", format: "A4" });
       protocollen.forEach((p, i) => {
         if (i > 0) doc.addPage();
-        protocolToDoc(doc, p, items, autoTable);
+        buildWehProtocolPdf(p, items, doc);
       });
       doc.autoPrint();
       const url = doc.output('bloburl');
@@ -958,7 +389,7 @@ export default function ProtocolGenerator() {
 
   const parseParcoursLines = (value) => String(value || '')
     .split('\n')
-    .map((line) => line.trim())
+    .map((line) => line.trim().replace(/^\d+[.)]\s+/, ''))
     .filter(Boolean);
 
   const updateParcoursLines = (levelCode, value) => {
@@ -1003,6 +434,8 @@ export default function ProtocolGenerator() {
       return;
     }
 
+    const check = validateCourse(levelCode, 'Stijltrail', lines);
+    if (!check.valid || check.review.length) { alert([...check.errors, ...check.review].join('\n')); return; }
     const doc = new jsPDF({ unit: 'pt', format: 'A4', orientation: 'landscape' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -1105,8 +538,7 @@ export default function ProtocolGenerator() {
   };
   const availableObstakels = useMemo(() => {
     if (!config.klasse || config.onderdeel !== 'stijl') return [];
-    const km = {'we0':'WE0','we1':'WE1','we2':'WE2','we2p':'WE2+','we2+':'WE2+','we2plus':'WE2+','we3':'WE3','we4':'WE4','yr':'YR','junior':'JR','junioren':'JR'};
-    return obstakelsData[km[config.klasse.toLowerCase()] || config.klasse.toUpperCase()] || [];
+    return config.klasse ? obstacleOptions(config.klasse) : [];
   }, [config.klasse, config.onderdeel]);
 
   const Header = () => (
@@ -1146,8 +578,17 @@ export default function ProtocolGenerator() {
           <input type="date" value={config.datum} onChange={(e)=>setConfig(c=>({...c, datum:e.target.value}))}/>
           <label>Jury (optioneel)</label>
           <input value={config.jury} onChange={(e)=>setConfig(c=>({...c, jury:e.target.value}))}/>
+          <label>Rubriek</label>
+          <select aria-label="Rubriek" value={selectedRubriek} onChange={e => setSelectedRubriek(e.target.value)}>
+            <option value="">Alle rubrieken</option>
+            <option value="senior">Algemeen / Senior</option>
+            <option value="jeugd">Jeugd</option>
+          </select>
         </div>
         <div style={{ marginTop: 6, fontSize: 12, color: "#555" }}>{dbMsg}</div>
+        {config.onderdeel === 'stijl' && ['junior', 'yr'].includes(config.klasse) && (
+          <p role="status">Voor het stijlprotocol van Junioren en Young Riders wachten de algemene beoordelingspunten nog op bevestiging van de jury (RR08). Dressuur en speed zijn beschikbaar.</p>
+        )}
         <div style={{ marginTop: 18 }}>
           <button onClick={() => setStap(2)} disabled={!config.wedstrijd_id || !config.klasse || !config.onderdeel}>Volgende: Items & Deelnemers</button>
         </div>
@@ -1215,13 +656,14 @@ export default function ProtocolGenerator() {
       <Header />
       <div style={{ maxWidth: 1200, margin: "24px auto" }} className="pg-content">
         <h2>Items & deelnemers</h2>
+        <p role="status">{dbMsg}</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 420px",gap:24,alignItems:"start"}}>
           <div>
             {renderItemsEditor()}
             {config.onderdeel === 'stijl' && items.length > 0 && (
               <div style={{ marginTop: 12, display: 'flex', gap: 8, padding: 12, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
-                <button onClick={saveItemsConfig} style={{ flex: 1, background: '#0ea5e9', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>💾 Opslaan</button>
-                <button onClick={loadItemsConfig} style={{ flex: 1, background: '#06b6d4', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>📥 Laden</button>
+                <button onClick={saveItemsConfig} style={{ flex: 1, background: '#0ea5e9', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>Opslaan op dit apparaat</button>
+                <button onClick={loadItemsConfig} style={{ flex: 1, background: '#06b6d4', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>Laden op dit apparaat</button>
                 <button onClick={clearItemsConfig} style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 6 }}>🗑️</button>
               </div>
             )}
@@ -1243,7 +685,7 @@ export default function ProtocolGenerator() {
               <tbody>
                 {items.map((o,i)=>(
                   <tr key={`prev-${i}`} style={{ borderTop:"1px solid #f0f0f0" }}>
-                    {config.onderdeel === 'speed' && Array.isArray(o) ? <><td>{o[0]}</td><td style={{ fontSize: 12, color: '#666' }}>{o[1]}</td></> : <><td>{i+1}</td><td>{Array.isArray(o) ? o.join(' • ') : o}</td></>}
+                    {config.onderdeel === 'speed' && Array.isArray(o) ? <><td>{o[0]}</td><td style={{ fontSize: 12, color: '#666' }}>{o[1]}</td></> : <><td>{i+1}</td><td>{Array.isArray(o) ? o.filter(v => typeof v === 'string' && v).join(' • ') : o}</td></>}
                   </tr>
                 ))}
               </tbody>

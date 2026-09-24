@@ -1,0 +1,1928 @@
+{
+  "dressage_we0": {
+    "id": "dressage_we0",
+    "classCode": "we0",
+    "version": "20250606",
+    "source": "https://weholland.nl/wp-content/uploads/2025/12/WE-0-Dressuur-NL-v20250606.pdf",
+    "rulebookPages": [
+      42,
+      43,
+      44
+    ],
+    "sourceSha256": "50ac8677f130803481f24b6391522e8aa5939e1f57748cd3fab78f23a3ba86c2",
+    "maximum": 270,
+    "exerciseCount": 21,
+    "generalCount": 6,
+    "suggestedTimeSeconds": 330,
+    "timeLimitSeconds": null,
+    "lettersRequired": true,
+    "handUse": "two",
+    "readAloudAllowed": true,
+    "items": [
+      {
+        "number": "1",
+        "kind": "exercise",
+        "letters": "A-X\nX",
+        "text": "Binnenkomen in\narbeidsdraf,\nHalthouden en groeten",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang op zit,\nplaats, kwaliteit halt, ontspanning",
+        "coefficient": 1
+      },
+      {
+        "number": "2",
+        "kind": "exercise",
+        "letters": "X-C\nC",
+        "text": "Voorwaarts in arbeidsdraf\nRechterhand",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, plaats,\novergang.",
+        "coefficient": 1
+      },
+      {
+        "number": "3",
+        "kind": "exercise",
+        "letters": "C",
+        "text": "Slangenvolte 3 bogen",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur",
+        "coefficient": 1
+      },
+      {
+        "number": "4",
+        "kind": "exercise",
+        "letters": "K–X-M\nM",
+        "text": "Van hand veranderen,\nenkele passen verruimen.\nArbeidsdraf",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang op zit,\nverruiming.",
+        "coefficient": 1
+      },
+      {
+        "number": "5",
+        "kind": "exercise",
+        "letters": "C-X",
+        "text": "Halve grote volte links",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur",
+        "coefficient": 1
+      },
+      {
+        "number": "6",
+        "kind": "exercise",
+        "letters": "X-A",
+        "text": "Halve grote volte rechts",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur",
+        "coefficient": 1
+      },
+      {
+        "number": "7",
+        "kind": "exercise",
+        "letters": "A",
+        "text": "Halthouden en 4 seconden\nstilstaan",
+        "criteria": "Aanleuning, takt en regelmaat, rechtergerichtheid, plaats,\novergang op zit, kwaliteit halt, ontspanning",
+        "coefficient": 1
+      },
+      {
+        "number": "8",
+        "kind": "exercise",
+        "letters": "A",
+        "text": "Voorwaarts in arbeidsstap",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang",
+        "coefficient": 1
+      },
+      {
+        "number": "9",
+        "kind": "exercise",
+        "letters": "K-H\n(K-E en E-H)",
+        "text": "Op de lange zijde\n2x gebroken lijn 3-5 meter.",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur",
+        "coefficient": 1
+      },
+      {
+        "number": "10",
+        "kind": "exercise",
+        "letters": "C",
+        "text": "Arbeidsdraf doorzitten",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, plaats,\novergang.",
+        "coefficient": 1
+      },
+      {
+        "number": "11",
+        "kind": "exercise",
+        "letters": "B-E-B",
+        "text": "Grote volte",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur",
+        "coefficient": 1
+      },
+      {
+        "number": "12",
+        "kind": "exercise",
+        "letters": "Voor E\nB",
+        "text": "Arbeidsgalop rechts\naanspringen\nHoefslag volgen",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur,\novergang galop.",
+        "coefficient": 1
+      },
+      {
+        "number": "13",
+        "kind": "exercise",
+        "letters": "Tussen A-K",
+        "text": "Overgang naar de\narbeidsdraf",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats,\novergang op de zit.",
+        "coefficient": 1
+      },
+      {
+        "number": "14",
+        "kind": "exercise",
+        "letters": "E-M",
+        "text": "Van hand veranderen",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, figuur",
+        "coefficient": 1
+      },
+      {
+        "number": "15",
+        "kind": "exercise",
+        "letters": "Tussen C en\nH",
+        "text": "Arbeidsgalop links\naanspringen",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats,\novergang galop",
+        "coefficient": 1
+      },
+      {
+        "number": "16",
+        "kind": "exercise",
+        "letters": "E-B-E",
+        "text": "Grote volte",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur",
+        "coefficient": 1
+      },
+      {
+        "number": "17",
+        "kind": "exercise",
+        "letters": "E",
+        "text": "Volte 15 m met\novergang naar draf",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur,\novergang op zit.",
+        "coefficient": 1
+      },
+      {
+        "number": "18",
+        "kind": "exercise",
+        "letters": "Tussen E-K\nrichting H",
+        "text": "Linksomkeert 15 m",
+        "criteria": "Aanleuning, takt en regelmaat, , stelling en buiging, figuur",
+        "coefficient": 1
+      },
+      {
+        "number": "19",
+        "kind": "exercise",
+        "letters": "B",
+        "text": "Volte 15 m rechts",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur",
+        "coefficient": 1
+      },
+      {
+        "number": "20",
+        "kind": "exercise",
+        "letters": "A",
+        "text": "Afwenden",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats.",
+        "coefficient": 1
+      },
+      {
+        "number": "21",
+        "kind": "exercise",
+        "letters": "Tussen\nX-G",
+        "text": "Halthouden en groeten",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang op\nzit, plaats, kwaliteit halt, ontspanning",
+        "coefficient": 1
+      },
+      {
+        "number": "22",
+        "kind": "general",
+        "letters": "",
+        "text": "Gangen.\nTakt, regelmaat, ritme",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "23",
+        "kind": "general",
+        "letters": "",
+        "text": "Impuls,\nLosgelatenheid van het paard, correct\nruggebruik en gebruik van de\nachterhand.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "24",
+        "kind": "general",
+        "letters": "",
+        "text": "Gehoorzaamheid. De ontspanning,\noplettendheid en vertrouwen, lichtheid\nen aanleuning.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "25",
+        "kind": "general",
+        "letters": "",
+        "text": "Harmonie.\nHet op een sympathieke,\npaardvriendelijke manier rijden en het\ngebruik van de hulpmiddelen.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "26",
+        "kind": "general",
+        "letters": "",
+        "text": "Rijden op de zit. Houding en inwerking\nvan de ruiter. Lichtheid in de verbinding.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "27",
+        "kind": "general",
+        "letters": "",
+        "text": "Presentatie van de combinatie.",
+        "criteria": "",
+        "coefficient": 1
+      }
+    ]
+  },
+  "dressage_we1": {
+    "id": "dressage_we1",
+    "classCode": "we1",
+    "version": "20250606",
+    "source": "https://weholland.nl/wp-content/uploads/2025/12/WE-1-Dressuur-NL-v20250606.pdf",
+    "rulebookPages": [
+      45,
+      46,
+      47
+    ],
+    "sourceSha256": "e27043b5f1f29d5d55df52b1a81b926210b5842f11ad19fcb6fb3fc35766552f",
+    "maximum": 300,
+    "exerciseCount": 24,
+    "generalCount": 6,
+    "suggestedTimeSeconds": 330,
+    "timeLimitSeconds": null,
+    "lettersRequired": true,
+    "handUse": "two",
+    "readAloudAllowed": false,
+    "items": [
+      {
+        "number": "1",
+        "kind": "exercise",
+        "letters": "A-X\nX",
+        "text": "Binnenkomen in arbeidsdraf\nHalthouden en groeten",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang\nop zit, plaats, kwaliteit halt, ontspanning.",
+        "coefficient": 1
+      },
+      {
+        "number": "2",
+        "kind": "exercise",
+        "letters": "X\nC",
+        "text": "Voorwaarts in arbeidsdraf\nLinkerhand",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang.",
+        "coefficient": 1
+      },
+      {
+        "number": "3",
+        "kind": "exercise",
+        "letters": "A\nD en X",
+        "text": "Afwenden en tussen\nVolte 10 m links daarbij enkele\npassen de binnenhand Überstreichen",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats,\nfiguur, überstreichen.",
+        "coefficient": 1
+      },
+      {
+        "number": "4",
+        "kind": "exercise",
+        "letters": "Tussen\nX en G\nC",
+        "text": "Volte 10 m rechts daarbij enkele\npassen de binnenhand Überstreichen.\nLinkerhand",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats,\nfiguur, überstreichen.",
+        "coefficient": 1
+      },
+      {
+        "number": "5",
+        "kind": "exercise",
+        "letters": "Tussen\nC en H",
+        "text": "Overgang arbeidsstap",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats,\novergang op zit.",
+        "coefficient": 1
+      },
+      {
+        "number": "6",
+        "kind": "exercise",
+        "letters": "Tussen\nH en E\nTussen\nM en B",
+        "text": "Afwenden en recht oversteken.\nEen kwart voorwaartse wending\nom de voorhand naar rechts",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, de\nwending om de voorhand.",
+        "coefficient": 1
+      },
+      {
+        "number": "7",
+        "kind": "exercise",
+        "letters": "Tussen\nB en F",
+        "text": "Afwenden, recht oversteken en\nenkele passen de stap verruimen",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid,\nverruiming, overgangen.",
+        "coefficient": 1
+      },
+      {
+        "number": "8",
+        "kind": "exercise",
+        "letters": "Tussen\nE en K",
+        "text": "Een kwart voorwaartse wending\nom de voorhand naar links.",
+        "criteria": "Aanleuning, takt en regelmaat, de wending om de\nvoorhand.",
+        "coefficient": 1
+      },
+      {
+        "number": "9",
+        "kind": "exercise",
+        "letters": "Tussen\nK en A",
+        "text": "Overgang arbeidsdraf",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats,\novergang.",
+        "coefficient": 1
+      },
+      {
+        "number": "10",
+        "kind": "exercise",
+        "letters": "Tussen\nA en F",
+        "text": "Arbeidsgalop links\naanspringen",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats,\novergang galop.",
+        "coefficient": 1
+      },
+      {
+        "number": "11",
+        "kind": "exercise",
+        "letters": "B E B",
+        "text": "Grote volte\nEnkele sprongen middengalop",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur,\nverruiming, overgangen.",
+        "coefficient": 1
+      },
+      {
+        "number": "12",
+        "kind": "exercise",
+        "letters": "H-X-F",
+        "text": "Van hand veranderen en via\nenkele drafpassen naar de stap",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang\nop zit.",
+        "coefficient": 1
+      },
+      {
+        "number": "13",
+        "kind": "exercise",
+        "letters": "Tussen\nF en A",
+        "text": "Overgang arbeidsdraf",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats,\novergang.",
+        "coefficient": 1
+      },
+      {
+        "number": "14",
+        "kind": "exercise",
+        "letters": "Tussen\nA en K",
+        "text": "Arbeidsgalop rechts\naanspringen",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats,\novergang galop.",
+        "coefficient": 1
+      },
+      {
+        "number": "15",
+        "kind": "exercise",
+        "letters": "E-B-E",
+        "text": "Grote volte\nEnkele sprongen\nmiddengalop",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur,\nverruiming, overgangen.",
+        "coefficient": 1
+      },
+      {
+        "number": "16",
+        "kind": "exercise",
+        "letters": "Tussen\nH en C",
+        "text": "Overgang arbeidsdraf",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, plaats,\novergang op zit.",
+        "coefficient": 1
+      },
+      {
+        "number": "17",
+        "kind": "exercise",
+        "letters": "M-X-K",
+        "text": "Van hand veranderen en enkele passen\nmiddendraf",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid,\nverruiming, overgang op zit.",
+        "coefficient": 1
+      },
+      {
+        "number": "18",
+        "kind": "exercise",
+        "letters": "5 meter\nvoorbij A",
+        "text": "Afwenden (kwart lijn) daarna 5 m\nwijken voor het linkerbeen",
+        "criteria": "Aanleuning, takt en regelmaat, plaats, het wijken.",
+        "coefficient": 1
+      },
+      {
+        "number": "19",
+        "kind": "exercise",
+        "letters": "M-G-B",
+        "text": "Linksomkeert",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur.",
+        "coefficient": 1
+      },
+      {
+        "number": "20",
+        "kind": "exercise",
+        "letters": "5 met\nvoorbij A",
+        "text": "Afwenden (kwart lijn) daarna 5 m\nwijken voor het rechterbeen",
+        "criteria": "Aanleuning, takt en regelmaat, plaats, het wijken.",
+        "coefficient": 1
+      },
+      {
+        "number": "21",
+        "kind": "exercise",
+        "letters": "H-G-E",
+        "text": "Rechtsomkeert",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging, figuur.",
+        "coefficient": 1
+      },
+      {
+        "number": "22",
+        "kind": "exercise",
+        "letters": "A",
+        "text": "Halthouden 5 sec en 4-6 passen\nachterwaarts\nVoorwaarts arbeidsdraf",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, overgang\nopzit, plaats, het achterwaarts.",
+        "coefficient": 1
+      },
+      {
+        "number": "23",
+        "kind": "exercise",
+        "letters": "F-X-H\ntussen\nH - C",
+        "text": "Van hand veranderen, daarbij\nhalsstrekken,\nTeugels op maat maken.",
+        "criteria": "Aanleuning, takt en regelmaat, rechtgerichtheid, het\nverlengen van de hals, teugels op maat maken.",
+        "coefficient": 1
+      },
+      {
+        "number": "24",
+        "kind": "exercise",
+        "letters": "B\nG",
+        "text": "Halve volte 10 m rechts\nHalthouden en groeten",
+        "criteria": "Aanleuning, takt en regelmaat, stelling en buiging,\nrechtgerichtheid, figuur, overgang op zit, het halthouden.",
+        "coefficient": 1
+      },
+      {
+        "number": "25",
+        "kind": "general",
+        "letters": "",
+        "text": "Gangen.\nTakt, regelmaat, ritme",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "26",
+        "kind": "general",
+        "letters": "",
+        "text": "Impuls.\nLosgelatenheid van het paard, correct ruggebruik\nen gebruik van de achterhand.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "27",
+        "kind": "general",
+        "letters": "",
+        "text": "Gehoorzaamheid.\nDe ontspanning, oplettendheid en vertrouwen,\nlichtheid en aanleuning.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "28",
+        "kind": "general",
+        "letters": "",
+        "text": "Harmonie.\nHet op een sympathieke, paardvriendelijke\nmanier rijden en het gebruik van de\nhulpmiddelen.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "29",
+        "kind": "general",
+        "letters": "",
+        "text": "Rijden op de zit. Houding en inwerking van de\nruiter. Lichtheid in de verbinding.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "30",
+        "kind": "general",
+        "letters": "",
+        "text": "Presentatie van de combinatie.",
+        "criteria": "",
+        "coefficient": 1
+      }
+    ]
+  },
+  "dressage_we2": {
+    "id": "dressage_we2",
+    "classCode": "we2",
+    "version": "2025",
+    "source": "https://weholland.nl/wp-content/uploads/2025/08/WE2-proef-2025.pdf",
+    "rulebookPages": [
+      48,
+      49
+    ],
+    "sourceSha256": "166b931ed84913f0832689bce7e27d4359908e06a93ba3542f1b011c366d36d1",
+    "maximum": 280,
+    "exerciseCount": 22,
+    "generalCount": 6,
+    "suggestedTimeSeconds": null,
+    "timeLimitSeconds": null,
+    "lettersRequired": true,
+    "handUse": "two",
+    "readAloudAllowed": false,
+    "items": [
+      {
+        "number": "1",
+        "kind": "exercise",
+        "letters": "A-X\nX",
+        "text": "Binnenkomen in arbeidsdraf\nHalthouden, groeten",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "2",
+        "kind": "exercise",
+        "letters": "X\nC",
+        "text": "Voorwaarts in arbeidsdraf\nRechterhand",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "3",
+        "kind": "exercise",
+        "letters": "K",
+        "text": "Volte 10 meter",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "4",
+        "kind": "exercise",
+        "letters": "K-E\nE",
+        "text": "Travers\nRechtuit",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "5",
+        "kind": "exercise",
+        "letters": "C",
+        "text": "Halthouden, 6 passen achterwaarts,\nvoorwaarts in arbeidsdraf",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "6",
+        "kind": "exercise",
+        "letters": "M X K\nK",
+        "text": "K hand veranderen daarbij draf\nverruimen\nArbeidsdraf",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "7",
+        "kind": "exercise",
+        "letters": "F",
+        "text": "Volte 10 meter",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "8",
+        "kind": "exercise",
+        "letters": "F-B\nB",
+        "text": "Travers\nRechtuit",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "9",
+        "kind": "exercise",
+        "letters": "C",
+        "text": "Verzamelde stap",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "10",
+        "kind": "exercise",
+        "letters": "H\nM",
+        "text": "Kwart keertwending om de\nachterhand links\nRechterhand",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "11",
+        "kind": "exercise",
+        "letters": "B",
+        "text": "Kwart keertwending om de\nachterhand rechts",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "12",
+        "kind": "exercise",
+        "letters": "E M\nM",
+        "text": "Van hand veranderen, voor M\nenkele passen middenstap\nArbeidsstap",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "13",
+        "kind": "exercise",
+        "letters": "Tussen\nC en H",
+        "text": "Arbeidsgalop links",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "14",
+        "kind": "exercise",
+        "letters": "E B E\nE",
+        "text": "Grote volte in middengalop\nArbeidsgalop",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "15",
+        "kind": "exercise",
+        "letters": "A\nX",
+        "text": "Afwenden en verzamelde galop\nVolte 10 meter links",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "16",
+        "kind": "exercise",
+        "letters": "X",
+        "text": "Eenvoudige galopwissel",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "17",
+        "kind": "exercise",
+        "letters": "X\nC",
+        "text": "Volte 10 meter rechts\nRechterhand",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "18",
+        "kind": "exercise",
+        "letters": "B E B\nB",
+        "text": "Grote volte in middengalop\nArbeidsgalop",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "19",
+        "kind": "exercise",
+        "letters": "A",
+        "text": "Verzamelde galop, slangenvolte met\n3 bogen met op de A-C lijn\neenvoudige galopwissels",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "20",
+        "kind": "exercise",
+        "letters": "M E\nE",
+        "text": "Van hand veranderen met op de A-C\nlijn eenvoudige galopwissel\nVerzamelde galop",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "21",
+        "kind": "exercise",
+        "letters": "A",
+        "text": "Afwenden",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "22",
+        "kind": "exercise",
+        "letters": "G",
+        "text": "Halthouden en groeten\nIn vrije stap rijbaan verlaten",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "23",
+        "kind": "general",
+        "letters": "",
+        "text": "Gangen.\nTakt, regelmaat, ritme",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "24",
+        "kind": "general",
+        "letters": "",
+        "text": "Impuls.\nLosgelatenheid van het paard, correct\nruggebruik en gebruik van de achterhand",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "25",
+        "kind": "general",
+        "letters": "",
+        "text": "Gehoorzaamheid.\nDe ontspanning, oplettendheid en vertrouwen,\nlichtheid en aanleuning",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "26",
+        "kind": "general",
+        "letters": "",
+        "text": "Harmonie.\nHet op een sympathieke, paardvriendelijke\nmanier rijden en het gebruik van de\nhulpmiddelen",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "27",
+        "kind": "general",
+        "letters": "",
+        "text": "Het rijden op zit, houding en inwerking van de\nruiter.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "28",
+        "kind": "general",
+        "letters": "",
+        "text": "Presentatie van de combinatie",
+        "criteria": "",
+        "coefficient": 1
+      }
+    ]
+  },
+  "dressage_we2p": {
+    "id": "dressage_we2p",
+    "classCode": "we2p",
+    "version": "20250915",
+    "source": "https://weholland.nl/wp-content/uploads/2026/04/WE-2plus-Dressuur-NL-v20250915.pdf",
+    "rulebookPages": [
+      50,
+      51,
+      52
+    ],
+    "sourceSha256": "ae706583f62769ea181222a57794d763739b00273b5e0f0b4c5da531a9955f03",
+    "maximum": 300,
+    "exerciseCount": 24,
+    "generalCount": 6,
+    "suggestedTimeSeconds": null,
+    "timeLimitSeconds": null,
+    "lettersRequired": true,
+    "handUse": "two",
+    "readAloudAllowed": false,
+    "items": [
+      {
+        "number": "1",
+        "kind": "exercise",
+        "letters": "A-X\nX",
+        "text": "Binnenkomen in\nverzamelde galop\nHalthouden, groeten",
+        "criteria": "kwaliteit van overgang, rechtgericht op AC, vierkant halt\nonbeweeglijk",
+        "coefficient": 1
+      },
+      {
+        "number": "2",
+        "kind": "exercise",
+        "letters": "X\nC",
+        "text": "Voorwaarts in\narbeidsdraf\nlinkerhand",
+        "criteria": "kwaliteit van overgang, rechtgericht op AC, stelling en\nbuiging in wending",
+        "coefficient": 1
+      },
+      {
+        "number": "3",
+        "kind": "exercise",
+        "letters": "H-X-F",
+        "text": "van hand veranderen in\nMiddendraf",
+        "criteria": "Regelmaat, balans, verlenging frame, ondertredend\nachterbeen, rechtgericht",
+        "coefficient": 1
+      },
+      {
+        "number": "4",
+        "kind": "exercise",
+        "letters": "A",
+        "text": "Halthouden 3 seconden\nonbeweeglijk, 5 passen\nachterwaarts,\nVoorwaarts arbeidsdraf",
+        "criteria": "Kwaliteit van overgangen, enkele seconden onbeweeglijk\nhalt, nageeflijkheid, diagonaal achterwaarts",
+        "coefficient": 1
+      },
+      {
+        "number": "5",
+        "kind": "exercise",
+        "letters": "K-E",
+        "text": "Schouder binnenwaarts",
+        "criteria": "regelmaat, balans, lengtebuiging ,aanleuning, juiste\nhoek.",
+        "coefficient": 1
+      },
+      {
+        "number": "6",
+        "kind": "exercise",
+        "letters": "E",
+        "text": "volte 12 mtr\nvóór E in arbeidsstap",
+        "criteria": "regelmaat, balans, correcte buiging, aanleuning",
+        "coefficient": 1
+      },
+      {
+        "number": "7",
+        "kind": "exercise",
+        "letters": "E-G\nC",
+        "text": "Appuyeren in arbeidsstap\nnaar rechts\nRechterhand",
+        "criteria": "regelmaat, balans, lengtebuiging, kruisen benen,\ngesteld en gebogen in richting waar je heen gaat",
+        "coefficient": 1
+      },
+      {
+        "number": "8",
+        "kind": "exercise",
+        "letters": "M\nB-K",
+        "text": "arbeidsdraf\nvan hand veranderen",
+        "criteria": "regelmaat,balans, aanleuning, kwaliteit van de\novergang",
+        "coefficient": 1
+      },
+      {
+        "number": "9",
+        "kind": "exercise",
+        "letters": "F-B",
+        "text": "Schouderbinnenwaarts",
+        "criteria": "regelmaat, balans, lengtebuiging ,aanleuning, op 3\nsporen",
+        "coefficient": 1
+      },
+      {
+        "number": "10",
+        "kind": "exercise",
+        "letters": "B",
+        "text": "Volte 12 mtr.\nVóór B in arbeidsstap",
+        "criteria": "regelmaat, balans, correcte stelling en buiging,\naanleuning\nkwaliteit van de overgang",
+        "coefficient": 1
+      },
+      {
+        "number": "11",
+        "kind": "exercise",
+        "letters": "B-G\nC",
+        "text": "Appuyeren in arbeidsstap\nnaar links\nrechterhand",
+        "criteria": "regelmaat, balans, lengtebuiging, kruisen benen,\ngesteld en gebogen in richting waar je heen gaat",
+        "coefficient": 1
+      },
+      {
+        "number": "12",
+        "kind": "exercise",
+        "letters": "M\nG\nM",
+        "text": "afwenden,\nkeertwending(halve) om\nde achterhand naar\nrechts\nrechts",
+        "criteria": "regelmaat, balans, correcte grootte, stelling en\nbuiging,voorwaartse drang",
+        "coefficient": 1
+      },
+      {
+        "number": "13",
+        "kind": "exercise",
+        "letters": "M-E\nE",
+        "text": "van hand veranderen in\nMiddenstap\nArbeidsstap",
+        "criteria": "regelmaat, soepelheid van de rug, aanleuning,\nontspanning, overstappen van het achterbeen,\nverlenging van het frame",
+        "coefficient": 1
+      },
+      {
+        "number": "14",
+        "kind": "exercise",
+        "letters": "K\nD\nK",
+        "text": "afwenden,\nkeertwending(halve) om\nde achterhand naar links\nlinks",
+        "criteria": "regelmaat, balans, correcte grootte, stelling en\nbuiging,voorwaartse drang",
+        "coefficient": 1
+      },
+      {
+        "number": "15",
+        "kind": "exercise",
+        "letters": "K-A\nA",
+        "text": "verzamelde stap\nVerzamelde galop links",
+        "criteria": "correcte verzameling, kwaliteit van de overgang,\nsouplesse, aanleuning",
+        "coefficient": 1
+      },
+      {
+        "number": "16",
+        "kind": "exercise",
+        "letters": "B\nE",
+        "text": "kwart pirouette naar links\nLinkerhand",
+        "criteria": "kwaliteit van de galop, aanleuning, balans, grootte,\nstelling en buiging, aantal sprongen(2-4)",
+        "coefficient": 1
+      },
+      {
+        "number": "17",
+        "kind": "exercise",
+        "letters": "F-X-H",
+        "text": "Van hand veranderen\nmet vliegende wissel op\nde diagonaal",
+        "criteria": "kwaliteit van de galop, aanleuning, balans, rechtgericht\nkwaliteit van de vliegende wissel",
+        "coefficient": 1
+      },
+      {
+        "number": "18",
+        "kind": "exercise",
+        "letters": "B\nE",
+        "text": "kwart pirouette naar\nrechts\nrechterhand",
+        "criteria": "kwaliteit van de galop, aanleuning, balans, grootte,\nstelling en buiging, aantal sprongen(2-4)",
+        "coefficient": 1
+      },
+      {
+        "number": "19",
+        "kind": "exercise",
+        "letters": "M-X-K",
+        "text": "Van hand veranderen\nmet vliegende wissel op\nde diagonaal",
+        "criteria": "kwaliteit van de galop, aanleuning, balans, rechtgericht\nkwaliteit van de vliegende wissel",
+        "coefficient": 1
+      },
+      {
+        "number": "20",
+        "kind": "exercise",
+        "letters": "B\nB",
+        "text": "Grote volte in\nuitgestrekte galop (links)\nVerzamelde galop",
+        "criteria": "kwaliteit van de galop, aanleuning, balans, acceleratie,",
+        "coefficient": 1
+      },
+      {
+        "number": "21",
+        "kind": "exercise",
+        "letters": "B",
+        "text": "Door een S van hand\nveranderen eenvoudige\nwissel",
+        "criteria": "kwaliteit van de galop, aanleuning, balans, rechtgericht\nkwaliteit van de eenvoudig galopwissel",
+        "coefficient": 1
+      },
+      {
+        "number": "22",
+        "kind": "exercise",
+        "letters": "E\nE",
+        "text": "Grote volte in\nuitgestrekte galop (rechts)\nVerzamelde galop",
+        "criteria": "kwaliteit van de galop, aanleuning, balans, acceleratie,",
+        "coefficient": 1
+      },
+      {
+        "number": "23",
+        "kind": "exercise",
+        "letters": "C",
+        "text": "Slangvolte met 3 bogen\nmet vliegende wissels op\nde A-C lijn",
+        "criteria": "kwaliteit van de galop, aanleuning, balans, rechtgericht\nkwaliteit van de vliegende wissel, verdeling van de baan",
+        "coefficient": 1
+      },
+      {
+        "number": "24",
+        "kind": "exercise",
+        "letters": "A\nG",
+        "text": "Afwenden\nHalthouden en groeten",
+        "criteria": "kwaliteit van galop, kwaliteit van overgang, rechtgericht\nop AC, vierkant halt onbeweeglijk",
+        "coefficient": 1
+      },
+      {
+        "number": "25",
+        "kind": "general",
+        "letters": "",
+        "text": "Gangen.\nTakt, regelmaat, ritme",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "26",
+        "kind": "general",
+        "letters": "",
+        "text": "Impuls.\nLosgelatenheid van het paard,\ncorrect ruggebruik en gebruik van\nde achterhand.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "27",
+        "kind": "general",
+        "letters": "",
+        "text": "Gehoorzaamheid.\nDe ontspanning, oplettendheid en\nvertrouwen, lichtheid en\naanleuning.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "28",
+        "kind": "general",
+        "letters": "",
+        "text": "Harmonie.\nHet op een sympathieke,\npaardvriendelijke manier rijden en\nhet gebruik van de hulpmiddelen.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "29",
+        "kind": "general",
+        "letters": "",
+        "text": "Het rijden op zit, houding en\ninwerking van de ruiter.",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "30",
+        "kind": "general",
+        "letters": "",
+        "text": "Presentatie van de combinatie.",
+        "criteria": "",
+        "coefficient": 1
+      }
+    ]
+  },
+  "dressage_we3": {
+    "id": "dressage_we3",
+    "classCode": "we3",
+    "version": "20250915",
+    "source": "https://weholland.nl/wp-content/uploads/2025/12/WE-3-Dressuur-NL-v20250915.pdf",
+    "rulebookPages": [
+      53,
+      54,
+      55
+    ],
+    "sourceSha256": "2d72699072c5a8ed9225cd656b4c967dde4c05dcaca27f53dbb81853f1774467",
+    "maximum": 270,
+    "exerciseCount": 22,
+    "generalCount": 5,
+    "suggestedTimeSeconds": null,
+    "timeLimitSeconds": 480,
+    "lettersRequired": false,
+    "handUse": "two",
+    "readAloudAllowed": false,
+    "items": [
+      {
+        "number": "1",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Binnenkomen in\nverzamelde galop\nHalthouden en groeten\nVoorwaarts in\narbeidsstap",
+        "criteria": "Verzameling bij\nbinnenkomen, halt op\nde achterhand , en\ngewicht verdeeld over 4\nbenen, vierkant\nonbeweeglijk halt",
+        "coefficient": 1
+      },
+      {
+        "number": "2",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Rechte lijn van minimaal\n10 meter in verzamelde\nstap",
+        "criteria": "Activiteit, regelmaat van\nde gang en verzameling",
+        "coefficient": 1
+      },
+      {
+        "number": "3",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Hele stappirouette naar\nrechts",
+        "criteria": "Regelmaat, zonder een\nachterwaartse pas\nKleine cirkel met de\nachterbenen, buiging en\nstelling naar binnen",
+        "coefficient": 1
+      },
+      {
+        "number": "4",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Hele stappirouette naar\nlinks",
+        "criteria": "Regelmaat, zonder een\nachterwaartse pas\nKleine cirkel met de\nachterbenen, buiging en\nstelling naar binnen",
+        "coefficient": 1
+      },
+      {
+        "number": "5",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Halthouden. Minstens 6\npassen en maximaal 10\npassen achterwaarts en\ndirect voorwaarts in\narbeidsstap",
+        "criteria": "Onbeweeglijk vierkant\nhalt, regelmaat en\nbalans. Diagonaal\nachterwaarts\nOvergang naar de stap\nzonder verlies van\nactiviteit",
+        "coefficient": 1
+      },
+      {
+        "number": "6",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Appuyement naar rechts\n(minstens 10 meter)",
+        "criteria": "Buiging in de richting\nvan de beweging",
+        "coefficient": 1
+      },
+      {
+        "number": "7",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Appuyement naar links\n(minstens 10 meter)",
+        "criteria": "Buiging in de richting\nvan de beweging",
+        "coefficient": 1
+      },
+      {
+        "number": "8",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Slangenvolte met 3\nbogen",
+        "criteria": "De verdeling van de\nslangenvolte door de\nbaan.\nBuiging, regelmaat en\nvloeiend",
+        "coefficient": 1
+      },
+      {
+        "number": "9",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Twee maal wijken voor\nhet been, beide kanten\nop, beide minimaal 10\nmeter",
+        "criteria": "De verdeling van de\noefening door de baan,\nvloeiend.\nGelijkmatigheid van de\nbuiging.\nRitme en regelmaat",
+        "coefficient": 1
+      },
+      {
+        "number": "10",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Minimaal 15 meter\nmiddendraf",
+        "criteria": "De overgangen,\nduidelijke verruiming,\nlengte in het silhouet,\nrechtheid",
+        "coefficient": 1
+      },
+      {
+        "number": "11",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Halthouden. 6 passen\nachterwaarts direct\nvoorwaarts in\nverzamelde\nrechtergalop",
+        "criteria": "Onbeweeglijk vierkant\nhalt, regelmaat en\nbalans. Diagonaal\nachterwaarts\nOvergang naar de\nverzamelde galop,\nrechtheid",
+        "coefficient": 1
+      },
+      {
+        "number": "12",
+        "kind": "exercise",
+        "letters": "",
+        "text": "3 voltes in verschillend\ntempo op de\nrechterhand:\n1e volte (20m):\nuitgestrekte galop\n2e volte (15 meter):\narbeidsgalop 3e volte (10\nmeter): verzamelde\ngalop\nAlle voltes beginnen en\neindigen op hetzelfde\npunt",
+        "criteria": "Verzameling, balans,\nregelmaat.\nDe overgangen zijn\nduidelijk, vloeiend en\ndirect uitgevoerd op\ndezelfde plek.\nVerdeling van de voltes\nBuiging",
+        "coefficient": 1
+      },
+      {
+        "number": "13",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Vliegende wissel",
+        "criteria": "De kwaliteit van de\nvliegende wissel.\nRechtheid, behoud van\nritme en tempo",
+        "coefficient": 1
+      },
+      {
+        "number": "14",
+        "kind": "exercise",
+        "letters": "",
+        "text": "3 voltes in verschillend\ntempo op de linkerhand\n1e volte (20m):\nuitgestrekte galop\n2e volte (15 meter):\narbeidsgalop 3e volte (10\nmeter): verzamelde\ngalop\nAlle voltes beginnen en\neindigen op hetzelfde\npunt",
+        "criteria": "Verzameling, balans,\nregelmaat.\nDe overgangen zijn\nduidelijk, vloeiend en\ndirect uitgevoerd op\ndezelfde plek.\nVerdeling van de voltes\nBuiging",
+        "coefficient": 1
+      },
+      {
+        "number": "15",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Een acht bestaande uit\ntwee even grote cirkels\n(max 10 meter) met een\nvliegende galopwissel",
+        "criteria": "Verzameling, balans,\nregelmaat, buiging en\ngebruik van het\nachterbeen.\nKwaliteit van de\nvliegende wissel\nDe rechtheid na de\neerste volte",
+        "coefficient": 1
+      },
+      {
+        "number": "16",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Keertwending naar een\nkant naar keuze",
+        "criteria": "Balans, buiging. Start en\neindig met het paard op\ndezelfde hand als de\ngaloppirouette",
+        "coefficient": 1
+      },
+      {
+        "number": "17",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Vliegende wissel",
+        "criteria": "De kwaliteit van de\nvliegende wissel.\nRechtheid, behoud van\nritme en tempo",
+        "coefficient": 1
+      },
+      {
+        "number": "18",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Keertwending naar de\nandere kant t.o.v. 16",
+        "criteria": "Balans, buiging. Start en\neindig met het paard op\ndezelfde hand als de\ngaloppirouette",
+        "coefficient": 1
+      },
+      {
+        "number": "19",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Tempowisselingen in\ngalop:\nUitgestrekte galop op de\nlange zijde, verzamelde\ngalop op de volgende\nkorte zijde, uitgestrekte\ngalop op de volgende\nlange zijde",
+        "criteria": "Balans, overgangen ,\nduidelijk verschil in de\nbewegingen.\nkwaliteit van\nverzameling",
+        "coefficient": 1
+      },
+      {
+        "number": "20",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Snelheid opvoeren en\nsnelle stop. Doorgaan in\ngalop",
+        "criteria": "Gewilligheid en\nrechtheid tijdens\nuitvoering van de\noefening",
+        "coefficient": 1
+      },
+      {
+        "number": "21",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Slangenvolte met 4\nbogen met vliegende\nwissels bij het passeren\nvan de middellijn",
+        "criteria": "Impuls, regelmaat van\nde beweging.\nPrecisie en kwaliteit van\nde vliegende wissels.\nVerdeling van de baan",
+        "coefficient": 1
+      },
+      {
+        "number": "22",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Verzamelde galop\nmiddellijn, halthouden\nen groeten",
+        "criteria": "Verzameling,\nonbeweeglijk halt,\nvierkant.",
+        "coefficient": 1
+      },
+      {
+        "number": "23",
+        "kind": "general",
+        "letters": "",
+        "text": "Gangen",
+        "criteria": "Takt, regelmaat, ritme",
+        "coefficient": 1
+      },
+      {
+        "number": "24",
+        "kind": "general",
+        "letters": "",
+        "text": "Impuls",
+        "criteria": "Gewilligheid om\nvoorwaarts te gaan.\nLosgelatenheid van het\npaard, correct\nruggebruik en gebruik\nvan de achterhand.",
+        "coefficient": 1
+      },
+      {
+        "number": "25",
+        "kind": "general",
+        "letters": "",
+        "text": "Gehoorzaamheid",
+        "criteria": "De ontspanning,\noplettendheid en\nvertrouwen, lichtheid en\naanleuning.",
+        "coefficient": 1
+      },
+      {
+        "number": "26",
+        "kind": "general",
+        "letters": "",
+        "text": "Ruiter",
+        "criteria": "Houding en zit van de\nruiter\nEffectiviteit van de\nhulpen",
+        "coefficient": 1
+      },
+      {
+        "number": "27",
+        "kind": "general",
+        "letters": "",
+        "text": "Artistiek",
+        "criteria": "Muziek en indeling van\nde proef",
+        "coefficient": 1
+      }
+    ]
+  },
+  "dressage_we4": {
+    "id": "dressage_we4",
+    "classCode": "we4",
+    "version": "20250915",
+    "source": "https://weholland.nl/wp-content/uploads/2025/12/WE-4-Dressuur-NL-v20250915.pdf",
+    "rulebookPages": [
+      56,
+      57,
+      58
+    ],
+    "sourceSha256": "1ab3961f6cd45415091a94edf2f574e396ff66079772b1472ebbf268d8e6b111",
+    "maximum": 270,
+    "exerciseCount": 22,
+    "generalCount": 5,
+    "suggestedTimeSeconds": null,
+    "timeLimitSeconds": 480,
+    "lettersRequired": false,
+    "handUse": "one",
+    "readAloudAllowed": false,
+    "items": [
+      {
+        "number": "1",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Binnenkomen in\nverzamelde galop\nHalthouden en groeten\nVoorwaarts in\narbeidsstap",
+        "criteria": "Verzameling bij\nbinnenkomen, halt op\nde achterhand , en\ngewicht verdeeld over 4\nbenen, vierkant\nonbeweeglijk halt",
+        "coefficient": 1
+      },
+      {
+        "number": "2",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Rechte lijn van minimaal\n10 meter in verzamelde\nstap",
+        "criteria": "Activiteit, regelmaat van\nde gang en verzameling",
+        "coefficient": 1
+      },
+      {
+        "number": "3",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Hele stappirouette naar\nrechts",
+        "criteria": "Regelmaat, zonder een\nachterwaartse pas\nKleine cirkel met de\nachterbenen, buiging en\nstelling naar binnen",
+        "coefficient": 1
+      },
+      {
+        "number": "4",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Hele stappirouette naar\nlinks",
+        "criteria": "Regelmaat, zonder een\nachterwaartse pas\nKleine cirkel met de\nachterbenen, buiging en\nstelling naar binnen",
+        "coefficient": 1
+      },
+      {
+        "number": "5",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Halthouden. Minstens 6\npassen en maximaal 10\npassen achterwaarts en\ndirect voorwaarts in\narbeidsstap",
+        "criteria": "Onbeweeglijk vierkant\nhalt, regelmaat en\nbalans. Diagonaal\nachterwaarts\nOvergang naar de stap\nzonder verlies van\nactiviteit",
+        "coefficient": 1
+      },
+      {
+        "number": "6",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Appuyement naar rechts\n(minstens 10 meter)",
+        "criteria": "Buiging in de richting\nvan de beweging",
+        "coefficient": 1
+      },
+      {
+        "number": "7",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Appuyement naar links\n(minstens 10 meter)",
+        "criteria": "Buiging in de richting\nvan de beweging",
+        "coefficient": 1
+      },
+      {
+        "number": "8",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Slangenvolte met 3\nbogen",
+        "criteria": "De verdeling van de\nslangenvolte door de\nbaan.\nBuiging, regelmaat en\nvloeiend",
+        "coefficient": 1
+      },
+      {
+        "number": "9",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Twee maal wijken voor\nhet been, beide kanten\nop, beide minimaal 10\nmeter",
+        "criteria": "De verdeling van de\noefening door de baan,\nvloeiend.\nGelijkmatigheid van de\nbuiging.\nRitme en regelmaat",
+        "coefficient": 1
+      },
+      {
+        "number": "10",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Minimaal 15 meter\nmiddendraf",
+        "criteria": "De overgangen,\nduidelijke verruiming,\nlengte in het silhouet,\nrechtheid",
+        "coefficient": 1
+      },
+      {
+        "number": "11",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Halthouden. 6 passen\nachterwaarts direct\nvoorwaarts in\nverzamelde\nrechtergalop",
+        "criteria": "Onbeweeglijk vierkant\nhalt, regelmaat en\nbalans. Diagonaal\nachterwaarts\nOvergang naar de\nverzamelde galop,\nrechtheid",
+        "coefficient": 1
+      },
+      {
+        "number": "12",
+        "kind": "exercise",
+        "letters": "",
+        "text": "3 voltes in verschillend\ntempo op de\nrechterhand:\n1e volte (20m):\nuitgestrekte galop\n2e volte (15 meter):\narbeidsgalop 3e volte (10\nmeter): verzamelde\ngalop\nAlle voltes beginnen en\neindigen op hetzelfde\npunt",
+        "criteria": "Verzameling, balans,\nregelmaat.\nDe overgangen zijn\nduidelijk, vloeiend en\ndirect uitgevoerd op\ndezelfde plek.\nVerdeling van de voltes\nBuiging",
+        "coefficient": 1
+      },
+      {
+        "number": "13",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Vliegende wissel",
+        "criteria": "De kwaliteit van de\nvliegende wissel.\nRechtheid, behoud van\nritme en tempo",
+        "coefficient": 1
+      },
+      {
+        "number": "14",
+        "kind": "exercise",
+        "letters": "",
+        "text": "3 voltes in verschillend\ntempo op de linkerhand\n1e volte (20m):\nuitgestrekte galop\n2e volte (15 meter):\narbeidsgalop 3e volte (10\nmeter): verzamelde\ngalop\nAlle voltes beginnen en\neindigen op hetzelfde\npunt",
+        "criteria": "Verzameling, balans,\nregelmaat.\nDe overgangen zijn\nduidelijk, vloeiend en\ndirect uitgevoerd op\ndezelfde plek.\nVerdeling van de voltes\nBuiging",
+        "coefficient": 1
+      },
+      {
+        "number": "15",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Een acht bestaande uit\ntwee even grote cirkels\n(max 10 meter) met een\nvliegende galopwissel",
+        "criteria": "Verzameling, balans,\nregelmaat, buiging en\ngebruik van het\nachterbeen.\nKwaliteit van de\nvliegende wissel\nDe rechtheid na de\neerste volte",
+        "coefficient": 1
+      },
+      {
+        "number": "16",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Keertwending naar een\nkant naar keuze",
+        "criteria": "Balans, buiging. Start en\neindig met het paard op\ndezelfde hand als de\ngaloppirouette",
+        "coefficient": 1
+      },
+      {
+        "number": "17",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Vliegende wissel",
+        "criteria": "De kwaliteit van de\nvliegende wissel.\nRechtheid, behoud van\nritme en tempo",
+        "coefficient": 1
+      },
+      {
+        "number": "18",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Keertwending naar de\nandere kant t.o.v. 16",
+        "criteria": "Balans, buiging. Start en\neindig met het paard op\ndezelfde hand als de\ngaloppirouette",
+        "coefficient": 1
+      },
+      {
+        "number": "19",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Tempowisselingen in\ngalop:\nUitgestrekte galop op de\nlange zijde, verzamelde\ngalop op de volgende\nkorte zijde, uitgestrekte\ngalop op de volgende\nlange zijde",
+        "criteria": "Balans, overgangen ,\nduidelijk verschil in de\nbewegingen.\nkwaliteit van\nverzameling",
+        "coefficient": 1
+      },
+      {
+        "number": "20",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Snelheid opvoeren en\nsnelle stop. Doorgaan in\ngalop",
+        "criteria": "Gewilligheid en\nrechtheid tijdens\nuitvoering van de\noefening",
+        "coefficient": 1
+      },
+      {
+        "number": "21",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Slangenvolte met 4\nbogen met vliegende\nwissels bij het passeren\nvan de middellijn",
+        "criteria": "Impuls, regelmaat van\nde beweging.\nPrecisie en kwaliteit van\nde vliegende wissels.\nVerdeling van de baan",
+        "coefficient": 1
+      },
+      {
+        "number": "22",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Verzamelde galop\nmiddellijn, halthouden\nen groeten",
+        "criteria": "Verzameling,\nonbeweeglijk halt,\nvierkant.",
+        "coefficient": 1
+      },
+      {
+        "number": "23",
+        "kind": "general",
+        "letters": "",
+        "text": "Gangen",
+        "criteria": "Takt, regelmaat, ritme",
+        "coefficient": 1
+      },
+      {
+        "number": "24",
+        "kind": "general",
+        "letters": "",
+        "text": "Impuls",
+        "criteria": "Gewilligheid om\nvoorwaarts te gaan.\nLosgelatenheid van het\npaard, correct\nruggebruik en gebruik\nvan de achterhand.",
+        "coefficient": 1
+      },
+      {
+        "number": "25",
+        "kind": "general",
+        "letters": "",
+        "text": "Gehoorzaamheid",
+        "criteria": "De ontspanning,\noplettendheid en\nvertrouwen, lichtheid en\naanleuning.",
+        "coefficient": 1
+      },
+      {
+        "number": "26",
+        "kind": "general",
+        "letters": "",
+        "text": "Ruiter",
+        "criteria": "Houding en zit van de\nruiter\nEffectiviteit van de\nhulpen",
+        "coefficient": 1
+      },
+      {
+        "number": "27",
+        "kind": "general",
+        "letters": "",
+        "text": "Artistiek",
+        "criteria": "Muziek en indeling van\nde proef",
+        "coefficient": 1
+      }
+    ]
+  },
+  "dressage_junior": {
+    "id": "dressage_junior",
+    "classCode": "junior",
+    "version": "WAWE-2024",
+    "source": "https://weholland.nl/wp-content/uploads/2025/12/WAWE-junioren-dressuurproef-2024_NL.pdf",
+    "rulebookPages": [
+      61,
+      62
+    ],
+    "sourceSha256": "33806dbf767b920cbd812d73fe6a870f8342cc215cf4c7a58d855b6ba53d7413",
+    "maximum": 240,
+    "exerciseCount": 19,
+    "generalCount": 5,
+    "suggestedTimeSeconds": null,
+    "timeLimitSeconds": 450,
+    "lettersRequired": true,
+    "handUse": "two",
+    "readAloudAllowed": false,
+    "items": [
+      {
+        "number": "1",
+        "kind": "exercise",
+        "letters": "A\nX",
+        "text": "binnenkomen in arbeidsgalop op\nmiddellijn, onbeweeglijk stilstaan\ngroeten, voorwaarts arbeidsdraf",
+        "criteria": "Recht, overgang, halthouden\nop de achterhand,\nonbeweeglijk",
+        "coefficient": 1
+      },
+      {
+        "number": "2",
+        "kind": "exercise",
+        "letters": "G\nG\nC",
+        "text": "10 m. volte links\n10 m. volte rechts\nLinkerhand",
+        "criteria": "Geometrie van voltes\nkwaliteit van draf\nbuiging",
+        "coefficient": 1
+      },
+      {
+        "number": "3",
+        "kind": "exercise",
+        "letters": "HXF",
+        "text": "Midden draf",
+        "criteria": "Overgang, kwaliteit van de\nmiddendraf, rechtgericht",
+        "coefficient": 1
+      },
+      {
+        "number": "4",
+        "kind": "exercise",
+        "letters": "A\nDB\nBG\nC",
+        "text": "Afwenden op AC-lijn\nWijken voor het linkerbeen\nWijken voor het rechterbeen\nRechterhand",
+        "criteria": "Geometrie, reactie van het\npaard op de hulpen.\nAccepteren van de hulpen",
+        "coefficient": 1
+      },
+      {
+        "number": "5",
+        "kind": "exercise",
+        "letters": "C-M\nME\nEKD",
+        "text": "Overgang naar stap\nUitgestrekte stap\nVerzamelde stap",
+        "criteria": "Vloeiende overgang\nkwaliteit van de uitgestrekte\nstap, regelmaat",
+        "coefficient": 1
+      },
+      {
+        "number": "6",
+        "kind": "exercise",
+        "letters": "D\nF",
+        "text": "Onbeweeglijk halthouden, 4 passen\nachterwaarts, direct VW in stap\nRechterhand",
+        "criteria": "Halthouden, regelmaat,\nbalans overgang naar stap\nzonder behoud van activiteit",
+        "coefficient": 1
+      },
+      {
+        "number": "7",
+        "kind": "exercise",
+        "letters": "A",
+        "text": "Overgang naar arbeidsgalop",
+        "criteria": "Overgang",
+        "coefficient": 1
+      },
+      {
+        "number": "8",
+        "kind": "exercise",
+        "letters": "KH\nH",
+        "text": "Midden galop\nArbeidsgalop",
+        "criteria": "Overgang, kwaliteit van\nmiddengalop, rechtgericht",
+        "coefficient": 1
+      },
+      {
+        "number": "9",
+        "kind": "exercise",
+        "letters": "C",
+        "text": "Rijdt 3 cirkels rechts\nBegin en eindig bij C, eerste 20m in\nuitgestrekte galop, tweede 15m in\nmiddengalop en de derde 10 m in\nverzamelde galop",
+        "criteria": "Verzameling, balans,\nregelmaat duidelijke\novergangen, vloeiend en\ndirect, uitgevoerd vanuit\nhetzelfde punt, buiging",
+        "coefficient": 1
+      },
+      {
+        "number": "10",
+        "kind": "exercise",
+        "letters": "MK",
+        "text": "Vliegende wissel naar links",
+        "criteria": "Kwaliteit van de vliegende\nwissel, rechtgericht",
+        "coefficient": 1
+      },
+      {
+        "number": "11",
+        "kind": "exercise",
+        "letters": "A",
+        "text": "Rijdt 3 cirkels links\nBegin en eindig bij A, eerste 20m in\nuitgestrekte galop, tweede 15m in\nmiddengalop en de derde 10 m in\nverzamelde galop",
+        "criteria": "Verzameling, balans,\nregelmaat duidelijke\novergangen, vloeiend en\ndirect, uitgevoerd vanuit\nhetzelfde punt, buiging",
+        "coefficient": 1
+      },
+      {
+        "number": "12",
+        "kind": "exercise",
+        "letters": "B",
+        "text": "Vliegende wissel naar rechts",
+        "criteria": "Kwaliteit van de vliegende\nwissel, rechtgericht",
+        "coefficient": 1
+      },
+      {
+        "number": "13",
+        "kind": "exercise",
+        "letters": "BMCH",
+        "text": "Contra galop",
+        "criteria": "Regelmaat, rechtgericht\nBalans",
+        "coefficient": 1
+      },
+      {
+        "number": "14",
+        "kind": "exercise",
+        "letters": "E-K",
+        "text": "Rijdt naar de kwart lijn\nmaak een halve volte van 5m in\ntravers, eindigend bij K",
+        "criteria": "Regelmaat, geometrie,\nbuiging en kwaliteit van\ntravers",
+        "coefficient": 1
+      },
+      {
+        "number": "15",
+        "kind": "exercise",
+        "letters": "B",
+        "text": "Vliegende wissel naar links",
+        "criteria": "Kwaliteit van de vliegende\nwissel, rechtgericht",
+        "coefficient": 1
+      },
+      {
+        "number": "16",
+        "kind": "exercise",
+        "letters": "BFAK",
+        "text": "Contra galop",
+        "criteria": "Regelmaat, rechtgericht\nBalans",
+        "coefficient": 1
+      },
+      {
+        "number": "17",
+        "kind": "exercise",
+        "letters": "E-H",
+        "text": "Rijdt naar de kwart lijn\nmaak een halve volte van 5m in\ntravers, eindigend bij H",
+        "criteria": "Regelmaat, geometrie,\nbuiging en kwaliteit van\ntravers",
+        "coefficient": 1
+      },
+      {
+        "number": "18",
+        "kind": "exercise",
+        "letters": "K",
+        "text": "Arbeidsdraf",
+        "criteria": "Overgang, correctheid van\narbeidsdraf",
+        "coefficient": 1
+      },
+      {
+        "number": "19",
+        "kind": "exercise",
+        "letters": "A\nX",
+        "text": "Afwenden op middellijn\nHalthouden, onbeweeglijk, groeten",
+        "criteria": "Rechtgericht\nKwaliteit van halt en\nonbeweeglijk",
+        "coefficient": 1
+      },
+      {
+        "number": "A",
+        "kind": "general",
+        "letters": "",
+        "text": "Gangen, losgelatenheid en regelmaat",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "B",
+        "kind": "general",
+        "letters": "",
+        "text": "Impuls, voorwaartse drang, elasticiteit van de passen en\nsouplesse van de rug en onderbrengen van de achterhand",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "C",
+        "kind": "general",
+        "letters": "",
+        "text": "Submission, Overgangen en acceptatie van bit, oplettendheid en\nvertrouwen",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "D",
+        "kind": "general",
+        "letters": "",
+        "text": "Ruiter. Positie en zit van de ruiter. Correct geven van de hulpen\nen juiste effectiviteit van de hulpen",
+        "criteria": "",
+        "coefficient": 1
+      },
+      {
+        "number": "E",
+        "kind": "general",
+        "letters": "",
+        "text": "Muziek en presentatie",
+        "criteria": "",
+        "coefficient": 1
+      }
+    ]
+  },
+  "dressage_yr": {
+    "id": "dressage_yr",
+    "classCode": "yr",
+    "version": "WAWE-2024",
+    "source": "https://weholland.nl/wp-content/uploads/2025/12/WAWE-young-riders-dressuurproef-2024_NL.pdf",
+    "rulebookPages": [
+      63,
+      64,
+      65
+    ],
+    "sourceSha256": "e6e8b60fdd3dc80cc535a81610d9cee14d5b1a828e09adabd43f8dfa3b613b48",
+    "maximum": 300,
+    "exerciseCount": 21,
+    "generalCount": 5,
+    "suggestedTimeSeconds": null,
+    "timeLimitSeconds": 450,
+    "lettersRequired": false,
+    "handUse": "one_or_two",
+    "readAloudAllowed": false,
+    "items": [
+      {
+        "number": "1",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Binnenkomen in verzamelde\ngalop",
+        "criteria": "Recht en regelmatig",
+        "coefficient": 1
+      },
+      {
+        "number": "2",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Onbeweeglijk halthouden op\nachterhand, voorwaarts in\nmiddenstap",
+        "criteria": "Recht, acceptatie van\nhulpen, onbeweeglijk,\novergang naar stap",
+        "coefficient": 1
+      },
+      {
+        "number": "3",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Figuur 8 met 2 voltes, beide 8\nmeter doorsnee",
+        "criteria": "Gelijkheid van figuur,\nregelmaat van de stap,\nlengtebuiging en\nverandering van LB",
+        "coefficient": 1
+      },
+      {
+        "number": "4",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Hele stap pirouette keuze welke\nkant",
+        "criteria": "Ritme, regelmaat,\n4 tempi in pirouette",
+        "coefficient": 1
+      },
+      {
+        "number": "5",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Hele stap pirouette andere kant\ndan 4",
+        "criteria": "Ritme, regelmaat,\n4 tempi in pirouette",
+        "coefficient": 1
+      },
+      {
+        "number": "6",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Uitgestrekte stap in rechte lijn\nminimaal 20 meter",
+        "criteria": "Overgang van midden- naar\nuitgestrekte stap,\nverlenging in frame zonder\nregelmaat te beïnvloeden.\nRegelmaat",
+        "coefficient": 1
+      },
+      {
+        "number": "7",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Onbeweeglijk halthouden, 6 tot\n10 passen achterwaarts.\nVoorwaarts in middenstap",
+        "criteria": "Acceptatie van\nonbeweeglijk halt,\novergang, recht",
+        "coefficient": 1
+      },
+      {
+        "number": "8",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Vanaf middellijn appuyement\ntot aan de kwart-lijn (5 meter),\nverander appuyement naar\nkwart lijn andere kant (10\nmeter), verander appuyement\nnaar middenlijn (5 meter)",
+        "criteria": "Regelmaat, geometrie,\nsymmetrisch, buiging en\nvloeiend",
+        "coefficient": 1
+      },
+      {
+        "number": "9",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Overgang naar verzamelde draf",
+        "criteria": "Overgang",
+        "coefficient": 1
+      },
+      {
+        "number": "10",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Wijken voor het been beide\nkanten, minimaal 10 m.",
+        "criteria": "Regelmaat, concentratie,\nbuiging",
+        "coefficient": 1
+      },
+      {
+        "number": "11",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Een diagonaal in middendraf",
+        "criteria": "Overgang naar middendraf\nen terug naar verzamelde\ndraf. Verlenging in het\nframe, recht",
+        "coefficient": 1
+      },
+      {
+        "number": "12",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Verzamelde draf.\nOnbeweeglijk halt.\nAchterwaarts tussen 6 en 10\nstappen en direct voorwaarts in\nverzamelde galop",
+        "criteria": "Acceptatie van halt-\nhouden, regelmaat in\nachterwaarts, overgang\nnaar verzamelde galop\nvanuit achterwaarts, recht",
+        "coefficient": 1
+      },
+      {
+        "number": "13",
+        "kind": "exercise",
+        "letters": "",
+        "text": "3 voltes in verschillend tempo\nop één van de 2 handen. Alle\nvoltes beginnen en eindigen op\nhetzelfde punt, de eerste 20m\ndoorsnee in uitgestrekte galop,\nde tweede 15m doorsnee in\nmiddengalop de derde 10m\ndoorsnee in verzamelde galop",
+        "criteria": "Geometrie van de figuren,\nbuiging volgens figuur,\nregelmaat, vloeiend\nduidelijk verschil in soorten\ngalop",
+        "coefficient": 1
+      },
+      {
+        "number": "14",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Vliegende wissel",
+        "criteria": "Kwaliteit van de wissel,\nrecht, ritme, tempo",
+        "coefficient": 1
+      },
+      {
+        "number": "15",
+        "kind": "exercise",
+        "letters": "",
+        "text": "3 voltes in verschillend tempo\nop de andere hand dan die\ngereden in oefening 13 handen.\nAlle voltes beginnen en\neindigen op hetzelfde punt, de\neerste 20m doorsnee in\nuitgestrekte galop, de tweede\n15m doorsnee in middengalop\nde derde 10m doorsnee in\nverzamelde galop",
+        "criteria": "Geometrie van de figuren,\nbuiging volgens figuur,\nregelmaat, vloeiend\nduidelijk verschil in soorten\ngalop",
+        "coefficient": 1
+      },
+      {
+        "number": "16",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Galop pirouette half, keuze op\nwelke hand met zo weinig\nmogelijk passen zonder\ngalopritme te beïnvloeden",
+        "criteria": "Mogelijkheid tot draaien\nzonder activiteit van\nachterbenen te\nverminderen. Buiging,\nconcentratie, klein beetje\nritme verlies is acceptabel",
+        "coefficient": 1
+      },
+      {
+        "number": "17",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Vliegende wissel",
+        "criteria": "Kwaliteit van de wissel,\nrecht, ritme, tempo",
+        "coefficient": 1
+      },
+      {
+        "number": "18",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Galop pirouette half, op de\nandere hand dan item 16 met\nzo weinig mogelijk passen\nzonder galopritme te\nbeïnvloeden",
+        "criteria": "Mogelijkheid tot draaien\nzonder activiteit van\nachterbenen te\nverminderen. Buiging,\nconcentratie, klein beetje\nritme verlies is acceptabel",
+        "coefficient": 1
+      },
+      {
+        "number": "19",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Uitgestrekte galop op de lange\nzijde, verzamelde galop op\nkorte zijde en weer uitgestrekte\ngalop op lange zijde",
+        "criteria": "Gehoorzaamheid/\nbehendigheid, een klein\nbeetje verandering van\nritme is acceptabel. Recht,\nuitvoering van overgangen",
+        "coefficient": 1
+      },
+      {
+        "number": "20",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Slangenvolte met 4 bogen met\nvliegende galopwissels op de\nmiddellijn wanneer de galop\nwisselt van richting",
+        "criteria": "Impuls, regelmaat, precisie\nen kwaliteit van de wissels",
+        "coefficient": 1
+      },
+      {
+        "number": "21",
+        "kind": "exercise",
+        "letters": "",
+        "text": "Op de middellijn, direct\nuitgestrekte galop. Sliding\nhalthouden op de achterhand.\nOnbeweeglijk stilstaan en\ngroeten",
+        "criteria": "Recht, overgang,\naccepteren van\nhalthouden, behendigheid.\nEen klein beetje verande-\nring van ritme is acceptabel",
+        "coefficient": 1
+      },
+      {
+        "number": "A",
+        "kind": "general",
+        "letters": "",
+        "text": "Tempo, vrijheid van bewegen, regelmaat",
+        "criteria": "",
+        "coefficient": 2
+      },
+      {
+        "number": "B",
+        "kind": "general",
+        "letters": "",
+        "text": "Impuls, voorwaartse drang, elasticiteit en souplesse in de\nrug",
+        "criteria": "",
+        "coefficient": 2
+      },
+      {
+        "number": "C",
+        "kind": "general",
+        "letters": "",
+        "text": "Overgangen en acceptatie van bit, oplettendheid en\nvertrouwen",
+        "criteria": "",
+        "coefficient": 2
+      },
+      {
+        "number": "D",
+        "kind": "general",
+        "letters": "",
+        "text": "Houding en zit van de ruiter, correctheid en effectiviteit van\nde hulpen",
+        "criteria": "",
+        "coefficient": 2
+      },
+      {
+        "number": "E",
+        "kind": "general",
+        "letters": "",
+        "text": "Algemene presentatie",
+        "criteria": "",
+        "coefficient": 1
+      }
+    ]
+  }
+}
