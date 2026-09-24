@@ -19,7 +19,7 @@ export const SPEED_EVENTS = Object.freeze([
  event('garrocha_return_barrel_down', 'Vat na terugzetten garrocha omver', 5),
  event('ring_returned', 'Gestoken ring met garrocha in vat teruggezet', 5, 'bonus'),
  event('ring_holder_down', 'Ringhouder / stier omvergereden', 5, 'penalty', { source: 'Werkafspraak gebruiker (RR02); formulier p.68 +5, bijlage p.90/99 +10', decisionStatus: 'user_agreed_pending_weh', decisionNote: 'RR02: +5 sec afgesproken; bevestiging WEH volgt. Ringhouder en stier zijn hier één gebeurtenis, geen dubbele straf.' }),
- event('jug_table_down', 'Tafel met kan omver', 5, 'review', { reviewRequired: 'RR05: p.90 niet in speed, p.98 afgeraden' }),
+ event('jug_table_down', 'Tafel met kan omver', 5, 'penalty', { decisionSource: 'Organisator bevestigd: omgooien = +5 seconden, 2026-09-24' }),
  event('junior_gate_unclosed', 'Junioren: poort niet gesloten', 15, 'penalty', { classes: ['junior'], failedObstacle: true }),
  event('junior_backward_failed', 'Junioren: achterwaarts L/slalom niet correct', 15, 'penalty', { classes: ['junior'], failedObstacle: true }),
  event('junior_garrocha_returned', 'Junioren: gevallen garrocha teruggegeven', 15, 'penalty', { classes: ['junior'] }),

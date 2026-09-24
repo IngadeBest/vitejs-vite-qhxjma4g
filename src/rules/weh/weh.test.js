@@ -56,7 +56,7 @@ describe('speed and score validation',()=>{
   expect(calculateSpeed('WE2',60,[{id:'barrel_down',count:2},{id:'ring_returned'}])).toMatchObject({penaltySeconds:10,bonusSeconds:5,finalTime:65});
   expect(()=>speedTime(60,-5,0)).toThrow();expect(()=>calculateSpeed('WE1',60)).toThrow();
   expect(calculateSpeed('WE2',60,[{id:'ring_holder_down'}]).finalTime).toBe(65);
-  expect(()=>calculateSpeed('WE2',60,[{id:'jug_table_down'}])).toThrow(/REVIEW REQUIRED/);
+  expect(calculateSpeed('WE2',60,[{id:'jug_table_down'}]).finalTime).toBe(65);
  });
  it('retains junior and master exceptions',()=>{
   expect(calculateSpeed('junior',60,[{id:'junior_gate_unclosed',obstacleNumber:1}]).finalTime).toBe(75);
