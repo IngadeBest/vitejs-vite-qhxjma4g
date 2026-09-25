@@ -11,7 +11,7 @@ export function calculateStandings({ klasse, participants, tests, scores }) {
   if (candidates.length > 1) throw new Error(`Meerdere proeven voor ${component}; kies expliciet welke voor het klassement geldt.`);
   testByComponent.set(component, candidates[0]);
  }
- const selected = participants.filter(p => resultClassKey(p.klasse, p.rubriek) === classKey);
+ const selected = participants.filter(p => (!p.deelnemer_status || p.deelnemer_status === 'actief') && resultClassKey(p.klasse, p.rubriek) === classKey);
  const ids = selected.map(p => String(p.id));
  if (new Set(ids).size !== ids.length) throw new Error('Dubbele startnummers: uitslag kan niet betrouwbaar worden gekoppeld.');
  const rows = selected.map(p => {
@@ -23,7 +23,8 @@ export function calculateStandings({ klasse, participants, tests, scores }) {
    if (matches.length > 1) throw new Error('Dubbele scores voor dezelfde deelnemer en proef.');
    const s = matches[0], recordedStatus = resultStatus(s);
    if (eliminated && recordedStatus === 'completed') throw new Error('Een deelnemer met eliminatie kan geen volgend onderdeel uitrijden; controleer de resultaatstatussen.');
-   const status = p.hors_concours ? 'hors_concours' : eliminated ? 'eliminated' : recordedStatus;
+   const hc = p.hors_concours || scores.some(entry => String(entry.ruiter_id) === String(p.id) && selectedTests.some(t=>String(t.id)===String(entry.proef_id)) && entry.result_status === 'hors_concours');
+   const status = hc ? 'hors_concours' : eliminated ? 'eliminated' : recordedStatus;
    if (status === 'eliminated') eliminated = true;
    const value = s?.score == null ? null : Number(s.score);
    const max = Number(test?.max_score);

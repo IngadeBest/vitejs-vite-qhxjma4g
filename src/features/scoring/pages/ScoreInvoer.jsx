@@ -1,31 +1,16 @@
-import { useState, useEffect } from "react";
+import ProtocolCalculator from '../components/ProtocolCalculator';
+import { calculatorRows, calculateProtocol } from '../protocolCalculator';
+import { loadScoreData } from '../scoreData';
+import { calculateStandings } from '@/rules/weh/rankings';
+import { validateScoreEntry } from '@/rules/weh/scoreEntry';
+import { WEH_METADATA } from "@/rules/weh/metadata";
+import { resultClassKey, classLabel, normalizeComponent } from "@/rules/weh/classes";
+import { parseTime as parseTimeString, formatTime, speedTime, resultStatus } from "@/rules/weh/scoring";
+import { validateTotal } from "@/rules/weh/validation";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 import "./ScoreInvoer.css";
-
-// Helper: 'mm:ss:hh' (of 'mm:ss') => seconden (float)
-function parseTimeString(str) {
-  if (!str) return 0;
-  const parts = str.trim().split(":").map(s => s.replace(/[^0-9]/g,"")).filter(Boolean);
-  if (parts.length === 2) {
-    const [min, sec] = parts;
-    return parseInt(min) * 60 + parseInt(sec);
-  }
-  if (parts.length === 3) {
-    const [min, sec, hun] = parts;
-    return parseInt(min) * 60 + parseInt(sec) + parseInt(hun) / 100;
-  }
-  return Number(str); // fallback
-}
-
-// Helper: seconden (float) => 'mm:ss:hh'
-function formatTime(secs) {
-  if (secs == null) return "";
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
-  const h = Math.round((secs - Math.floor(secs)) * 100);
-  return [m, s, h].map((v, i) => v.toString().padStart(2, "0")).join(":");
-}
 
 const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"];
 
@@ -42,101 +27,60 @@ export default function ScoreInvoer() {
   const [dq, setDQ] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
+  const saveInFlight = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [advancedStorage, setAdvancedStorage] = useState(false);
+  const [status, setStatus] = useState('completed');
+  const [penaltyInput, setPenaltyInput] = useState('0');
+  const [bonusInput, setBonusInput] = useState('0');
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [speedBreakdown, setSpeedBreakdown] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [success, setSuccess] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [marks, setMarks] = useState([]);
+  const [deduction, setDeduction] = useState('0');
+  const [scoreDetails, setScoreDetails] = useState(null);
+  const [editingRevision, setEditingRevision] = useState(null);
+  let rows=[], calculatorError='';
+  if(selectedProef && selectedOnderdeel !== 'Speedtrail') {
+    try { rows=calculatorRows(selectedProef,selectedWedstrijd?.protocol_config || {}); }
+    catch(e){calculatorError=e.message;}
+  }
+  useEffect(()=>{
+    const options=proeven.filter(p=>p.klasse===selectedKlasse && p.onderdeel===selectedOnderdeel);
+    if(options.length===1) setSelectedProef(options[0]);
+  },[proeven,selectedKlasse,selectedOnderdeel]);
+  useEffect(()=>{setCalculatorOpen(Boolean(selectedProef && selectedOnderdeel !== 'Speedtrail'));setMarks([]);setDeduction('0');setScoreDetails(null);},[selectedProef?.id]);
+  useEffect(() => {
+    let alive = true;
+    supabase.from('scores').select('result_status, ridden_time, penalty_seconds, bonus_seconds, score_details, score_revision').limit(0)
+      .then(({ error }) => { if (alive) setAdvancedStorage(!error); });
+    return () => { alive = false; };
+  }, []);
+
 
   useEffect(() => {
-    fetchRuiters();
-    fetchProeven();
-    resetForm();
-    setSelectedKlasse("");
-    setSelectedOnderdeel("");
-    setSelectedProef(null);
-  }, [activeWedstrijdId]);
-  useEffect(() => { if (selectedProef) { fetchScores(); } else { setScores([]); } }, [selectedProef]);
-
-  async function fetchRuiters() {
-    // Haal ruiters uit inschrijvingen tabel (nieuw systeem)
-    let query = supabase.from("inschrijvingen").select("id, startnummer, ruiter, paard, klasse, wedstrijd_id, rubriek").order("startnummer");
-    if (activeWedstrijdId) {
-      query = query.eq("wedstrijd_id", activeWedstrijdId);
-    }
-    let { data, error: readError } = await query.or('deelnemer_status.is.null,deelnemer_status.eq.actief');
-    if (readError) { setError(readError.message); setRuiters([]); return; }
-    
-    // Normaliseer klasse codes naar proeven formaat
-    const klasseMap = {
-      'we0': 'Introductieklasse (WE0)',
-      'we0 - jeugd': 'Introductieklasse (WE0) - Jeugd',
-      'we1': 'WE1',
-      'we1 - jeugd': 'WE1 - Jeugd',
-      'we2': 'WE2',
-      'we2 - jeugd': 'WE2 - Jeugd',
-      'we2p': 'WE2+',
-      'we2+ - jeugd': 'WE2+ - Jeugd',
-      'we2+': 'WE2+',
-      'we3': 'WE3',
-      'we3 - jeugd': 'WE3 - Jeugd',
-      'we4': 'WE4',
-      'we4 - jeugd': 'WE4 - Jeugd',
-      'yr': 'Young Riders',
-      'junior': 'Junioren',
-      'junioren': 'Junioren'
-    };
-    
-    // Map naar oude structuur voor backwards compatibility
-    const mapped = (data || []).map(inschrijving => {
-      const klasseLower = (inschrijving.klasse || '').toLowerCase();
-      const normalizedKlasse = klasseMap[klasseLower] || inschrijving.klasse;
-      const rubriek = inschrijving.rubriek || 'Algemeen';
-      
-      // Bepaal base klasse (zonder jeugd suffix)
-      const baseKlasse = normalizedKlasse.replace(/ - Jeugd$/i, '');
-      
-      // klasseMetRubriek is hetzelfde als normalizedKlasse (klasse heeft al jeugd suffix indien van toepassing)
-      const klasseMetRubriek = normalizedKlasse;
-      
-      // Gebruik startnummer als numeriek ID voor scores tabel
-      const numericId = inschrijving.startnummer ? parseInt(inschrijving.startnummer) : null;
-      
-      return {
-        id: numericId,  // Gebruik startnummer als numeriek ID
-        uuid: inschrijving.id,  // Bewaar originele UUID voor referentie
-        naam: inschrijving.ruiter,
-        paard: inschrijving.paard,
-        klasse: baseKlasse,  // Base klasse zonder jeugd
-        klasseMetRubriek: klasseMetRubriek,  // Volledige klasse inclusief jeugd suffix
-        rubriek: rubriek,
-        wedstrijd_id: inschrijving.wedstrijd_id,
-        startnummer: inschrijving.startnummer
-      };
-    }).filter(r => r.id !== null);  // Filter out entries zonder startnummer
-    
-    setRuiters(mapped);
-  }
-  async function fetchProeven() {
-    let query = supabase.from("proeven").select("*").order("id");
-    if (activeWedstrijdId) {
-      query = query.eq("wedstrijd_id", activeWedstrijdId);
-    }
-    let { data, error: readError } = await query;
-    if (readError) { setError(readError.message); setProeven([]); return; }
-    setProeven(data || []);
-  }
-  async function fetchScores() {
-    if (!selectedProef) return;
-    let { data, error: readError } = await supabase
-      .from("scores")
-      .select("*")
-      .eq("proef_id", selectedProef.id)
-      .order("id");
-    if (readError) { setError(readError.message); setScores([]); return; }
-    setScores(data || []);
-  }
+    let cancelled = false;
+    setLoading(true); setError('');
+    loadScoreData(supabase, activeWedstrijdId).then(({participants,tests,scores})=>{
+      if(cancelled) return;
+      setRuiters(participants); setProeven(tests); setScores(scores);
+    }).catch(e=>{if(!cancelled){setError(e.message);setRuiters([]);setProeven([]);setScores([]);}})
+      .finally(()=>{if(!cancelled)setLoading(false);});
+    return ()=>{cancelled=true;};
+  }, [activeWedstrijdId,refresh]);
+  const fetchScores = () => setRefresh(n=>n+1);
+  let calculatedPreview=null;
+  if(calculatorOpen && rows.length) {try {calculatedPreview=calculateProtocol(rows,rows.map((_,i)=>marks[i] ?? ''),deduction);}catch{ /* Incomplete input stays blank. */ }}
   function resetForm() {
     setSelectedRuiter("");
     setScoreInput("");
     setDQ(false);
-    setEditingId(null);
-    setError("");
+    setStatus('completed'); setPenaltyInput('0'); setBonusInput('0'); setCorrectionReason(''); setSpeedBreakdown(true);
+    setEditingId(null); setEditingRevision(null); setCalculatorOpen(selectedOnderdeel !== 'Speedtrail'); setMarks(rows.map(()=>'')); setDeduction('0'); setScoreDetails(null);
+    setError(""); setSuccess('');
   }
   function getProefOpties() {
     return proeven.filter(
@@ -152,49 +96,76 @@ export default function ScoreInvoer() {
     return "";
   }
   function getRuitersVoorKlasse() {
-    // Filter ruiters op basis van geselecteerde proef
-    // Als proef " - Jeugd" suffix heeft, toon alleen jeugd ruiters
-    // Anders toon algemeen + senior ruiters
     if (!selectedProef) return [];
-    
-    const isJeugdProef = selectedProef.klasse?.includes(' - Jeugd');
-    
-    return ruiters.filter((r) => {
-      // Match op klasseMetRubriek voor jeugd proeven
-      if (isJeugdProef) {
-        return r.klasseMetRubriek === selectedProef.klasse;
-      }
-      // Voor niet-jeugd proeven: toon algemeen en senior ruiters
-      return r.klasse === selectedKlasse && (r.rubriek === 'Algemeen' || r.rubriek === 'Senior');
-    });
+    return ruiters.filter(r => resultClassKey(r.klasse, r.rubriek) === resultClassKey(selectedProef.klasse));
   }
+
   async function handleOpslaan() {
+    if (saveInFlight.current) return;
     if (!selectedProef || !selectedRuiter) {
       setError("Kies proef en ruiter!");
       return;
     }
-    if (!dq && !scoreInput) {
+    if ((!advancedStorage ? !dq : ['completed','hors_concours'].includes(status)) && !calculatorOpen && String(scoreInput).trim() === '') {
       setError("Vul score/tijd in of vink DQ aan.");
       return;
     }
     setError("");
-    
+    saveInFlight.current = true; setSaving(true);
     try {
+      const calculated = calculatorOpen && ['completed','hors_concours'].includes(status) ? calculateProtocol(rows,rows.map((_,i)=>marks[i] ?? ''),deduction) : null;
       let insertObj = {
         wedstrijd_id: activeWedstrijdId,
         proef_id: selectedProef.id,
         ruiter_id: selectedRuiter,
         dq: dq,
       };
+      const completed = advancedStorage ? ['completed','hors_concours'].includes(status) : !dq;
+      if (advancedStorage) {
+        insertObj.result_status = status;
+        insertObj.dq = status === 'disqualified';
+        insertObj.rules_version = WEH_METADATA.rulebookVersion;
+        insertObj.score_details = calculated?.details || scoreDetails;
+      }
       if (selectedOnderdeel === "Speedtrail") {
-        insertObj.score = dq ? 0 : parseTimeString(scoreInput);
+        insertObj.score = completed ? parseTimeString(scoreInput) : null;
+        if (advancedStorage && speedBreakdown && completed) {
+          const penalty = parseTimeString(penaltyInput), bonus = parseTimeString(bonusInput);
+          if ((penalty || bonus) && !correctionReason.trim()) { setError('Vermeld de reden en jurybeslissing voor straf/bonus.'); return; }
+          insertObj.ridden_time = parseTimeString(scoreInput);
+          insertObj.penalty_seconds = penalty;
+          insertObj.bonus_seconds = bonus;
+          insertObj.score = speedTime(insertObj.ridden_time, penalty, bonus);
+          insertObj.rule_events = correctionReason ? [{ kind: 'jury_record', reason: correctionReason, penaltySeconds: penalty, bonusSeconds: bonus }] : [];
+        } else if (advancedStorage) {
+          insertObj.ridden_time = null; insertObj.penalty_seconds = null; insertObj.bonus_seconds = null; insertObj.rule_events = null;
+        }
       } else {
-        insertObj.score = dq ? 0 : Number(scoreInput);
+        insertObj.score = completed ? (calculated?.score ?? Number(String(scoreInput).replace(',', '.'))) : null;
       }
       
+      if (completed) {
+        const validation = validateTotal({ klasse: selectedProef.klasse, onderdeel: selectedOnderdeel, score: insertObj.score, max_score: selectedProef.max_score });
+        if (!validation.valid) { setError(validation.errors.join(' ')); return; }
+      }
+      if (advancedStorage && completed) {
+        const {data: previous, error: previousError} = await supabase.from('scores')
+          .select('id, proef_id, result_status').eq('wedstrijd_id', activeWedstrijdId).eq('ruiter_id', selectedRuiter);
+        if (previousError) throw previousError;
+        const order = ['Dressuur', 'Stijltrail', 'Speedtrail'];
+        const eliminatedBefore = (previous || []).some(s => s.result_status === 'eliminated' && String(s.id) !== String(editingId) &&
+          order.indexOf(proeven.find(p => String(p.id) === String(s.proef_id))?.onderdeel) >= 0 &&
+          order.indexOf(proeven.find(p => String(p.id) === String(s.proef_id))?.onderdeel) < order.indexOf(selectedOnderdeel));
+        if (eliminatedBefore) throw new Error('Deze deelnemer is in een eerder onderdeel geëlimineerd. Corrigeer eerst die jurybeslissing als deze onjuist is.');
+      }
+      const check = validateScoreEntry({ record: insertObj, test: selectedProef,
+        participant: getRuitersVoorKlasse().find(r => String(r.id) === String(selectedRuiter)),
+        competitionId: activeWedstrijdId, existingScores: scores, editingId });
+      if (!check.valid) throw new Error(check.errors.join(' '));
       let result;
       if (editingId) {
-        result = await supabase.from("scores").update(insertObj).eq("id", editingId).eq("proef_id", selectedProef.id).select('id').single();
+        result = await supabase.from("scores").update({...insertObj,score_revision:editingRevision+1}).eq("id", editingId).eq("proef_id", selectedProef.id).eq('score_revision',editingRevision).select('id').maybeSingle();
+        if(!result.error && !result.data) throw new Error('Deze score is intussen gewijzigd. Ververs de scores en open de nieuwste versie voordat je opnieuw opslaat.');
       } else {
         result = await supabase.from("scores").insert([insertObj]).select('id').single();
       }
@@ -207,109 +178,55 @@ export default function ScoreInvoer() {
       
       console.log('Score saved successfully:', result);
       resetForm();
+      setSuccess('Score opgeslagen.');
       fetchScores();
     } catch (err) {
       console.error('Save error:', err);
       setError("Fout bij opslaan: " + (err.message || String(err)));
+    } finally {
+      saveInFlight.current = false; setSaving(false);
     }
   }
   function handleEdit(score) {
-    setEditingId(score.id);
+    setEditingId(score.id); setEditingRevision(score.score_revision ?? 0);
+    setScoreDetails(score.score_details || null);
+    setMarks(score.score_details?.items?.map(r=>String(r.mark)) || []);
+    setDeduction(String(score.score_details?.deduction ?? 0));
+    setCalculatorOpen(Boolean(score.score_details));
     setSelectedRuiter(score.ruiter_id);
     // Tijd als string tonen bij Speedtrail
     setScoreInput(
       selectedOnderdeel === "Speedtrail"
         ? formatTime(score.score)
-        : (score.score || "")
+        : (score.score ?? "")
     );
-    setDQ(!!score.dq);
+    setDQ(!['completed','hors_concours'].includes(resultStatus(score)));
+    setStatus(resultStatus(score));
+    setSpeedBreakdown(score.ridden_time != null);
+    setPenaltyInput(String(score.penalty_seconds ?? 0)); setBonusInput(String(score.bonus_seconds ?? 0));
+    setCorrectionReason(score.rule_events?.map(e=>e.reason || e.id).join('; ') || '');
+    if (selectedOnderdeel === 'Speedtrail' && score.ridden_time != null) setScoreInput(formatTime(Number(score.ridden_time)));
     setError("");
   }
-  async function handleDelete(id) {
-    const { error: deleteError } = await supabase.from("scores").delete().eq("id", id)
-      .eq("proef_id", selectedProef.id).select('id').single();
-    if (deleteError) { setError(deleteError.message); return; }
-    await fetchScores();
-  }
-  function berekenKlassement() {
-    if (!scores.length) return [];
-    // Vul namen/paarden aan uit ruiters
-    const scoresWithName = scores.map((s) => ({
-      ...s,
-      naam: ruiters.find((r) => r.id === s.ruiter_id)?.naam || "Onbekend",
-      paard: ruiters.find((r) => r.id === s.ruiter_id)?.paard || "Onbekend",
-    }));
-    const totaalGestart = scoresWithName.length; // incl DQ
-
-    let deelnemersZonderDQ = scoresWithName.filter((s) => !s.dq);
-    let deelnemersMetDQ = scoresWithName.filter((s) => s.dq);
-
-    // Sortering: Speedtrail op tijd, anders op score
-    if (selectedOnderdeel === "Speedtrail") {
-      deelnemersZonderDQ = deelnemersZonderDQ
-        .sort((a, b) => a.score - b.score);
-    } else {
-      deelnemersZonderDQ = deelnemersZonderDQ
-        .map((s) => ({
-          ...s,
-          percentage:
-            selectedProef && selectedProef.max_score && s.score
-              ? Math.round((s.score / selectedProef.max_score) * 1000) / 10
-              : 0,
-        }))
-        .sort((a, b) => b.score - a.score);
-    }
-
-    // Ex aequo per score/tijd
-    let resultaat = [];
-    let plek = 1, i = 0;
-    while (i < deelnemersZonderDQ.length) {
-      let groep = [deelnemersZonderDQ[i]];
-      while (
-        i + groep.length < deelnemersZonderDQ.length &&
-        deelnemersZonderDQ[i].score === deelnemersZonderDQ[i + groep.length].score
-      ) {
-        groep.push(deelnemersZonderDQ[i + groep.length]);
-      }
-      let plekLabel = groep.length > 1 ? plek + "*" : plek + "";
-      let punten = plek === 1
-        ? totaalGestart + 1
-        : totaalGestart - (plek - 1);
-      for (let j = 0; j < groep.length; j++) {
-        resultaat.push({
-          ...groep[j],
-          plaats: plekLabel,
-          punten,
-          scoreLabel: selectedOnderdeel === "Speedtrail"
-            ? (groep[j].score ? formatTime(groep[j].score) : "0")
-            : `${groep[j].score} (${groep[j].percentage}%)`
-        });
-      }
-      plek += groep.length;
-      i += groep.length;
-    }
-
-    // DQ’s onderaan, altijd plek DQ en 0 punten
-    deelnemersMetDQ.forEach((s) => {
-      resultaat.push({
-        ...s,
-        plaats: "DQ",
-        punten: 0,
-        scoreLabel: "DQ",
+  let klassement = [], rankingError = '';
+  if(selectedProef) {
+    try {
+      const standing = calculateStandings({klasse:selectedProef.klasse,participants:ruiters,tests:proeven,scores});
+      klassement = standing.eindstand.map(p=>{
+        const result=p.onderdelen[selectedOnderdeel];
+        const saved=scores.find(s=>String(s.proef_id)===String(selectedProef.id) && String(s.ruiter_id)===String(p.id));
+        return {...saved, ruiter_id:p.id, naam:p.naam, paard:p.paard, startnummer:p.startnummer,
+          plaats:result?.plaats || ({disqualified:'DQ',eliminated:'EL',not_started:'NS',hors_concours:'HC',pending:'—'})[result?.status],
+          punten: result?.plaatsingspunten ?? 0, scoreLabel:result?.scoreLabel};
       });
-    });
-
-    return [
-      ...resultaat.filter((k) => k.plaats !== "DQ"),
-      ...resultaat.filter((k) => k.plaats === "DQ"),
-    ];
+    }catch(e){rankingError=e.message;}
   }
-
-  const klassement = berekenKlassement();
 
   return (
     <div className="si-page">
       <div className="si-shell">
+      {loading && <p role="status">Scores laden…</p>}
+      <fieldset disabled={saving || loading} style={{border:0,padding:0,margin:0,minWidth:0}}>
         <div className="si-hero">
           <h2>Score-invoer</h2>
           <div className="si-note">
@@ -339,7 +256,7 @@ export default function ScoreInvoer() {
               resetForm();
             }}>
               <option value="">--</option>
-              {onderdelen.map(o => <option key={o}>{o}</option>)}
+              {onderdelen.filter(o=>proeven.some(p=>p.klasse===selectedKlasse && p.onderdeel===o)).map(o => <option key={o}>{o}</option>)}
             </select>
           </label>
           <label className="si-field si-span-2">
@@ -364,31 +281,32 @@ export default function ScoreInvoer() {
         <div className="si-form-grid si-form-grid-actions">
           <label className="si-field si-span-2">
             <span>Ruiter</span>
-            <select className="si-input" value={selectedRuiter} onChange={e => setSelectedRuiter(e.target.value)}>
+            <select className="si-input" value={selectedRuiter} disabled={editingId != null} onChange={e => { const id=e.target.value; resetForm(); const previous=scores.find(s=>String(s.proef_id)===String(selectedProef?.id) && String(s.ruiter_id)===id); if(previous) handleEdit(previous); else setSelectedRuiter(id); }}>
               <option value="">---</option>
               {getRuitersVoorKlasse().map(r =>
-                <option key={r.id} value={r.id}>{r.naam} met {r.paard}</option>
+                <option key={r.id} value={r.id}>{r.startnummer} · {r.naam} met {r.paard}</option>
               )}
             </select>
           </label>
           <label className="si-field">
-            <span>{selectedOnderdeel === "Speedtrail" ? "Tijd (mm:ss:hh)" : "Score"}</span>
+            <span>{selectedOnderdeel === "Speedtrail" ? (advancedStorage && speedBreakdown ? "Gereden tijd (mm:ss:hh)" : "Eindtijd inclusief straf/bonus") : "Eindscore na puntenaftrek"}</span>
             {selectedOnderdeel === "Speedtrail" ? (
               <input
                 className="si-input"
                 type="text"
                 pattern="[0-9]{2}:[0-9]{2}(:[0-9]{2})?"
                 value={scoreInput}
-                onChange={e => setScoreInput(e.target.value)}
+                onChange={e => {setScoreInput(e.target.value);setScoreDetails(null);setCalculatorOpen(false);}}
                 placeholder="02:35:09"
                 disabled={dq}
               />
             ) : (
               <input
                 className="si-input"
-                type="number"
-                value={scoreInput}
-                onChange={e => setScoreInput(e.target.value)}
+                type="text" inputMode="decimal"
+                readOnly={calculatorOpen}
+                value={calculatorOpen ? (calculatedPreview?.score ?? "") : scoreInput}
+                onChange={e => {setScoreInput(e.target.value);setScoreDetails(null);setCalculatorOpen(false);}}
                 disabled={dq}
               />
             )}
@@ -398,21 +316,40 @@ export default function ScoreInvoer() {
               </span>
             ) : null}
           </label>
-          <label className="si-check">
-            <input
-              type="checkbox"
-              checked={dq}
-              onChange={e => setDQ(e.target.checked)}
-            />
-            <span>DQ</span>
-          </label>
-          <button className="si-button" onClick={handleOpslaan}>
-            {editingId ? "Bijwerken" : "Opslaan"}
+          {advancedStorage ? <>
+            <label className="si-field"><span>Resultaatstatus</span><select className="si-input" value={status} onChange={e=>{setStatus(e.target.value); setDQ(!['completed','hors_concours'].includes(e.target.value));}}>
+              <option value="completed">Uitgereden</option><option value="disqualified">Diskwalificatie (dit onderdeel)</option>
+              <option value="eliminated">Eliminatie (wedstrijd)</option><option value="not_started">Vrijwillig niet gestart</option><option value="hors_concours">Buiten mededinging</option>
+            </select></label>
+            {selectedOnderdeel === 'Speedtrail' && ['completed','hors_concours'].includes(status) && <>
+              <label className="si-check"><input type="checkbox" checked={speedBreakdown} onChange={e=>setSpeedBreakdown(e.target.checked)}/>Gereden tijd, straf en bonus afzonderlijk vastleggen</label>
+              {speedBreakdown && <>
+                <label className="si-field"><span>Straftijd (+ seconden)</span><input className="si-input" value={penaltyInput} onChange={e=>setPenaltyInput(e.target.value)}/></label>
+                <label className="si-field"><span>Bonustijd (- seconden)</span><input className="si-input" value={bonusInput} onChange={e=>setBonusInput(e.target.value)}/></label>
+                <label className="si-field"><span>Reden / beslissing jury</span><input className="si-input" value={correctionReason} onChange={e=>setCorrectionReason(e.target.value)}/></label>
+              </>}
+            </>}
+          </> : <label className="si-check"><input type="checkbox" checked={dq} onChange={e=>setDQ(e.target.checked)}/><span>DQ</span></label>}
+          <button className="si-button" onClick={handleOpslaan} disabled={saving}>
+            {saving ? "Bezig met opslaan…" : editingId ? "Bijwerken" : "Opslaan"}
           </button>
         </div>
-        {error && <div className="si-error">{error}</div>}
+        {!advancedStorage && <p role="status">Uitgebreide scoreopslag is nog niet beschikbaar. Alleen eindscore/eindtijd en DQ kunnen worden opgeslagen; eliminatie, niet gestart en losse correcties nog niet.</p>}
+        {success && <p role="status">{success}</p>}
+        {editingId != null && <button className="si-link-button" onClick={resetForm}>Bewerken annuleren</button>}
+        {error && <div role="alert" className="si-error">{error}</div>}
+        {rankingError && <div role="alert" className="si-error">{rankingError}</div>}
         </section>
 
+        {selectedProef && selectedOnderdeel !== 'Speedtrail' && advancedStorage && <>
+          <button className="si-button" onClick={()=>{if(calculatorOpen && calculatedPreview){setScoreInput(String(calculatedPreview.score));setScoreDetails(calculatedPreview.details);}setCalculatorOpen(v=>!v);if(!marks.length)setMarks(rows.map(()=>''));}}>{calculatorOpen ? 'Alleen een totaalscore invoeren' : 'Alle protocolcijfers invoeren'}</button>
+          {calculatorError && <p role="alert">{calculatorError}</p>}
+          {calculatorOpen && rows.length>0 && <ProtocolCalculator rows={rows} values={rows.map((_,i)=>marks[i] ?? '')} deduction={deduction} onSave={handleOpslaan}
+            onChange={(index,value)=>{setMarks(old=>rows.map((_,i)=>i===index?value:(old[i] ?? '')));setScoreDetails(null);}}
+            onDeduction={value=>{setDeduction(value);setScoreDetails(null);}}
+            onApply={result=>{setScoreInput(String(result.score));setScoreDetails(result.details);setSuccess('Totaal overgenomen. Klik op Opslaan om de score en cijfers te bewaren.');}}/>}
+        </>}
+        <button className="si-link-button" onClick={()=>{resetForm();fetchScores();}}>Scores verversen</button>
         <section className="si-card si-overview">
         <div className="si-card-head">
           <h3>
@@ -442,14 +379,13 @@ export default function ScoreInvoer() {
               klassement.map(item => (
                 <tr key={item.id || item.ruiter_id}>
                   <td>{item.plaats}</td>
-                  <td>{item.naam}</td>
+                  <td>{item.startnummer} · {item.naam}</td>
                   <td>{item.paard}</td>
                   <td>{item.scoreLabel}</td>
                   <td className="si-strong">{item.punten}</td>
                   <td>
                     <div className="si-actions">
-                      <button type="button" className="si-link-button" onClick={() => handleEdit(item)}>Bewerken</button>
-                      <button type="button" className="si-link-button si-link-danger" onClick={() => handleDelete(item.id)}>Verwijderen</button>
+                      <button type="button" className="si-link-button" onClick={() => item.id ? handleEdit(item) : (resetForm(),setSelectedRuiter(String(item.ruiter_id)))}>{item.id ? "Bewerken" : "Invoeren"}</button>
                     </div>
                   </td>
                 </tr>
@@ -465,7 +401,7 @@ export default function ScoreInvoer() {
             <article key={item.id || item.ruiter_id} className="si-mobile-card">
               <div className="si-mobile-head">
                 <div>
-                  <strong>{item.naam}</strong>
+                  <strong>{item.startnummer} · {item.naam}</strong>
                   <div className="si-muted">{item.paard}</div>
                 </div>
                 <div className="si-pill">{item.plaats}</div>
@@ -475,13 +411,13 @@ export default function ScoreInvoer() {
                 <div><span>Punten</span>{item.punten}</div>
               </div>
               <div className="si-actions">
-                <button type="button" className="si-link-button" onClick={() => handleEdit(item)}>Bewerken</button>
-                <button type="button" className="si-link-button si-link-danger" onClick={() => handleDelete(item.id)}>Verwijderen</button>
+                <button type="button" className="si-link-button" onClick={() => item.id ? handleEdit(item) : (resetForm(),setSelectedRuiter(String(item.ruiter_id)))}>{item.id ? "Bewerken" : "Invoeren"}</button>
               </div>
             </article>
           ))}
         </div>
         </section>
+      </fieldset>
       </div>
     </div>
   );

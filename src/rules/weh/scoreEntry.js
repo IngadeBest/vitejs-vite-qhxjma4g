@@ -15,14 +15,14 @@ export function validateScoreEntry({ record, test, participant, competitionId, e
  try {
   const status = resultStatus(record);
   if (record.result_status && record.dq !== (status === 'disqualified')) errors.push('DQ en resultaatstatus spreken elkaar tegen.');
-  if (status === 'completed' && test) errors.push(...validateTotal({...test,score:record.score}).errors);
+  if (['completed','hors_concours'].includes(status) && test) errors.push(...validateTotal({...test,score:record.score}).errors);
   const parts = [record.ridden_time,record.penalty_seconds,record.bonus_seconds];
   if (parts.some(n=>n!=null)) {
    if (normalizeComponent(test?.onderdeel) !== 'Speedtrail') errors.push('Tijdcorrecties horen alleen bij Speedtrail.');
    if (parts.some(n=>n==null)) errors.push('Gereden tijd, straf en bonus moeten samen worden vastgelegd.');
    else {
     const total = speedTime(...parts);
-    if (status === 'completed' && total !== record.score) errors.push('Eindtijd klopt niet met gereden tijd, straf en bonus.');
+    if (['completed','hors_concours'].includes(status) && total !== record.score) errors.push('Eindtijd klopt niet met gereden tijd, straf en bonus.');
    }
   }
  } catch(e) { errors.push(e.message); }

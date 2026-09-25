@@ -1,3 +1,6 @@
+import { loadScoreData } from '@/features/scoring/scoreData';
+import { CLASSES } from "@/rules/weh/classes";
+import { calculateStandings } from "@/rules/weh/rankings";
 import { useAccess } from "@/features/auth/AdminGate";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -6,40 +9,11 @@ import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdCon
 import "./Einduitslag.css";
 // heavy libs: imported on-demand below to avoid module-init side-effects in the main bundle
 
-// HELPER: 'mm:ss:hh'
-function formatTime(secs) {
-  if (secs == null) return "";
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
-  const h = Math.round((secs - Math.floor(secs)) * 100);
-  return [m, s, h].map((v, i) => v.toString().padStart(2, "0")).join(":");
-}
 
 // HELPER: Normalize klasse names to consistent format
-function normalizeKlasse(input) {
-  if (!input || typeof input !== 'string') return '';
-  
-  const clean = input.trim().toLowerCase();
-  
-  // Map common variations to standard names
-  const klasseMap = {
-    'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0', 'introductieklasse': 'WE0', 'we intro': 'WE0',
-    'we1': 'WE1', 'we 1': 'WE1', 'we-1': 'WE1', 
-    'we2': 'WE2', 'we 2': 'WE2', 'we-2': 'WE2',
-    'we2+': 'WE2+', 'we 2+': 'WE2+', 'we-2+': 'WE2+', 'we2plus': 'WE2+',
-    'we3': 'WE3', 'we 3': 'WE3', 'we-3': 'WE3',
-    'we4': 'WE4', 'we 4': 'WE4', 'we-4': 'WE4',
-    'junior': 'Junioren', 'junioren': 'Junioren', 'juniors': 'Junioren',
-    'young rider': 'Young Riders', 'young riders': 'Young Riders', 'yr': 'Young Riders'
-  };
-  
-  return klasseMap[clean] || input.trim();
-}
 
 // --- Sorteer klasses met Jeugd direct na hoofdklasse, altijd Intro, WE1, WE2, WE3, WE4 ---
-const KLASSERIJ = [
-  "WE0", "WE1", "WE2", "WE3", "WE4",
-];
+const KLASSERIJ = CLASSES.map(c => c.naam);
 function sorteerKlasses(klasses) {
   // Vul lijst met hoofdklasses + direct erna Jeugd-variant als ze bestaan
   let resultaat = [];
@@ -67,254 +41,31 @@ export default function Einduitslag() {
   const [klasses, setKlasses] = useState([]);
   const refs = useRef({}); // voor afbeelding export
 
-  // Auto-selecteer vandaag of eerste wedstrijd
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [refresh, setRefresh] = useState(0);
   useEffect(() => {
-    if (!loadingWed && wedstrijden.length > 0 && !selectedWedstrijdId && appSelectedWedstrijdId) {
-      setSelectedWedstrijdId(appSelectedWedstrijdId);
-      return;
-    }
-
-    if (!loadingWed && wedstrijden.length > 0 && !selectedWedstrijdId && !appSelectedWedstrijdId) {
-      const today = new Date().toISOString().split('T')[0];
-      const vandaag = wedstrijden.find(w => w.datum === today);
-      setSelectedWedstrijdId(vandaag?.id || wedstrijden[0].id);
-    }
-  }, [wedstrijden, loadingWed, appSelectedWedstrijdId, selectedWedstrijdId]);
-
+    if (appSelectedWedstrijdId) setSelectedWedstrijdId(appSelectedWedstrijdId);
+  }, [appSelectedWedstrijdId]);
   useEffect(() => {
-    if (selectedWedstrijdId) {
-      fetchAll();
-    }
-  }, [selectedWedstrijdId]);
-
-  async function fetchAll() {
+    let cancelled = false;
+    setRuiters([]); setProeven([]); setScores([]); setKlasses([]); setLoadError('');
     if (!selectedWedstrijdId) return;
-    
-    console.log("📊 Laden einduitslag voor wedstrijd:", selectedWedstrijdId);
-    
-    // Vind de geselecteerde wedstrijd om de datum te krijgen
-    const selectedWedstrijd = wedstrijden.find(w => w.id === selectedWedstrijdId);
-    if (!selectedWedstrijd) {
-      console.error("❌ Wedstrijd niet gevonden");
-      return;
-    }
-    
-    console.log("📅 Wedstrijd datum:", selectedWedstrijd.datum);
-    console.log("📝 Wedstrijd naam:", selectedWedstrijd.naam);
-    
-    // 1. Haal proeven op voor deze datum (of voor deze wedstrijd_id als die bestaat)
-    let proevenQuery = supabase.from("proeven").select("*");
-    if (!isAdmin) proevenQuery = proevenQuery.eq("wedstrijd_id", selectedWedstrijdId);
-    
-    // Probeer eerst op wedstrijd_id, anders op datum
-    if (isAdmin && selectedWedstrijd.datum) {
-      proevenQuery = proevenQuery.eq("datum", selectedWedstrijd.datum);
-    }
-    
-    const { data: proevenVanWedstrijd, error: proevenError } = await proevenQuery;
-    
-    if (proevenError) {
-      console.error("❌ Fout bij laden proeven:", proevenError);
-      return;
-    }
-    
-    console.log("✅ Proeven gevonden:", proevenVanWedstrijd?.length || 0);
-    if (proevenVanWedstrijd && proevenVanWedstrijd.length > 0) {
-      console.log("📋 Eerste proef:", proevenVanWedstrijd[0]);
-    }
-    setProeven(proevenVanWedstrijd || []);
-    
-    if (!proevenVanWedstrijd || proevenVanWedstrijd.length === 0) {
-      setScores([]);
-      setRuiters([]);
-      setKlasses([]);
-      return;
-    }
-    
-    // 2. Haal scores op voor deze proeven
-    const proevenIds = proevenVanWedstrijd.map(proef => proef.id);
-    const { data: scoresData, error: scoresError } = await supabase
-      .from("scores")
-      .select("*")
-      .in("proef_id", proevenIds);
-    
-    if (scoresError) {
-      console.error("❌ Fout bij laden scores:", scoresError);
-      return;
-    }
-    
-    console.log("✅ Scores gevonden:", scoresData?.length || 0);
-    setScores(scoresData || []);
-    
-    // 3. Haal inschrijvingen op voor deze wedstrijd
-    const { data: inschrijvingenData, error: inschrijvingenError } = await supabase
-      .from("inschrijvingen")
-      .select("*")
-      .eq("wedstrijd_id", selectedWedstrijdId);
-    
-    if (inschrijvingenError) {
-      console.error("❌ Fout bij laden inschrijvingen:", inschrijvingenError);
-      return;
-    }
-    
-    console.log("✅ Inschrijvingen gevonden:", inschrijvingenData?.length || 0);
-    if (inschrijvingenData && inschrijvingenData.length > 0) {
-      console.log("📋 Eerste inschrijving:", inschrijvingenData[0]);
-      console.log("📋 Klasses in inschrijvingen:", [...new Set(inschrijvingenData.map(i => i.klasse))]);
-    }
-    
-    // 4. Map inschrijvingen naar ruiters structuur (voor compatibiliteit met bestaande code)
-    // Gebruik startnummer als id zodat het matcht met scores.ruiter_id
-    const ruitersVanInschrijvingen = (inschrijvingenData || [])
-      .filter(inschrijving => inschrijving.startnummer) // Alleen inschrijvingen met startnummer
-      .map(inschrijving => ({
-        id: parseInt(inschrijving.startnummer), // Dit moet matchen met scores.ruiter_id
-        naam: `${inschrijving.voornaam || ''} ${inschrijving.achternaam || ''}`.trim() || inschrijving.ruiter || 'Onbekend',
-        paard: inschrijving.paard || 'Onbekend',
-        klasse: normalizeKlasse(inschrijving.klasse) || 'Onbekend',
-        uuid: inschrijving.id // Bewaar originele UUID voor referentie
-      }));
-    
-    console.log("✅ Ruiters gemapped:", ruitersVanInschrijvingen.length);
-    console.log("📋 Eerste 3 ruiters:", ruitersVanInschrijvingen.slice(0, 3));
-    setRuiters(ruitersVanInschrijvingen);
-    
-    // 5. Verzamel alle unieke klasses uit proeven (normalize alle klasses)
-    const unieke = Array.from(new Set(proevenVanWedstrijd.map(x => normalizeKlasse(x.klasse))));
-    setKlasses(sorteerKlasses(unieke));
-    console.log("✅ Klasses:", unieke);
-  }
+    setLoading(true);
+    loadScoreData(supabase, selectedWedstrijdId).then(({participants,tests,scores}) => {
+      if (cancelled) return;
+      setRuiters(participants); setProeven(tests); setScores(scores);
+      setKlasses(sorteerKlasses([...new Set([...tests.map(t=>t.klasse),...participants.map(p=>p.klasse)])]));
+    }).catch(e=>{if(!cancelled) setLoadError(e.message);}).finally(()=>{if(!cancelled)setLoading(false);});
+    return ()=>{cancelled=true;};
+  }, [selectedWedstrijdId, refresh]);
 
   function berekenEindstand(klasse) {
-    const normalizedKlasse = normalizeKlasse(klasse);
-    const proevenInKlasse = proeven.filter(p => normalizeKlasse(p.klasse) === normalizedKlasse);
-    const onderdelen = ["Dressuur", "Stijltrail", "Speedtrail"].filter(o =>
-      proevenInKlasse.some(p => p.onderdeel === o)
-    );
-    const deelnemers = ruiters.filter(r => r.klasse === normalizedKlasse);
-
-    console.log(`🏆 Berekenen eindstand voor ${klasse} (normalized: ${normalizedKlasse}):`, {
-      proeven: proevenInKlasse.length,
-      onderdelen,
-      deelnemers: deelnemers.length,
-      totaalScores: scores.length
-    });
-
-    const perRuiter = deelnemers.map(r => {
-      let resultaat = { 
-        id: r.id, // Bewaar ID voor matching
-        naam: r.naam, 
-        paard: r.paard,
-        combiKey: `${r.naam}|||${r.paard}`, // Unieke key voor ruiter+paard combinatie
-        totaalpunten: 0, 
-        dqCount: 0, 
-        onderdelen: {} 
-      };
-      onderdelen.forEach(onderdeel => {
-        const proef = proevenInKlasse.find(p => p.onderdeel === onderdeel);
-        if (proef) {
-          const sc = scores.find(s => s.proef_id === proef.id && s.ruiter_id === r.id);
-          if (onderdeel === "Speedtrail") {
-            resultaat.onderdelen[onderdeel] = {
-              tijd: sc?.score ?? null,
-              dq: !!sc?.dq,
-              scoreLabel: sc?.dq ? "DQ" : (sc?.score != null ? formatTime(sc.score) : "-"),
-            };
-          } else {
-            let perc = proef.max_score && sc && !sc.dq ? Math.round((sc.score / proef.max_score) * 1000) / 10 : 0;
-            resultaat.onderdelen[onderdeel] = {
-              punten: sc?.score ?? null,
-              percentage: perc,
-              dq: !!sc?.dq,
-              scoreLabel: sc?.dq ? "DQ" : sc?.score != null ? `${sc.score} (${perc}%)` : "-",
-            };
-          }
-          if (sc?.dq) resultaat.dqCount++;
-        }
-      });
-      return resultaat;
-    });
-
-    // Plaatsingspunten per onderdeel: hoogste = n+1
-    let uitslag = [...perRuiter];
-    onderdelen.forEach(onderdeel => {
-      let groep = uitslag
-        .map(d => ({
-          ...d,
-          raw: onderdeel === "Speedtrail"
-            ? (d.onderdelen[onderdeel]?.dq ? Infinity : d.onderdelen[onderdeel]?.tijd)
-            : (d.onderdelen[onderdeel]?.dq ? -999999 : d.onderdelen[onderdeel]?.punten)
-        }))
-        .filter(d => d.raw !== null && d.raw !== undefined);
-
-      console.log(`📊 ${onderdeel} groep voor plaatsing:`, groep.map(g => ({ naam: g.naam, paard: g.paard, raw: g.raw })));
-
-      groep.sort((a, b) => onderdeel === "Speedtrail" ? a.raw - b.raw : b.raw - a.raw);
-
-      // Punten toekennen, ex aequo correct
-      let plek = 1, i = 0;
-      while (i < groep.length) {
-        let exEq = [groep[i]];
-        while (
-          i + exEq.length < groep.length &&
-          groep[i].raw === groep[i + exEq.length].raw
-        ) exEq.push(groep[i + exEq.length]);
-        let punten = plek === 1
-          ? groep.length + 1
-          : groep.length - (plek - 1);
-        for (let d of exEq) {
-          // Match op combiKey (ruiter + paard) voor juiste combinatie
-          const uitslagEntry = uitslag.find(u => u.combiKey === d.combiKey);
-          if (uitslagEntry) {
-            uitslagEntry.onderdelen[onderdeel].plaats = plek + (exEq.length > 1 ? "*" : "");
-            uitslagEntry.onderdelen[onderdeel].plaatsingspunten = d.raw === Infinity || d.raw === -999999 ? 0 : punten;
-            console.log(`  → ${uitslagEntry.naam} / ${uitslagEntry.paard}: plaats ${plek}, punten ${punten}`);
-          } else {
-            console.error(`❌ Geen match gevonden voor combi ${d.combiKey}`);
-          }
-        }
-        plek += exEq.length;
-        i += exEq.length;
-      }
-    });
-
-    uitslag.forEach(u => {
-      u.totaalpunten = onderdelen.reduce(
-        (sum, o) => sum + (u.onderdelen[o]?.plaatsingspunten || 0), 0
-      );
-    });
-
-    uitslag.sort((a, b) => {
-      if (a.dqCount !== b.dqCount) return a.dqCount - b.dqCount;
-      if (b.totaalpunten !== a.totaalpunten) return b.totaalpunten - a.totaalpunten;
-      const percA = a.onderdelen["Dressuur"]?.percentage || 0, percB = b.onderdelen["Dressuur"]?.percentage || 0;
-      if (percB !== percA) return percB - percA;
-      const percStA = a.onderdelen["Stijltrail"]?.percentage || 0, percStB = b.onderdelen["Stijltrail"]?.percentage || 0;
-      if (percStB !== percStA) return percStB - percStA;
-      const spdA = a.onderdelen["Speedtrail"]?.tijd || Infinity, spdB = b.onderdelen["Speedtrail"]?.tijd || Infinity;
-      return spdA - spdB;
-    });
-
-    let eindstand = [];
-    let plek = 1, i = 0;
-    while (i < uitslag.length) {
-      let groep = [uitslag[i]];
-      while (
-        i + groep.length < uitslag.length &&
-        uitslag[i].dqCount === uitslag[i + groep.length].dqCount &&
-        uitslag[i].totaalpunten === uitslag[i + groep.length].totaalpunten &&
-        (uitslag[i].onderdelen["Dressuur"]?.percentage || 0) === (uitslag[i + groep.length].onderdelen["Dressuur"]?.percentage || 0) &&
-        (uitslag[i].onderdelen["Stijltrail"]?.percentage || 0) === (uitslag[i + groep.length].onderdelen["Stijltrail"]?.percentage || 0) &&
-        (uitslag[i].onderdelen["Speedtrail"]?.tijd || Infinity) === (uitslag[i + groep.length].onderdelen["Speedtrail"]?.tijd || Infinity)
-      ) groep.push(uitslag[i + groep.length]);
-      let plekLabel = groep.length > 1 ? plek + "*" : plek + "";
-      for (let d of groep) d.plaats = plekLabel;
-      eindstand.push(...groep);
-      plek += groep.length;
-      i += groep.length;
+    try {
+      return calculateStandings({ klasse, participants: ruiters, tests: proeven, scores });
+    } catch (error) {
+      return { onderdelen: [], eindstand: [], error: error.message };
     }
-
-    return { onderdelen, eindstand };
   }
 
   // --- EXPORTS ---
@@ -325,6 +76,7 @@ export default function Einduitslag() {
       const ws = XLSX.utils.json_to_sheet(
         eindstand.map(item => ({
           Plaats: item.plaats,
+          Startnummer: item.startnummer,
           Ruiter: item.naam,
           Paard: item.paard,
           ...Object.fromEntries(onderdelen.map(o =>
@@ -392,30 +144,36 @@ export default function Einduitslag() {
           </select>
         </div>
 
+        <button className="eu-button" disabled={loading} onClick={()=>setRefresh(n=>n+1)}>Uitslag verversen</button>
+        {loading && <p role="status">Scores laden…</p>}
+        {loadError && <p role="alert">Uitslag kon niet worden geladen: {loadError}</p>}
         {!selectedWedstrijdId && (
           <div className="eu-empty">
             Selecteer een wedstrijd om de einduitslag te bekijken
           </div>
         )}
 
-        {selectedWedstrijdId && klasses.length === 0 && (
+        {selectedWedstrijdId && !loading && !loadError && klasses.length === 0 && (
           <div className="eu-empty">
             Geen proeven of scores gevonden voor deze wedstrijd
           </div>
         )}
 
         {selectedWedstrijdId && klasses.map(klasse => {
-          const { onderdelen, eindstand } = berekenEindstand(klasse);
+          const { onderdelen, eindstand, error, preliminary } = berekenEindstand(klasse);
+          if (error) return <p key={klasse} role="alert">{klasse}: {error}</p>;
           if (eindstand.length === 0) return null;
           return (
             <div key={klasse} className="eu-klasse-block">
               <div className="eu-klasse-badge">{`Klasse ${klasse}`}</div>
               <div ref={el => (refs.current[klasse] = el)}>
+                {preliminary && <p role="status">Voorlopige uitslag: nog niet alle scores of resultaatstatussen zijn ingevoerd.</p>}
                 <div className="eu-table-wrap">
                 <table className="eu-table">
                   <thead>
                     <tr>
                       <th>Plaats</th>
+                      <th>Startnr.</th>
                       <th>Ruiter</th>
                       <th>Paard</th>
                       {onderdelen.map(o =>
@@ -426,8 +184,9 @@ export default function Einduitslag() {
                   </thead>
                   <tbody>
                     {eindstand.map((item, idx) => (
-                      <tr key={item.naam + item.paard}>
+                      <tr key={item.uuid || item.id}>
                         <td className="eu-strong">{item.plaats}</td>
+                        <td>{item.startnummer}</td>
                         <td>{item.naam}</td>
                         <td>{item.paard}</td>
                         {onderdelen.map(o => (

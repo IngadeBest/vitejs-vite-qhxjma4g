@@ -277,3 +277,9 @@
     gap: 10px;
   }
 }
+
+.si-shell > fieldset { display:grid; gap:16px; }
+.si-calculator .si-table { min-width: 0; }
+.si-calculator .si-table-wrap { display:block; }
+.si-calculator .si-table td, .si-calculator .si-table th { padding:8px; }
+.si-button:disabled { opacity:.55; cursor:wait; }
