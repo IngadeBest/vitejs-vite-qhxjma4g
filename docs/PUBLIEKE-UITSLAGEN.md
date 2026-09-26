@@ -24,3 +24,15 @@ Migratie: `supabase/migrations/20260925155938_public_results.sql`.
 - Migratie uitgevoerd in tijdelijke PGlite-database: anon weigering, toegestane inschrijftelling, adminbeheer, niet-admin weigering, service-toegang en cascade gecontroleerd.
 - Publieke browserweergave met fixturegegevens gecontroleerd op 390 en 320 px; geen horizontale overflow, onderdeelkeuze en strafseconden zichtbaar; alleen publieke API-aanroepen.
 - Onstwedde A4-poster en PNG: QR uit zowel PNG als gerenderde PDF succesvol gedecodeerd naar de permanente event-URL.
+
+## Live-uitrol 26 september 2026
+
+- Migratie toegepast en privileges live gecontroleerd: anon heeft geen toegang tot ruwe scores, e-mail of publicatie-instellingen; inschrijftellingen blijven toegestaan.
+- Onstwedde (26-09-2026) gepubliceerd, overige wedstrijden standaard niet gepubliceerd.
+- Release `ad1adcc`; routecorrectie `fdbf67d`: met Vercel `cleanUrls` moet de rewrite naar `/` wijzen. De oorspronkelijke `/index.html` gaf op productie een 404.
+- Exacte geprinte QR-link na herstel HTTP 200, in verse browser zonder account: wedstrijdnaam en actuele resultaten zichtbaar, geen beheerheader, 390 px breed zonder overflow.
+- Publieke API getest met echte Onstwedde-data: gepubliceerde wedstrijd, vijf dressuursecties, geen rangschikkingsfouten; bestaande 178 tests en productiebuild geslaagd.
+
+## Totaal klassement
+
+De publieke pagina opent per klasse met Totaal. Rangorde, plaatsen en totale plaatsingspunten worden rechtstreeks uit dezelfde `calculateStandings`-uitkomst als het dashboard geprojecteerd. Iedere combinatie toont ook het resultaat en de plaatsingspunten per onderdeel. Ontbrekende scores houden totaalplaatsen voorlopig. Het totaal is pas definitief wanneer alle vereiste onderdelen voor de klasse definitief zijn goedgekeurd. De bestaande QR-code en URL blijven geldig.

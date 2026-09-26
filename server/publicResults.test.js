@@ -13,6 +13,28 @@ export function fixture() {
 }
 
 describe('public result projection', () => {
+  it('publishes the exact dashboard overall order, places and placing points', () => {
+    const input = fixture();
+    const expected = calculateStandings({klasse:'we2',participants:mapParticipants(input.entries),tests:mapTests(input.tests),scores:input.scores});
+    const result = buildResults(input);
+    expect(result.totals).toHaveLength(1);
+    expect(result.totals[0].rows.map(r=>[r.rider,r.place,r.score])).toEqual(expected.eindstand.map(r=>[r.naam,r.plaats,`${r.totaalpunten} punten`]));
+    expect(result.totals[0].rows[0].components.map(c=>c.points)).toEqual(expected.onderdelen.map(o=>expected.eindstand[0].onderdelen[o].plaatsingspunten));
+    expect(result.totals[0].final).toBe(false);
+  });
+  it('only finalizes the total when every required component is approved', () => {
+    const input = fixture();
+    const preview = buildResults({...input,preview:true});
+    const finalized = Object.fromEntries(preview.sections.map(s=>[s.id,s.fingerprint]));
+    expect(buildResults({...input,finalized}).totals[0].final).toBe(true);
+    delete finalized['3'];
+    expect(buildResults({...input,finalized}).totals[0].final).toBe(false);
+    input.scores = input.scores.filter(s=>s.proef_id!==3);
+    const incomplete = buildResults({...input,finalized}).totals[0];
+    expect(incomplete.preliminary).toBe(true);
+    expect(incomplete.rows.every(r=>r.place==='voorlopig')).toBe(true);
+    expect(incomplete.final).toBe(false);
+  });
   it('uses exactly the dashboard places and labels, including ties and speed order', () => {
     const input = fixture();
     const result = buildResults(input);

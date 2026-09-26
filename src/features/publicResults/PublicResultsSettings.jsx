@@ -72,6 +72,7 @@ export default function PublicResultsSettings({ wedstrijd }) {
     {data?.hasErrors && <p role="alert">Controleer de uitslagen in het dashboard: niet alle klassen kunnen worden gerangschikt.</p>}
     {!!data?.sections?.length && <>
       <h3>Onderdelen definitief maken</h3>
+      <p>Het totale klassement staat op de publieke pagina onder Totaal. Het wordt een einduitslag zodra alle vereiste onderdelen van die klasse definitief zijn.</p>
       <p>Goedkeuring geldt voor de huidige uitslagen. Bij gewijzigde scoredata binnen de klasse wordt het weer een tussenstand.</p>
       {data.sections.map(s => <div className="pr-finalize" key={s.id}>
         <span><strong>{s.className} · {s.component}</strong><br />{s.name} · {s.final ? 'Einduitslag' : 'Tussenstand'}</span>

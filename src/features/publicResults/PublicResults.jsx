@@ -42,7 +42,7 @@ export default function PublicResults() {
   const sections = data?.sections || [];
   const classes = [...new Set(sections.map(s => s.className))];
   const className = classes.includes(selectedClass) ? selectedClass : classes[0];
-  const classSections = sections.filter(s => s.className === className);
+  const classSections = [...(data?.totals || []), ...sections].filter(s => s.className === className);
   const section = classSections.find(s => s.component === selectedComponent) || classSections[0];
   const date = data?.event?.datum ? new Date(`${data.event.datum.slice(0,10)}T12:00:00`).toLocaleDateString('nl-NL', {day:'numeric',month:'long',year:'numeric'}) : '';
 
@@ -64,14 +64,16 @@ export default function PublicResults() {
         <section aria-label={`${section.className} ${section.component}`}>
           <div className="pr-section-head"><h2>{section.name || section.component}</h2><span className="pr-badge">{section.final ? 'Einduitslag' : 'Tussenstand'}</span></div>
           {!section.final && <p className="pr-help">Deze tussenstand kan nog wijzigen.</p>}
-          <div className="pr-list-head"><span>Plaats · Deelnemer / paard</span><span>Score / tijd</span></div>
+          {section.component === 'Totaal' && <p className="pr-help">Het totaal is de som van de plaatsingspunten per onderdeel.{section.preliminary && ' Nog niet alle scores of statussen zijn ingevoerd; de totaalplaatsen zijn daarom nog voorlopig.'}</p>}
+          <div className="pr-list-head"><span>Plaats · Deelnemer / paard</span><span>{section.component === 'Totaal' ? 'Totaalpunten' : 'Score / tijd'}</span></div>
           <ol className="pr-results">{section.rows.map((row,i) => <li key={i}>
-            <strong className="pr-place" aria-label={`Plaats ${row.place || 'nog geen plaats'}`}>{row.place || '—'}</strong>
+            <strong className="pr-place" aria-label={`Plaats ${row.place || 'nog geen plaats'}`}>{row.place === 'voorlopig' ? '—' : row.place || '—'}</strong>
             <div className="pr-combination"><strong>{row.rider}</strong><span>{row.horse}</span></div>
             <div className="pr-score"><strong>{row.score}</strong>
               {row.penalty != null && Number(row.penalty) > 0 && <small>Straf: {row.penalty} {row.penaltyUnit}</small>}
               {row.bonus != null && Number(row.bonus) > 0 && <small>Bonus: {row.bonus} sec</small>}
             </div>
+            {row.components && <div className="pr-total-details">{row.components.map(c => <div key={c.name}><span>{c.name}</span><span>{c.score}</span><strong>{c.points} pt</strong></div>)}</div>}
           </li>)}</ol>
         </section>
         <p className="pr-help">DQ = gediskwalificeerd · EL = geëlimineerd · NS = niet gestart · HC = hors concours</p>

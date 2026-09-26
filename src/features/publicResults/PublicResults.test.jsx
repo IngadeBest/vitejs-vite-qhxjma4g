@@ -48,3 +48,14 @@ it('selects components and uses explicit final status',async()=>{
   expect(container.textContent).toContain('Stijl WE2');expect(container.textContent).toContain('Einduitslag');
   expect(container.textContent).not.toContain('Deze tussenstand kan nog wijzigen');
 });
+it('opens the total ranking and lets visitors switch to an individual component',async()=>{
+  payload.totals=[{id:'total-we2',name:'Totaal klassement',className:'WE2',component:'Totaal',final:true,rows:[{place:'1',rider:'Lisa',horse:'Storm',score:'12 punten',components:[{name:'Dressuur',score:'180 (90.0%)',points:4},{name:'Stijltrail',score:'170 (85.0%)',points:4},{name:'Speedtrail',score:'01:20:00',points:4}]}]}];
+  await render();
+  expect(container.textContent).toContain('Totaal klassement');
+  expect(container.textContent).toContain('12 punten');
+  expect(container.querySelectorAll('.pr-total-details>div')).toHaveLength(3);
+  expect(container.textContent).toContain('Einduitslag');
+  await act(async()=>[...container.querySelectorAll('button')].find(b=>b.textContent==='Dressuur').click());
+  expect(container.textContent).toContain('Dressuur WE2');
+  expect(container.textContent).not.toContain('12 punten');
+});

@@ -28,6 +28,7 @@ export function buildResults({ entries, tests: rawTests, scores, finalized = {},
   const classOrder = CLASSES.flatMap(c => [c.code, `${c.code} - jeugd`]);
   keys.sort((a,b) => classOrder.indexOf(a) - classOrder.indexOf(b) || a.localeCompare(b));
   const sections = [];
+  const totals = [];
   let expectedSections = 0;
   let hasErrors = false;
   for (const klasse of keys) {
@@ -41,6 +42,7 @@ export function buildResults({ entries, tests: rawTests, scores, finalized = {},
       // Final approval refers to these inputs. Changes reopen the class automatically,
       // including upstream status changes that influence subsequent components.
       const fingerprint = createHash('sha256').update(JSON.stringify({classTests,classParticipants,classScores})).digest('hex');
+      const firstSection = sections.length;
       for (const component of standings.onderdelen) {
         const test = classTests.find(t => t.onderdeel === component);
         if (!test) continue;
@@ -65,10 +67,23 @@ export function buildResults({ entries, tests: rawTests, scores, finalized = {},
           ...(preview ? { fingerprint, complete } : {}),
         });
       }
+      const classSections = sections.slice(firstSection);
+      if (classSections.length) totals.push({
+        id: `total-${klasse}`, name: 'Totaal klassement', className: classTests[0].klasse,
+        component: 'Totaal', preliminary: standings.preliminary,
+        final: !standings.preliminary && classSections.length === standings.onderdelen.length && classSections.every(s => s.final),
+        rows: standings.eindstand.map(p => ({
+          place: p.plaats, rider: p.naam, horse: p.paard, score: `${p.totaalpunten} punten`,
+          components: standings.onderdelen.map(component => ({
+            name: component, score: p.onderdelen[component].scoreLabel,
+            points: p.onderdelen[component].plaatsingspunten,
+          })),
+        })),
+      });
     } catch {
       // Do not invent rankings when the shared rule engine rejects inconsistent data.
       hasErrors = true;
     }
   }
-  return { sections, hasErrors, final: sections.length > 0 && sections.length === expectedSections && !hasErrors && sections.every(s => s.final) };
+  return { sections, totals, hasErrors, final: sections.length > 0 && sections.length === expectedSections && !hasErrors && sections.every(s => s.final) };
 }
