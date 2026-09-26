@@ -36,3 +36,7 @@ Migratie: `supabase/migrations/20260925155938_public_results.sql`.
 ## Totaal klassement
 
 De publieke pagina opent per klasse met Totaal. Rangorde, plaatsen en totale plaatsingspunten worden rechtstreeks uit dezelfde `calculateStandings`-uitkomst als het dashboard geprojecteerd. Iedere combinatie toont ook het resultaat en de plaatsingspunten per onderdeel. Ontbrekende scores houden totaalplaatsen voorlopig. Het totaal is pas definitief wanneer alle vereiste onderdelen voor de klasse definitief zijn goedgekeurd. De bestaande QR-code en URL blijven geldig.
+
+## Niet gestart onderaan
+
+Expliciete niet-starters staan onder deelnemers met nog ontbrekende volgende resultaten. De statuscontrole voor niet gestart gaat ook voor wanneer dezelfde combinatie nog een ontbrekende resultaatstatus heeft. De centrale onderdeel-sortering wordt door score-invoer en publieke API gedeeld, zodat dressuur op dressuurplaatsen staat en niet op de totaalvolgorde. Geen scoredata gewijzigd. Verificatie: 184 tests en productiebuild geslaagd, met regressies voor NS naast pending en onafhankelijke onderdeelvolgorde.

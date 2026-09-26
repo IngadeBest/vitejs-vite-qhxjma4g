@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { calculateStandings } from '../src/rules/weh/rankings.js';
+import { calculateStandings, orderComponentStandings } from '../src/rules/weh/rankings.js';
 import { CLASSES, resultClassKey } from '../src/rules/weh/classes.js';
 import { mapParticipants, mapTests } from '../src/features/scoring/scoreData.js';
 import { resultStatus } from '../src/rules/weh/scoring.js';
@@ -47,7 +47,7 @@ export function buildResults({ entries, tests: rawTests, scores, finalized = {},
         const test = classTests.find(t => t.onderdeel === component);
         if (!test) continue;
         if (!classScores.some(s => String(s.proef_id) === String(test.id) && resultStatus(s) !== 'pending')) continue;
-        const rows = standings.eindstand.map(p => {
+        const rows = orderComponentStandings(standings.eindstand, component).map(p => {
           const result = p.onderdelen[component];
           const score = classScores.find(s => String(s.proef_id) === String(test.id) && String(s.ruiter_id) === String(p.id));
           return {
@@ -59,7 +59,6 @@ export function buildResults({ entries, tests: rawTests, scores, finalized = {},
           };
         });
         if (!rows.some(r => r.status !== 'pending')) continue;
-        rows.sort((a,b) => (Number(a.place) || Infinity) - (Number(b.place) || Infinity));
         const id = String(test.id);
         const complete = rows.length > 0 && rows.every(r => r.status !== 'pending');
         sections.push({ id, name: test.naam, className: test.klasse, component, rows,

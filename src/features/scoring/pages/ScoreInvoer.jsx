@@ -1,7 +1,7 @@
 import ProtocolCalculator from '../components/ProtocolCalculator';
 import { calculatorRows, calculateProtocol } from '../protocolCalculator';
 import { loadScoreData } from '../scoreData';
-import { calculateStandings } from '@/rules/weh/rankings';
+import { calculateStandings, orderComponentStandings } from '@/rules/weh/rankings';
 import { validateScoreEntry } from '@/rules/weh/scoreEntry';
 import { WEH_METADATA } from "@/rules/weh/metadata";
 import { resultClassKey, classLabel, normalizeComponent } from "@/rules/weh/classes";
@@ -212,7 +212,7 @@ export default function ScoreInvoer() {
   if(selectedProef) {
     try {
       const standing = calculateStandings({klasse:selectedProef.klasse,participants:ruiters,tests:proeven,scores});
-      klassement = standing.eindstand.map(p=>{
+      klassement = orderComponentStandings(standing.eindstand, selectedOnderdeel).map(p=>{
         const result=p.onderdelen[selectedOnderdeel];
         const saved=scores.find(s=>String(s.proef_id)===String(selectedProef.id) && String(s.ruiter_id)===String(p.id));
         return {...saved, ruiter_id:p.id, naam:p.naam, paard:p.paard, startnummer:p.startnummer,

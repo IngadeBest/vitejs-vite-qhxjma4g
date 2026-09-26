@@ -13,6 +13,17 @@ export function fixture() {
 }
 
 describe('public result projection', () => {
+  it('puts non-starters last in live totals and unfinished components', () => {
+    const input=fixture();
+    input.scores=input.scores.filter(s=>s.proef_id===1 || s.ruiter_id===1).map(s=>s.ruiter_id===1 ? {...s,result_status:'not_started',score:null} : s);
+    const result=buildResults(input);
+    expect(result.totals[0].rows.at(-1).rider).toBe('Ruiter 1');
+    for(const section of result.sections) {
+      expect(section.rows.at(-1).rider).toBe('Ruiter 1');
+      expect(section.rows.at(-1).status).toBe('not_started');
+      expect(section.rows.at(-1).place).toBe(null);
+    }
+  });
   it('publishes the exact dashboard overall order, places and placing points', () => {
     const input = fixture();
     const expected = calculateStandings({klasse:'we2',participants:mapParticipants(input.entries),tests:mapTests(input.tests),scores:input.scores});
