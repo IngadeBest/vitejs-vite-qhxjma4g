@@ -1,5 +1,6 @@
 import React from "react";
-import { HashRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
+import { HashRouter as Router, BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
+import PublicResults from '@/features/publicResults/PublicResults';
 import AdminGate from "@/features/auth/AdminGate";
 import DomainRedirect from "@/DomainRedirect";
 import "./App.css";
@@ -167,6 +168,13 @@ function InnerApp() {
 }
 
 export default function App() {
+  // Public results never mount the admin context or fetch competition administration.
+  if (window.location.pathname.startsWith('/results/')) {
+    return <BrowserRouter><Routes><Route path="/results/:eventId" element={<PublicResults />} /></Routes></BrowserRouter>;
+  }
+  if (window.location.hash.startsWith('#/results/')) {
+    return <Router><Routes><Route path="/results/:eventId" element={<PublicResults />} /></Routes></Router>;
+  }
   return (
     <WedstrijdProvider>
       <Router>

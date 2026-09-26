@@ -1,5 +1,5 @@
-import { classLabel, resultClassKey, normalizeComponent } from '@/rules/weh/classes';
-import { padStartnummer } from '@/lib/startnummer';
+import { classLabel, resultClassKey, normalizeComponent } from '../../rules/weh/classes.js';
+import { padStartnummer } from '../../lib/startnummer.js';
 
 export function mapParticipants(entries) {
  return entries.filter(p => (!p.deelnemer_status || p.deelnemer_status === 'actief') && /^\d+$/.test(String(p.startnummer)) && Number(p.startnummer) > 0).map(p => ({

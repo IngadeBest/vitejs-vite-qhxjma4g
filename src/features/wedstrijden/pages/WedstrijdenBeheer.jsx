@@ -118,6 +118,8 @@ function hydrateStartlijstConfig(wedstrijd) {
   }
 }
 
+import PublicResultsSettings from '@/features/publicResults/PublicResultsSettings';
+
 export default function WedstrijdenBeheer() {
   const location = useLocation();
   const { selectedWedstrijdId, setSelectedWedstrijdId, clearSelectedWedstrijd } = useWedstrijdContext();
@@ -505,6 +507,7 @@ export default function WedstrijdenBeheer() {
 
           {gekozen ? (
             <>
+              <PublicResultsSettings key={gekozen.id} wedstrijd={gekozen} />
               <section className="wb-grid wb-grid-2">
                 <article className="wb-card">
                   <div className="wb-card-head">
