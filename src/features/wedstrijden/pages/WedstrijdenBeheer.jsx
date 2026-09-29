@@ -1,3 +1,4 @@
+import { CLASS_OPTIONS } from '@/rules/weh/classes';
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
@@ -6,16 +7,7 @@ import Container from "@/ui/Container";
 import "./WedstrijdenBeheer.css";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 
-const KLASSEN = [
-  { code: "we0", label: "Introductieklasse (WE0)" },
-  { code: "we1", label: "WE1" },
-  { code: "we2", label: "WE2" },
-  { code: "we2p", label: "WE2+" },
-  { code: "we3", label: "WE3" },
-  { code: "we4", label: "WE4" },
-  { code: "yr", label: "Young Riders" },
-  { code: "junior", label: "Junioren" },
-];
+const KLASSEN = CLASS_OPTIONS;
 const ONDERDELEN = [
   { code: "dressuur", label: "Dressuur" },
   { code: "stijl", label: "Stijltrail" },

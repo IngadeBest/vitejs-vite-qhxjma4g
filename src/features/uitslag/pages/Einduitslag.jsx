@@ -1,3 +1,4 @@
+import { CLASS_OPTIONS } from '@/rules/weh/classes';
 import React, { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
@@ -5,16 +6,7 @@ import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Card } from "@/ui/card";
 
-const KLASSEN = [
-  { code: "we0", label: "Introductieklasse (WE0)" },
-  { code: "we1", label: "WE1" },
-  { code: "we2", label: "WE2" },
-  { code: "we2p", label: "WE2+" },
-  { code: "we3", label: "WE3" },
-  { code: "we4", label: "WE4" },
-  { code: "yr", label: "Young Riders" },
-  { code: "junior", label: "Junioren" },
-];
+const KLASSEN = CLASS_OPTIONS;
 
 function toCSV(rows) {
   const head = "plaats,ruiter,paard,dressuur,stijl,speed,totaal";

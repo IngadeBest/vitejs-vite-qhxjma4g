@@ -1,3 +1,5 @@
+import { backupEntries } from '../backupEntries';
+import { CLASSES, getClass, normalizeClass } from "@/rules/weh/classes";
 import React, {
   useCallback,
   useEffect,
@@ -8,7 +10,7 @@ import React, {
 import { Link } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
 import { supabase } from "@/lib/supabaseClient";
-import { saveStartlijst, sortStartlijst, configForScope, startlijstScope, formatStartnummer } from "../startlijstPersistence";
+import { saveStartlijst, sortStartlijst, configForScope, startlijstScope, matchesStartlijstClass, formatStartnummer } from "../startlijstPersistence";
 import Container from "@/ui/Container";
 import { useWedstrijdContext } from "@/features/wedstrijden/context/WedstrijdContext";
 import "./Startlijst.css";
@@ -204,7 +206,7 @@ const addBreak = (setRows) => {
   ]);
 };
 
-const KLASSE_OPTIONS = ["WE0", "WE1", "WE2", "WE3", "WE4", "Junioren", "Young Riders", "WE2+"];
+const KLASSE_OPTIONS = CLASSES.map(c => c.code === 'we0' ? 'WE0' : c.naam);
 const RUBRIEK_OPTIONS = ["Algemeen", "Senior", "Jeugd"];
 
 const getRowsSignature = (rows) =>
@@ -222,47 +224,12 @@ const getRowsSignature = (rows) =>
     }))
   );
 
-// Normalize klasse names to consistent format
-const normalizeKlasse = (input) => {
-  if (!input || typeof input !== 'string') return '';
-  
-  const clean = input.trim().toLowerCase();
-  
-  // Map common variations to standard names
-  const klasseMap = {
-    '0': 'WE0', 'we0': 'WE0', 'we 0': 'WE0', 'we-0': 'WE0', 'introductieklasse': 'WE0', 'introductieklasse (we0)': 'WE0',
-    'we1': 'WE1', 'we 1': 'WE1', 'we-1': 'WE1', 
-    'we2': 'WE2', 'we 2': 'WE2', 'we-2': 'WE2',
-    'we2+': 'WE2+', 'we 2+': 'WE2+', 'we-2+': 'WE2+', 'we2plus': 'WE2+', 'we2p': 'WE2+',
-    'we3': 'WE3', 'we 3': 'WE3', 'we-3': 'WE3',
-    'we4': 'WE4', 'we 4': 'WE4', 'we-4': 'WE4',
-    'junior': 'Junioren', 'junioren': 'Junioren', 'juniors': 'Junioren',
-    'young rider': 'Young Riders', 'young riders': 'Young Riders', 'yr': 'Young Riders'
-  };
-  
-  return klasseMap[clean] || input.trim();
+// Preserve unknown imported labels for correction; never assign a default class.
+const normalizeKlasse = input => {
+  const c = getClass(input);
+  return c ? (c.code === 'we0' ? 'WE0' : c.naam) : String(input || '').trim();
 };
-
-// Normalize klasse input to database code (e.g. we1, we2p)
-const normalizeKlasseCode = (input) => {
-  if (!input || typeof input !== 'string') return '';
-
-  const clean = input.trim().toLowerCase();
-  const stripped = clean.replace(/\s*-\s*jeugd|\s+jeugd/g, '').trim();
-
-  const klasseCodeMap = {
-    '0': 'we0', 'we0': 'we0', 'we 0': 'we0', 'we-0': 'we0', 'introductieklasse': 'we0', 'introductieklasse (we0)': 'we0',
-    'we1': 'we1', 'we 1': 'we1', 'we-1': 'we1',
-    'we2': 'we2', 'we 2': 'we2', 'we-2': 'we2',
-    'we2+': 'we2p', 'we 2+': 'we2p', 'we-2+': 'we2p', 'we2plus': 'we2p', 'we2p': 'we2p',
-    'we3': 'we3', 'we 3': 'we3', 'we-3': 'we3',
-    'we4': 'we4', 'we 4': 'we4', 'we-4': 'we4',
-    'junior': 'junior', 'junioren': 'junior', 'juniors': 'junior',
-    'young rider': 'yr', 'young riders': 'yr', 'yr': 'yr'
-  };
-
-  return klasseCodeMap[stripped] || stripped;
-};
+const normalizeKlasseCode = input => normalizeClass(input) || String(input || '').trim().toLowerCase();
 
 // Groepeer rows per klasse
 const groupRowsByClass = (rows) => {
@@ -1120,7 +1087,7 @@ export default function Startlijst() {
   
   // Sorteer functie voor klassen 
   const sortRowsByClass = useCallback(() => {
-    const klasseOrder = ['WE0', 'WE1', 'WE2', 'WE3', 'WE4', 'Junioren', 'Young Riders', 'WE2+'];
+    const klasseOrder = KLASSE_OPTIONS;
     
     setRows(prev => {
       // Groepeer per klasse, behoud pauzes op hun positie
@@ -1346,19 +1313,8 @@ Plak je data hieronder:`);
 
   const restoreToDatabase = async (backupData) => {
     try {
+      const entries = backupEntries(backupData, wedstrijd);
       setDbMessage("Herstellen van backup data...");
-      
-      // Filter only real entries (not breaks)
-      const entries = backupData
-        .filter(row => row.type === 'entry' && row.ruiter && row.ruiter.trim())
-        .map(row => ({
-          wedstrijd_id: "6837ee22-6992-4cee-a23f-f8bbae8b4f42", // Restore to original wedstrijd
-          ruiter: row.ruiter.trim(),
-          paard: row.paard ? row.paard.trim() : null,
-          startnummer: row.startnummer || null,
-          klasse: normalizeKlasse(row.klasse),
-          rubriek: 'WE0', // Assume WE0 for recovered data
-        }));
 
       if (entries.length > 0) {
         const { error: insertError } = await supabase
@@ -1382,39 +1338,6 @@ Plak je data hieronder:`);
       setDbMessage(`❌ Fout bij herstellen: ${errorMsg}`);
     }
   };
-  const rollbackMigration = async () => {
-    const targetWedstrijdId = "6837ee22-6992-4cee-a23f-f8bbae8b4f42"; // Original wedstrijd ID
-    const confirmed = confirm(
-      `ROLLBACK: Alle inschrijvingen terugzetten naar originele wedstrijd?`
-    );
-    
-    if (!confirmed) return;
-
-    try {
-      setDbMessage("Rollback: inschrijvingen terugzetten...");
-      
-      // Move all entries from current wedstrijd back to original
-      const { error } = await supabase
-        .from('inschrijvingen')
-        .update({ wedstrijd_id: targetWedstrijdId })
-        .eq('wedstrijd_id', wedstrijd);
-      
-      if (error) throw error;
-      
-      setDbMessage("✅ Rollback succesvol - data teruggezet");
-      
-      // Reload data 
-      setTimeout(() => {
-        loadDeelnemersFromDB();
-      }, 500);
-      
-    } catch (error) {
-      console.error('Rollback error:', error);
-      const errorMsg = error?.message || String(error);
-      setDbMessage(`❌ Fout bij rollback: ${errorMsg}`);
-    }
-  };
-
   // Function to COPY (not move) entries from another wedstrijd to current one
   const copyFromOtherWedstrijd = async () => {
     if (!wedstrijd) {
@@ -1657,9 +1580,7 @@ Plak je data hieronder:`);
       }
 
       // An empty DB result is authoritative: never resurrect cancelled participants from cache.
-      // Stored labels include both display names and codes; compare their normalized values.
-      const sortedData = sortStartlijst((data || []).filter(row =>
-        !klasse || normalizeKlasseCode(row.klasse) === normalizeKlasseCode(klasse)), config);
+      const sortedData = sortStartlijst((data || []).filter(row => matchesStartlijstClass(row, klasse)), config);
 
       const loadedRows = sortedData.map((r, i) => ({
         id: r.id || `db_${Date.now()}_${i}`,
@@ -2020,7 +1941,7 @@ Plak je data hieronder:`);
                 className="px-3 py-1 bg-slate-700 text-white rounded-md text-sm hover:bg-slate-800"
                 onClick={sortRowsByClass}
                 disabled={!rows.filter(r => r.type === 'entry').length}
-                title="Sorteer alle klassen op volgorde: WE0, WE1, WE2, WE3, WE4, Junioren, Young Riders, WE2+"
+                title="Sorteer klassen: WE0, WE1, WE2, WE2+, WE3, WE4, Junioren, Young Riders"
               >
                 Sorteer klassen
               </button>

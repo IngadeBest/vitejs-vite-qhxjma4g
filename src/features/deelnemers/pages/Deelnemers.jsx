@@ -1,3 +1,5 @@
+import ClassificationFields from "./ClassificationFields";
+import { participantClassification, participantClassLabel, classificationUpdate } from "../classification";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useWedstrijden } from "@/features/inschrijven/pages/hooks/useWedstrijden";
@@ -76,7 +78,7 @@ export default function Deelnemers() {
   const stallChanges = changedStalls(savedStalls, stalToewijzingen);
 
   const [editDeelnemerId, setEditDeelnemerId] = useState(null);
-  const [editForm, setEditForm] = useState({ klasse: "", paard: "" });
+  const [editForm, setEditForm] = useState({ klasse: "", rubriek: "Algemeen", paard: "" });
 
   const [actieMelding, setActieMelding] = useState("");
   const [actieFout, setActieFout] = useState("");
@@ -154,6 +156,8 @@ export default function Deelnemers() {
           afgemeld_at,
           afgemeld_reden,
           klasse,
+          rubriek,
+          startnummer,
           weh_lid,
           ruiter,
           paard,
@@ -185,14 +189,14 @@ export default function Deelnemers() {
   const gefilterde = deelnemers.filter((d) => {
     const term = zoekterm.trim().toLowerCase();
     if (term) {
-      const haystack = [d.ruiter, d.paard, d.klasse, d.email, d.telefoon, d.omroeper, d.opmerkingen]
+      const haystack = [d.ruiter, d.paard, participantClassLabel(d), d.email, d.telefoon, d.omroeper, d.opmerkingen]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
       if (!haystack.includes(term)) return false;
     }
 
-    if (filterKlasse && d.klasse !== filterKlasse) return false;
+    if (filterKlasse && participantClassLabel(d) !== filterKlasse) return false;
 
     const status = d.deelnemer_status || "actief";
     if (filterStatus === "actief" && status !== "actief") return false;
@@ -234,14 +238,14 @@ export default function Deelnemers() {
     setActieMelding("");
     setEditDeelnemerId(deelnemer.id);
     setEditForm({
-      klasse: deelnemer.klasse || "",
+      ...participantClassification(deelnemer),
       paard: deelnemer.paard || "",
     });
   };
 
   const cancelEdit = () => {
     setEditDeelnemerId(null);
-    setEditForm({ klasse: "", paard: "" });
+    setEditForm({ klasse: "", rubriek: "Algemeen", paard: "" });
   };
 
   const saveEdit = async (deelnemer) => {
@@ -258,9 +262,17 @@ export default function Deelnemers() {
     setActieMelding("");
 
     try {
+      const classification = classificationUpdate(editForm);
+      const previous = participantClassification(deelnemer);
+      if (deelnemer.startnummer != null && (previous.klasse !== classification.klasse || previous.rubriek !== classification.rubriek)) {
+        const {data: recordedScores, error: scoreError} = await supabase.from('scores').select('id')
+          .eq('wedstrijd_id', deelnemer.wedstrijd_id).eq('ruiter_id', deelnemer.startnummer).limit(1);
+        if (scoreError) throw scoreError;
+        if (recordedScores?.length) throw new Error('Deze deelnemer heeft al scores. Corrigeer eerst de bijbehorende proeven/scores voordat je de klasse of rubriek wijzigt.');
+      }
       const { error: dbError } = await supabase
         .from("inschrijvingen")
-        .update({ klasse: nieuweKlasse, paard: nieuwPaard })
+        .update({ ...classification, paard: nieuwPaard })
         .eq("id", deelnemer.id)
         .eq("wedstrijd_id", deelnemer.wedstrijd_id)
         .select("id").single();
@@ -427,7 +439,7 @@ export default function Deelnemers() {
     } finally { setSavingStalls(false); }
   };
 
-  const klassen = [...new Set(deelnemers.map((d) => d.klasse).filter(Boolean))].sort();
+  const klassen = [...new Set(deelnemers.map(participantClassLabel).filter(Boolean))].sort();
 
   const renderStatusBadge = (deelnemer) => {
     const isAfgemeld = (deelnemer.deelnemer_status || "actief") === "afgemeld";
@@ -709,7 +721,7 @@ export default function Deelnemers() {
                                 {deelnemer.weh_lid && <div className="dm-cell-sub dm-ok">WEH lid</div>}
                               </td>
                               <td>
-                                <span className="dm-badge dm-badge-blue">{deelnemer.klasse || "Geen klasse"}</span>
+                                <span className="dm-badge dm-badge-blue">{participantClassLabel(deelnemer) || "Geen klasse"}</span>
                                 {dubbeleIds.has(deelnemer.id) && (
                                   <span className="dm-badge dm-badge-amber">Mogelijk dubbel</span>
                                 )}
@@ -764,14 +776,7 @@ export default function Deelnemers() {
                                 {editDeelnemerId === deelnemer.id ? (
                                   <div className="dm-edit-wrap">
                                     <div className="dm-edit-grid">
-                                      <input
-                                        type="text"
-                                        value={editForm.klasse}
-                                        onChange={(e) =>
-                                          setEditForm((prev) => ({ ...prev, klasse: e.target.value }))
-                                        }
-                                        placeholder="Klasse"
-                                      />
+                                      <ClassificationFields form={editForm} onChange={setEditForm} />
                                       <input
                                         type="text"
                                         value={editForm.paard}
@@ -862,7 +867,7 @@ export default function Deelnemers() {
                           </div>
 
                           <div className="dm-mobile-meta">
-                            <span className="dm-badge dm-badge-blue">{deelnemer.klasse || "Geen klasse"}</span>
+                            <span className="dm-badge dm-badge-blue">{participantClassLabel(deelnemer) || "Geen klasse"}</span>
                             {deelnemer.weh_lid && <span className="dm-badge dm-badge-green">WEH</span>}
                             {dubbeleIds.has(deelnemer.id) && <span className="dm-badge dm-badge-amber">Mogelijk dubbel</span>}
                           </div>
@@ -910,12 +915,7 @@ export default function Deelnemers() {
                           {editDeelnemerId === deelnemer.id ? (
                             <div className="dm-edit-wrap">
                               <div className="dm-edit-grid">
-                                <input
-                                  type="text"
-                                  value={editForm.klasse}
-                                  onChange={(e) => setEditForm((prev) => ({ ...prev, klasse: e.target.value }))}
-                                  placeholder="Klasse"
-                                />
+                                <ClassificationFields form={editForm} onChange={setEditForm} />
                                 <input
                                   type="text"
                                   value={editForm.paard}

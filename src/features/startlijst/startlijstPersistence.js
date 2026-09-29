@@ -1,3 +1,4 @@
+import { normalizeClass } from '../../rules/weh/classes';
 export const startlijstScope = (klasse, rubriek) => JSON.stringify([klasse || '', rubriek || '']);
 
 export function configForScope(config, scope) {
@@ -32,4 +33,11 @@ export function formatStartnummer(value) {
   if (value == null || value === '') return '';
   const text = String(value).trim();
   return /^\d+$/.test(text) ? text.padStart(3, '0') : text;
+}
+
+export function matchesStartlijstClass(entry, klasse) {
+  if (!klasse) return true;
+  const selected = normalizeClass(klasse);
+  return selected ? normalizeClass(entry.klasse) === selected
+    : String(entry.klasse || '').trim().toLowerCase() === String(klasse).trim().toLowerCase();
 }

@@ -1,3 +1,4 @@
+import { CLASS_OPTIONS } from '@/rules/weh/classes';
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -13,16 +14,7 @@ import { Alert } from "@/ui/alert";
 import "./PublicInschrijven.css";
 
 // Klassen incl. WE2+ en extra klassen voor leeftijdsgroepen
-const KLASSEN = [
-  { code: "we0",  label: "Introductieklasse (WE0)" },
-  { code: "we1",  label: "WE1" },
-  { code: "we2",  label: "WE2" },
-  { code: "we2p", label: "WE2+" },
-  { code: "we3",  label: "WE3" },
-  { code: "we4",  label: "WE4" },
-  { code: "yr",   label: "Young Riders" },
-  { code: "junior", label: "Junioren" },
-];
+const KLASSEN = CLASS_OPTIONS;
 
 function toDateKey(value) {
   if (!value) return null;

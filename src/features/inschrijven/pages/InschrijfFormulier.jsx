@@ -1,3 +1,4 @@
+import { CLASS_OPTIONS } from '@/rules/weh/classes';
 import React, { useMemo, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWedstrijden } from "./hooks/useWedstrijden";
@@ -6,14 +7,7 @@ import { Input } from "@/ui/input";
 import { Card } from "@/ui/card";
 import { Alert } from "@/ui/alert";
 
-const KLASSEN = [
-  { code: "we0", label: "Introductieklasse (WE0)" },
-  { code: "we1", label: "WE1" },
-  { code: "we2", label: "WE2" },
-  { code: "we2p", label: "WE2+" },
-  { code: "we3", label: "WE3" },
-  { code: "we4", label: "WE4" },
-];
+const KLASSEN = CLASS_OPTIONS;
 
 export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = null }) {
   const { items: wedstrijden, loading } = useWedstrijden(false);

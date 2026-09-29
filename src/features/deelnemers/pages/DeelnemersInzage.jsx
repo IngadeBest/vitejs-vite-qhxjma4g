@@ -1,3 +1,4 @@
+import { participantClassLabel } from "../classification";
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useWedstrijdContext } from '@/features/wedstrijden/context/WedstrijdContext';
@@ -13,7 +14,7 @@ export default function DeelnemersInzage() {
     let active = true;
     setLoading(true);
     setError('');
-    supabase.from('inschrijvingen').select('id,ruiter,paard,klasse,startnummer,deelnemer_status,stal_toewijzing')
+    supabase.from('inschrijvingen').select('id,ruiter,paard,klasse,rubriek,startnummer,deelnemer_status,stal_toewijzing')
       .eq('wedstrijd_id', selectedWedstrijdId).order('ruiter').then(({ data, error }) => {
         if (!active) return;
         setRows(data || []);
@@ -31,7 +32,7 @@ export default function DeelnemersInzage() {
     {loading ? <p role="status">Deelnemers laden…</p> : error ? <p role="alert">{error}</p> : <div style={{ overflowX: 'auto' }}><table>
       <thead><tr>{['Startnr', 'Ruiter', 'Paard', 'Klasse', 'Status', 'Stal'].map(h => <th key={h} style={{ padding: 10 }}>{h}</th>)}</tr></thead>
       <tbody>{filtered.map(r => <tr key={r.id}>
-        <td>{r.startnummer || '—'}</td><td>{r.ruiter}</td><td>{r.paard}</td><td>{r.klasse}</td><td>{r.deelnemer_status || 'actief'}</td>
+        <td>{r.startnummer || '—'}</td><td>{r.ruiter}</td><td>{r.paard}</td><td>{participantClassLabel(r)}</td><td>{r.deelnemer_status || 'actief'}</td>
         <td>{r.stal_toewijzing == null ? 'Nog niet centraal geregistreerd' : r.stal_toewijzing.heeftStal ? r.stal_toewijzing.stalnummer || 'Nummer nog niet ingevuld' : 'Geen stal'}</td>
       </tr>)}</tbody>
     </table>{filtered.length === 0 && <p>Geen deelnemers gevonden.</p>}</div>}
