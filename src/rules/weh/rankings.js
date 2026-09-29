@@ -1,5 +1,16 @@
 import { requireClass, resultClassKey, normalizeComponent } from './classes.js';
 import { placingPoints, resultStatus, formatTime } from './scoring.js';
+
+// Use component places, not the overall standings, in every component view.
+// Explicit non-starters stay below riders whose results are still being entered.
+export function orderComponentStandings(rows, component) {
+ const statusOrder = { completed: 0, disqualified: 1, eliminated: 2, pending: 3, not_started: 4, hors_concours: 5 };
+ return [...rows].sort((a,b) => {
+  const left = a.onderdelen[component], right = b.onderdelen[component];
+  return statusOrder[left.status] - statusOrder[right.status] ||
+   (Number(left.plaats) || 0) - (Number(right.plaats) || 0);
+ });
+}
 // Missing input is pending, never evidence that the rider voluntarily did not start.
 export function calculateStandings({ klasse, participants, tests, scores }) {
  const c = requireClass(klasse), classKey = resultClassKey(klasse);
@@ -55,9 +66,9 @@ export function calculateStandings({ klasse, participants, tests, scores }) {
  function tier(r) {
   const statuses = components.map(o=>r.onderdelen[o].status);
   if (statuses.includes('hors_concours')) return 5;
+  if (statuses.includes('not_started')) return 4;
   if (statuses.includes('eliminated')) return 3;
-  if (statuses.includes('pending')) return 4;
-  if (statuses.includes('not_started')) return 2;
+  if (statuses.includes('pending')) return 2;
   if (statuses.includes('disqualified')) return 1;
   return 0;
  }

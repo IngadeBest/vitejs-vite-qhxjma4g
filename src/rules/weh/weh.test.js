@@ -5,7 +5,7 @@ import { dressageTest, dressageMaximum, scoreDressage } from './dressage.js';
 import { styleMaximum } from './styleTrail.js';
 import { calculateSpeed } from './speedTrail.js';
 import { parseTime, formatTime, speedTime, placingPoints, assertMark } from './scoring.js';
-import { calculateStandings } from './rankings.js';
+import { calculateStandings, orderComponentStandings } from './rankings.js';
 import { validateCourse, resolveObstacle } from './obstacles.js';
 import { validateTest } from './validation.js';
 describe('official structure and protocols',()=>{
@@ -80,6 +80,25 @@ describe('speed and score validation',()=>{
  });
 });
 describe('classification regressions',()=>{
+ it('keeps a non-starter below riders still awaiting later results in total and component views',()=>{
+  const participants=[1,2,3].map(id=>({id,naam:`R${id}`,klasse:'WE0'}));
+  const tests=['Dressuur','Stijltrail'].map((onderdeel,id)=>({id,onderdeel,klasse:'WE0',max_score:270}));
+  const scores=[{proef_id:0,ruiter_id:1,result_status:'not_started'}, {proef_id:1,ruiter_id:1,result_status:'not_started'}, {proef_id:0,ruiter_id:2,score:200}, {proef_id:0,ruiter_id:3,score:180}];
+  const r=calculateStandings({klasse:'WE0',participants,tests,scores});
+  expect(r.eindstand.map(p=>p.id)).toEqual([2,3,1]);
+  expect(r.dressageStarterCount).toBe(2);
+  expect(r.eindstand.at(-1).totaalpunten).toBe(0);
+  expect(orderComponentStandings(r.eindstand,'Dressuur').map(p=>p.id)).toEqual([2,3,1]);
+  expect(orderComponentStandings(r.eindstand,'Stijltrail').map(p=>p.id)).toEqual([2,3,1]);
+  // One missing later status must not move an explicit non-starter up again.
+  scores.splice(1,1);
+  expect(calculateStandings({klasse:'WE0',participants,tests,scores}).eindstand.at(-1).id).toBe(1);
+ });
+ it('sorts a component by its own places without mutating the total ranking',()=>{
+  const rows=[{id:1,onderdelen:{Dressuur:{status:'completed',plaats:'2'}}},{id:2,onderdelen:{Dressuur:{status:'completed',plaats:'1'}}}];
+  expect(orderComponentStandings(rows,'Dressuur').map(r=>r.id)).toEqual([2,1]);
+  expect(rows.map(r=>r.id)).toEqual([1,2]);
+ });
  const participants=[1,2,3].map(id=>({id,naam:`R${id}`,klasse:'WE2'}));
  const tests=['Dressuur','Stijltrail','Speedtrail'].map((onderdeel,id)=>({id,onderdeel,klasse:'WE2',max_score:280}));
  const scores=[{proef_id:0,ruiter_id:1,score:200},{proef_id:0,ruiter_id:2,score:190},{proef_id:0,ruiter_id:3,score:180},
