@@ -1,3 +1,4 @@
+import { registrationErrors, registrationPayload } from '../src/lib/registrationDetails.js';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -131,6 +132,10 @@ async function handleWachtlijstAdd(req, res) {
       });
     }
 
+    const detailErrors = registrationErrors(b);
+    if (Object.keys(detailErrors).length) return res.status(400).json({ ok: false, error: 'INVALID_REGISTRATION_DETAILS', message: Object.values(detailErrors).join(' '), fields: detailErrors });
+    const details = registrationPayload({ ...b, stal_nodig: b.stal_nodig ?? false }, wedstrijd.datum);
+
     const wedstrijdDate = toDateKey(wedstrijd.datum);
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -205,7 +210,7 @@ async function handleWachtlijstAdd(req, res) {
       email: b.email,
       telefoon: b.telefoon || null,
       weh_lid: b.weh_lid || false,
-      leeftijd_ruiter: b.leeftijd_ruiter || null,
+      ...details,
       geslacht_paard: b.geslacht_paard || null,
       omroeper: b.omroeper || null,
       opmerkingen: b.opmerkingen || null,

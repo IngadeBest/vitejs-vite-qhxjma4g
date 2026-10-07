@@ -1,3 +1,6 @@
+import { registrationErrors, registrationPayload } from '@/lib/registrationDetails';
+import { BirthField, HeightField, StallFields, RegistrationSummary } from '@/features/inschrijven/components/RegistrationFields';
+import '@/features/inschrijven/pages/PublicInschrijven.css';
 import ClassificationFields from "./ClassificationFields";
 import { participantClassification, participantClassLabel, classificationUpdate } from "../classification";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -149,7 +152,7 @@ export default function Deelnemers() {
         .from("inschrijvingen")
         .select(`
           id,
-          stal_toewijzing,
+          stal_toewijzing, geboortedatum_ruiter, leeftijd_ruiter, stokmaat_cm, stal_nodig, stalmaat,
           created_at,
           wedstrijd_id,
           deelnemer_status,
@@ -240,6 +243,10 @@ export default function Deelnemers() {
     setEditForm({
       ...participantClassification(deelnemer),
       paard: deelnemer.paard || "",
+      geboortedatum_ruiter: deelnemer.geboortedatum_ruiter || '',
+      stokmaat_cm: deelnemer.stokmaat_cm ?? '',
+      stal_nodig: deelnemer.stal_nodig ?? null,
+      stalmaat: deelnemer.stalmaat || '',
     });
   };
 
@@ -262,6 +269,15 @@ export default function Deelnemers() {
     setActieMelding("");
 
     try {
+      const detailKeys = ['geboortedatum_ruiter', 'stokmaat_cm', 'stal_nodig', 'stalmaat'];
+      const changedDetails = detailKeys.some(key => String(editForm[key] ?? '') !== String(deelnemer[key] ?? ''));
+      let detailPatch = {};
+      if (changedDetails) {
+        const errors = registrationErrors(editForm, { requireBirth: !!deelnemer.geboortedatum_ruiter });
+        if (Object.keys(errors).length) throw new Error(Object.values(errors).join(' '));
+        detailPatch = registrationPayload(editForm, wedstrijd?.datum);
+        if (!editForm.geboortedatum_ruiter) delete detailPatch.leeftijd_ruiter;
+      }
       const classification = classificationUpdate(editForm);
       const previous = participantClassification(deelnemer);
       if (deelnemer.startnummer != null && (previous.klasse !== classification.klasse || previous.rubriek !== classification.rubriek)) {
@@ -272,7 +288,7 @@ export default function Deelnemers() {
       }
       const { error: dbError } = await supabase
         .from("inschrijvingen")
-        .update({ ...classification, paard: nieuwPaard })
+        .update({ ...classification, paard: nieuwPaard, ...detailPatch })
         .eq("id", deelnemer.id)
         .eq("wedstrijd_id", deelnemer.wedstrijd_id)
         .select("id").single();
@@ -701,7 +717,7 @@ export default function Deelnemers() {
                             <th>Paard</th>
                             <th>Klasse</th>
                             <th>Status</th>
-                            <th>Stal</th>
+                            <th>Toegewezen stal</th>
                             <th>Opmerkingen</th>
                             <th>Contact</th>
                             <th>Acties</th>
@@ -712,6 +728,7 @@ export default function Deelnemers() {
                             <tr key={deelnemer.id || idx}>
                               <td>
                                 <div className="dm-cell-title">{deelnemer.ruiter}</div>
+                                <RegistrationSummary entry={deelnemer} wedstrijdDatum={wedstrijd?.datum} />
                                 <div className="dm-cell-sub">
                                   Ingeschreven: {new Date(deelnemer.created_at).toLocaleDateString("nl-NL")}
                                 </div>
@@ -777,6 +794,9 @@ export default function Deelnemers() {
                                   <div className="dm-edit-wrap">
                                     <div className="dm-edit-grid">
                                       <ClassificationFields form={editForm} onChange={setEditForm} />
+                                      <BirthField form={editForm} onChange={setEditForm} required={!!deelnemer.geboortedatum_ruiter} wedstrijdDatum={wedstrijd?.datum} />
+                                      <HeightField form={editForm} onChange={setEditForm} />
+                                      <StallFields form={editForm} onChange={setEditForm} />
                                       <input
                                         type="text"
                                         value={editForm.paard}
@@ -861,6 +881,7 @@ export default function Deelnemers() {
                           <div className="dm-mobile-head">
                             <div>
                               <div className="dm-cell-title">{deelnemer.ruiter}</div>
+                                <RegistrationSummary entry={deelnemer} wedstrijdDatum={wedstrijd?.datum} />
                               <div className="dm-cell-sub">{deelnemer.paard || "Onbekend paard"}</div>
                             </div>
                             <div>{renderStatusBadge(deelnemer)}</div>
@@ -878,7 +899,7 @@ export default function Deelnemers() {
                           </div>
 
                           <div className="dm-mobile-stal">
-                            <label>Stal</label>
+                            <label>Toegewezen stal</label>
                             {stalToewijzingen[deelnemer.id]?.heeftStal ? (
                               <div className="dm-stal-cell">
                                 <span className="dm-badge dm-badge-green">Ja</span>
@@ -916,6 +937,9 @@ export default function Deelnemers() {
                             <div className="dm-edit-wrap">
                               <div className="dm-edit-grid">
                                 <ClassificationFields form={editForm} onChange={setEditForm} />
+                                      <BirthField form={editForm} onChange={setEditForm} required={!!deelnemer.geboortedatum_ruiter} wedstrijdDatum={wedstrijd?.datum} />
+                                      <HeightField form={editForm} onChange={setEditForm} />
+                                      <StallFields form={editForm} onChange={setEditForm} />
                                 <input
                                   type="text"
                                   value={editForm.paard}

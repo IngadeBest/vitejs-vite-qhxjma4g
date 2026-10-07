@@ -1,3 +1,6 @@
+import { emptyRegistrationDetails, registrationErrors, registrationPayload } from '@/lib/registrationDetails';
+import { BirthField, HeightField, StallFields } from '../components/RegistrationFields';
+import './PublicInschrijven.css';
 import { CLASS_OPTIONS } from '@/rules/weh/classes';
 import React, { useMemo, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -13,6 +16,7 @@ export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = 
   const { items: wedstrijden, loading } = useWedstrijden(false);
 
   const [form, setForm] = useState({
+    ...emptyRegistrationDetails,
     wedstrijd_id: initialWedstrijdId || "",
     klasse: "",
     ruiter: "",
@@ -40,11 +44,14 @@ export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = 
 
   async function onSubmit(e) {
     e.preventDefault();
+    const errors = registrationErrors(form);
+    if (Object.keys(errors).length) { setMsg('Fout: ' + Object.values(errors).join(' ')); return; }
     setBusy(true);
     setMsg("");
 
     const wedstrijdObj = wedstrijden.find(w => w.id === form.wedstrijd_id);
     const payload = {
+      ...registrationPayload(form, gekozenWedstrijd?.datum),
       wedstrijd_id: form.wedstrijd_id,
       wedstrijd: wedstrijdObj ? wedstrijdObj.naam : null, // denormalized voor leesbaarheid
       klasse: form.klasse,
@@ -76,13 +83,13 @@ export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = 
         setMsg("Inschrijving opgeslagen ✔️ (let op: database mist kolom 'rubriek' — voer de migratie uit voor volledige ondersteuning)");
         // notify parent
         try { if (typeof onSaved === 'function') onSaved(payload2); } catch (e) { /* ignore */ }
-        setForm(s => ({ ...s, ruiter:"", paard:"", email:"", telefoon:"", omroeper:"", opmerkingen:"" }));
+        setForm(s => ({ ...s, ...emptyRegistrationDetails, ruiter:"", paard:"", email:"", telefoon:"", omroeper:"", opmerkingen:"" }));
         setBusy(false);
         return;
       }
       if (error) throw error;
   setMsg("Inschrijving opgeslagen ✔️");
-  setForm(s => ({ ...s, ruiter:"", paard:"", email:"", telefoon:"", omroeper:"", opmerkingen:"" }));
+  setForm(s => ({ ...s, ...emptyRegistrationDetails, ruiter:"", paard:"", email:"", telefoon:"", omroeper:"", opmerkingen:"" }));
   // focus first input for faster next entry
   setTimeout(() => firstInputRef.current?.focus?.(), 50);
   // notify parent if provided (e.g. Startlijst wants to reload rows)
@@ -100,7 +107,7 @@ export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = 
       <p style={{ color:"#555" }}>Kies wedstrijd uit de database en voeg inschrijvingen toe. Geen offline opslag meer.</p>
 
       <Card>
-      <form onSubmit={onSubmit} style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "10px 12px", alignItems:"center" }}>
+      <form noValidate onSubmit={onSubmit} style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "10px 12px", alignItems:"center" }}>
         <label htmlFor="wedstrijd_select">Wedstrijd*</label>
         <select id="wedstrijd_select" value={form.wedstrijd_id} onChange={(e)=>setForm(s=>({...s, wedstrijd_id:e.target.value}))} disabled={loading}>
           <option value="">{loading ? "Laden..." : "— kies wedstrijd —"}</option>
@@ -151,7 +158,11 @@ export default function InschrijfFormulier({ initialWedstrijdId = '', onSaved = 
         <label htmlFor="opmerkingen_input">Opmerkingen</label>
         <textarea id="opmerkingen_input" rows={3} value={form.opmerkingen} onChange={(e)=>setForm(s=>({...s, opmerkingen:e.target.value}))} className="border rounded px-2 py-1 w-full" />
 
-        <div></div>
+        <div style={{gridColumn:'1 / -1'}}>
+          <BirthField form={form} onChange={setForm} wedstrijdDatum={gekozenWedstrijd?.datum} />
+          <HeightField form={form} onChange={setForm} />
+          <StallFields form={form} onChange={setForm} />
+        </div>
         <Button type="submit" disabled={busy || disabled}>{busy ? "Bezig..." : "Inschrijven"}</Button>
       </form>
       </Card>

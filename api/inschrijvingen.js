@@ -1,3 +1,4 @@
+import { registrationErrors, registrationPayload } from '../src/lib/registrationDetails.js';
 import { createClient } from '@supabase/supabase-js';
 
 
@@ -105,6 +106,10 @@ export default async function handler(req, res) {
         message: 'Inschrijven voor deze wedstrijd is niet geopend.'
       });
     }
+
+    const detailErrors = registrationErrors(b);
+    if (Object.keys(detailErrors).length) return res.status(400).json({ ok: false, error: 'INVALID_REGISTRATION_DETAILS', message: Object.values(detailErrors).join(' '), fields: detailErrors });
+    const details = registrationPayload({ ...b, stal_nodig: b.stal_nodig ?? false }, wedstrijd.datum);
 
     const wedstrijdDate = toDateKey(wedstrijd.datum);
     const now = new Date();
@@ -278,7 +283,7 @@ export default async function handler(req, res) {
       weh_lid: b.weh_lid || false,
       ruiter: b.ruiter || null,
       paard: b.paard || null,
-      leeftijd_ruiter: b.leeftijd_ruiter || null,
+      ...details,
       geslacht_paard: b.geslacht_paard || null,
       email: b.email || null,
       opmerkingen: b.opmerkingen || null,
@@ -337,7 +342,7 @@ export default async function handler(req, res) {
         email: b.email,
         opmerkingen: b.opmerkingen,
         omroeper: b.omroeper,
-        leeftijd_ruiter: b.leeftijd_ruiter || null,
+        ...details,
         geslacht_paard: b.geslacht_paard || null,
         weh_lid: b.weh_lid || false,
       };

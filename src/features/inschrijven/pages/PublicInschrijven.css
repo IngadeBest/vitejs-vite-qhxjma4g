@@ -172,3 +172,38 @@
     flex: 1;
   }
 }
+
+/* Registration sections share the existing Working Point inputs and cards. */
+.pi-public-shell { background: #f6f8fb; border-radius: 20px; padding: 20px; }
+.pi-public-form { display: grid; grid-template-columns: 1fr; gap: 22px; }
+.pi-form-card, .pi-hero, .pi-result-card { border-color: #dde4ed; box-shadow: 0 4px 18px #172e4c08; }
+.pi-hero { background: #fff; }
+.pi-hero h1, .pi-form-card h2 { color: #18334f; }
+.pi-hero p { color: #526378; }
+.pi-kicker, .pi-badge { color: #18334f; background: #edf2f8; border-color: #dde4ed; }
+.pi-form-card { padding: 26px; }
+.pi-form-card h2 { margin: 0 0 22px; font-size: 1.25rem; }
+.pi-form-card h2 span { font-size: .9rem; color: #637a96; margin-right: 12px; }
+.pi-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.pi-field { min-width: 0; }
+.pi-public-form label, .pi-field label { display: block; color: #18334f; margin-bottom: 7px; font-weight: 600; }
+.pi-public-form input, .pi-public-form select, .pi-public-form textarea, .pi-field input { box-sizing: border-box; width: 100%; min-height: 44px; border: 1px solid #c6d1dd; border-radius: 9px; padding: 10px 12px; background: white; color: #18334f; font: inherit; }
+.pi-public-form input:focus-visible, .pi-public-form select:focus-visible, .pi-public-form textarea:focus-visible, .pi-choice:focus-within { outline: 3px solid #8bb1dd; outline-offset: 2px; }
+.pi-stalls fieldset { padding: 0; margin: 0 0 18px; border: 0; min-width: 0; }
+.pi-stalls legend { color: #18334f; font-weight: 600; margin-bottom: 12px; }
+.pi-choices { display: flex; flex-wrap: wrap; gap: 12px; }
+.pi-choices .pi-choice { display: flex; align-items: center; gap: 10px; flex: 1; padding: 16px; min-width: 90px; min-height: 48px; margin: 0; border: 1px solid #c6d1dd; border-radius: 12px; cursor: pointer; background: #fff; color: #18334f; }
+.pi-choices .is-selected { border-color: #18334f; background: #eef4fa; box-shadow: inset 0 0 0 1px #18334f; }
+.pi-choice small { display: block; color: #526378; font-weight: 400; line-height: 1.5; margin-top: 4px; }
+.pi-choices input[type=radio], .pi-public-form input[type=checkbox] { width: 18px; height: 18px; min-height: 0; flex-shrink: 0; accent-color: #18334f; }
+.pi-public-form .pi-checkbox { display: flex; align-items: center; gap: 10px; }
+.pi-field-error { color: #a52222; font-size: .9rem; margin: 8px 0; }
+.pi-field [aria-invalid=true] { border-color: #a52222; }
+.pi-public-form .wp-btn { background: #18334f; color: #fff; min-height: 48px; }
+@media (max-width: 640px) {
+  .pi-public-shell { padding: 8px; }
+  .pi-form-card { padding: 18px; }
+  .pi-fields { grid-template-columns: 1fr; gap: 18px; }
+  .pi-size-choices { flex-direction: column; }
+  .pi-hero-badges { grid-template-columns: 1fr; }
+}

@@ -1,3 +1,4 @@
+import { RegistrationSummary } from '@/features/inschrijven/components/RegistrationFields';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useWedstrijden } from '@/features/inschrijven/pages/hooks/useWedstrijden';
@@ -193,7 +194,7 @@ export default function WachtlijstBeheer() {
                             <td className="wl-cell-sm">
                               {new Date(item.created_at).toLocaleString('nl-NL')}
                             </td>
-                            <td className="wl-strong">{item.ruiter}</td>
+                            <td className="wl-strong">{item.ruiter}<RegistrationSummary entry={item} wedstrijdDatum={gekozenWedstrijd?.datum} /></td>
                             <td>{item.paard}</td>
                             <td className="wl-cell-sm">
                               <a href={`mailto:${item.email}`} className="wl-link">

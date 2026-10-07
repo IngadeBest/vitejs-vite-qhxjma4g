@@ -82,3 +82,17 @@ it('does not report cancellation as successful after an RPC failure', async () =
   expect(container.textContent).toContain('Afmelden mislukt: Geen beheerrechten');
   expect(db.entries[0].deelnemer_status).toBeUndefined();
 });
+it('edits stall preference, reloads it and preserves scores, start numbers and assigned stall', async () => {
+  Object.assign(db.entries[0], {geboortedatum_ruiter:'2010-01-01',stokmaat_cm:165,stal_nodig:true,stalmaat:'klein'});
+  db.scores = [{id:1}];
+  await mount(); expect(container.textContent).toContain('165 cm'); await click('Wijzig');
+  await act(async () => {
+    const label=[...container.querySelectorAll('label')].find(el=>el.textContent.includes('Grote stal'));
+    label.querySelector('input').click();
+  });
+  await click('Opslaan');
+  expect(db.entries[0]).toMatchObject({stalmaat:'groot',geboortedatum_ruiter:'2010-01-01',startnummer:7,opmerkingen:'Behouden',stal_toewijzing:{stalnummer:'B12'}});
+  expect(container.textContent).toContain('Grote stal');
+  await click('Wijzig');
+  expect([...container.querySelectorAll('label')].find(el=>el.textContent.includes('Grote stal')).querySelector('input').checked).toBe(true);
+});

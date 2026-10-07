@@ -1,3 +1,4 @@
+import { STALMATEN } from '@/lib/registrationDetails';
 import { participantClassLabel } from "../classification";
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
@@ -14,7 +15,7 @@ export default function DeelnemersInzage() {
     let active = true;
     setLoading(true);
     setError('');
-    supabase.from('inschrijvingen').select('id,ruiter,paard,klasse,rubriek,startnummer,deelnemer_status,stal_toewijzing')
+    supabase.from('inschrijvingen').select('id,ruiter,paard,klasse,rubriek,startnummer,deelnemer_status,stal_toewijzing,stokmaat_cm,stal_nodig,stalmaat')
       .eq('wedstrijd_id', selectedWedstrijdId).order('ruiter').then(({ data, error }) => {
         if (!active) return;
         setRows(data || []);
@@ -30,9 +31,10 @@ export default function DeelnemersInzage() {
     <label>Zoek ruiter, paard of startnummer <input value={search} onChange={e => setSearch(e.target.value)} /></label>
     <button onClick={() => setVersion(v => v + 1)}>Verversen</button>
     {loading ? <p role="status">Deelnemers laden…</p> : error ? <p role="alert">{error}</p> : <div style={{ overflowX: 'auto' }}><table>
-      <thead><tr>{['Startnr', 'Ruiter', 'Paard', 'Klasse', 'Status', 'Stal'].map(h => <th key={h} style={{ padding: 10 }}>{h}</th>)}</tr></thead>
+      <thead><tr>{['Startnr', 'Ruiter', 'Paard', 'Klasse', 'Status', 'Stalaanvraag', 'Stal'].map(h => <th key={h} style={{ padding: 10 }}>{h}</th>)}</tr></thead>
       <tbody>{filtered.map(r => <tr key={r.id}>
         <td>{r.startnummer || '—'}</td><td>{r.ruiter}</td><td>{r.paard}</td><td>{participantClassLabel(r)}</td><td>{r.deelnemer_status || 'actief'}</td>
+        <td>{r.stal_nodig == null ? 'Niet bekend' : r.stal_nodig ? `Ja · ${STALMATEN[r.stalmaat] || 'Maat niet bekend'}` : 'Nee'}{r.stokmaat_cm != null && ` · ${r.stokmaat_cm} cm`}</td>
         <td>{r.stal_toewijzing == null ? 'Nog niet centraal geregistreerd' : r.stal_toewijzing.heeftStal ? r.stal_toewijzing.stalnummer || 'Nummer nog niet ingevuld' : 'Geen stal'}</td>
       </tr>)}</tbody>
     </table>{filtered.length === 0 && <p>Geen deelnemers gevonden.</p>}</div>}

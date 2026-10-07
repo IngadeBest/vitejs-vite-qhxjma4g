@@ -1,3 +1,5 @@
+import { emptyRegistrationDetails, registrationErrors, registrationPayload } from '@/lib/registrationDetails';
+import { BirthField, HeightField, StallFields } from '../components/RegistrationFields';
 import { CLASS_OPTIONS } from '@/rules/weh/classes';
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -50,7 +52,7 @@ export default function PublicInschrijven() {
     wedstrijd_id: qId || "",
     klasse: "",
   // categorie removed — we now use klasstype only
-    leeftijd_ruiter: "",
+    ...emptyRegistrationDetails,
     geslacht_paard: "",
     weh_lid: false,
     ruiter: "",
@@ -59,6 +61,10 @@ export default function PublicInschrijven() {
     omroeper: "",
     opmerkingen: "",
   });
+  const [fieldErrors, setFieldErrors] = useState({});
+  useEffect(() => {
+    setFieldErrors(previous => Object.keys(previous).length ? registrationErrors(form) : previous);
+  }, [form]);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
@@ -176,16 +182,23 @@ export default function PublicInschrijven() {
     if (gekozenWedstrijd && isPastWedstrijd(gekozenWedstrijd)) {
       return true;
     }
-    if (!form.wedstrijd_id || !form.klasse) return true;
-    if (!form.ruiter || !form.paard || !form.email) return true;
-    // leeftijd_ruiter is optional but if present must be a positive integer
-    if (form.leeftijd_ruiter && !/^[0-9]{1,3}$/.test(String(form.leeftijd_ruiter))) return true;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return true;
+
     return false;
   }, [form, gekozenWedstrijd, wedstrijdNietBeschikbaar]);
 
   async function onSubmit(e) {
     e.preventDefault();
+    const errors = registrationErrors(form);
+    if (!form.ruiter.trim() || !form.paard.trim() || !form.klasse || !form.wedstrijd_id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setErr('Vul naam ruiter, naam paard, een geldig e-mailadres, wedstrijd en klasse in.');
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      setErr('Controleer de gemarkeerde velden.');
+      return;
+    }
     setBusy(true);
     setDone(false);
     setErr("");
@@ -194,7 +207,7 @@ export default function PublicInschrijven() {
       wedstrijd_id: form.wedstrijd_id,
       klasse: form.klasse,
       weh_lid: form.weh_lid ? true : false,
-      leeftijd_ruiter: form.leeftijd_ruiter ? Number(form.leeftijd_ruiter) : null,
+      ...registrationPayload(form, gekozenWedstrijd?.datum),
       geslacht_paard: form.geslacht_paard || null,
       ruiter: form.ruiter?.trim(),
       paard: form.paard?.trim(),
@@ -293,6 +306,17 @@ export default function PublicInschrijven() {
 
   async function onWachtlijstSubmit(e) {
     e.preventDefault();
+    const errors = registrationErrors(form);
+    if (!form.ruiter.trim() || !form.paard.trim() || !form.klasse || !form.wedstrijd_id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setErr('Vul naam ruiter, naam paard, een geldig e-mailadres, wedstrijd en klasse in.');
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      setErr('Controleer de gemarkeerde velden.');
+      return;
+    }
     setWachtlijstBusy(true);
     setErr("");
 
@@ -300,7 +324,7 @@ export default function PublicInschrijven() {
       wedstrijd_id: form.wedstrijd_id,
       klasse: form.klasse,
       weh_lid: form.weh_lid ? true : false,
-      leeftijd_ruiter: form.leeftijd_ruiter ? Number(form.leeftijd_ruiter) : null,
+      ...registrationPayload(form, gekozenWedstrijd?.datum),
       geslacht_paard: form.geslacht_paard || null,
       ruiter: form.ruiter?.trim(),
       paard: form.paard?.trim(),
@@ -402,112 +426,53 @@ export default function PublicInschrijven() {
         </Alert>
       )}
 
-      <Card className="pi-form-card">
-      <form
-        onSubmit={onSubmit}
-        className="pi-public-form"
-      >
-        <label htmlFor="wedstrijd_select">Wedstrijd*</label>
-        <select
-          id="wedstrijd_select"
-          value={form.wedstrijd_id}
-          onChange={(e) => setForm((s) => ({ ...s, wedstrijd_id: e.target.value }))}
-          disabled={loading || queryWedstrijdBestaat}
-        >
-          <option value="">{loading ? "Laden..." : "— kies een wedstrijd —"}</option>
-          {wedstrijden.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.naam} {w.datum ? `(${w.datum})` : ""}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor="klasse_select">Klasse*</label>
-        <select
-          id="klasse_select"
-          value={form.klasse}
-          onChange={(e) => setForm((s) => ({ ...s, klasse: e.target.value }))}
-        >
-          <option value="">— kies klasse —</option>
-          {KLASSEN.filter((k) => allowedKlassenForWedstrijd.includes(k.code)).map((k) => (
-            <option key={k.code} value={k.code}>
-              {k.label}
-            </option>
-          ))}
-        </select>
-
-        {/* categorie removed — we only select klasse now */}
-
-        <label htmlFor="ruiter_input">Ruiter (volledige naam)*</label>
-        <Input
-          id="ruiter_input"
-          value={form.ruiter}
-          onChange={(e) => setForm((s) => ({ ...s, ruiter: e.target.value }))}
-          placeholder="Naam ruiter"
-          style={{ width: '100%' }}
-        />
-
-        <label htmlFor="paard_input">Paard*</label>
-        <Input
-          id="paard_input"
-          value={form.paard}
-          onChange={(e) => setForm((s) => ({ ...s, paard: e.target.value }))}
-          placeholder="Naam paard"
-          style={{ width: '100%' }}
-        />
-
-        <label htmlFor="geslacht_select">Geslacht paard</label>
-        <select id="geslacht_select" value={form.geslacht_paard} onChange={(e) => setForm((s) => ({ ...s, geslacht_paard: e.target.value }))} style={{ width: '100%' }}>
-          <option value="">— kies —</option>
-          <option value="merrie">Merrie</option>
-          <option value="ruin">Ruin</option>
-          <option value="hengst">Hengst</option>
-        </select>
-
-  <label htmlFor="leeftijd_input">Leeftijd ruiter (optioneel)</label>
-  <Input id="leeftijd_input" type="number" min="1" max="150" value={form.leeftijd_ruiter} onChange={(e)=>setForm(s=>({...s, leeftijd_ruiter: e.target.value}))} placeholder="Bijv. 32" style={{ width: '100%' }} />
-
-        <label htmlFor="email_input">E-mail*</label>
-        <Input
-          id="email_input"
-          type="email"
-          value={form.email}
-          onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-          placeholder="jij@example.com"
-          style={{ width: '100%' }}
-        />
-        {/* inline validation */}
-        <div className="pi-inline-note" style={{ color: form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "crimson" : "#666" }}>
-          {form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? "Voer een geldig e-mailadres in." : ""}
-        </div>
-
-        <label htmlFor="omroeper_input">Tekst voor de omroeper (optioneel)</label>
-        <textarea
-          id="omroeper_input"
-          rows={4}
-          value={form.omroeper}
-          onChange={(e) => setForm((s) => ({ ...s, omroeper: e.target.value }))}
-          placeholder="Korte introductie / bijzonderheden"
-          className="border rounded px-2 py-1 w-full"
-          style={{ width: '100%' }}
-        />
-
-        <label htmlFor="opmerkingen_input">Opmerkingen (optioneel)</label>
-        <textarea
-          id="opmerkingen_input"
-          rows={3}
-          value={form.opmerkingen}
-          onChange={(e) => setForm((s) => ({ ...s, opmerkingen: e.target.value }))}
-          placeholder="Speciale wensen/stal"
-          className="border rounded px-2 py-1 w-full"
-          style={{ width: '100%' }}
-        />
-
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }} htmlFor="weh_lid_cb">
-          <input id="weh_lid_cb" type="checkbox" checked={form.weh_lid} onChange={(e) => setForm(s => ({ ...s, weh_lid: e.target.checked }))} />
-          <span>WEH-lid</span>
-        </label>
-
+      <form onSubmit={onSubmit} className="pi-public-form" noValidate>
+        <Card className="pi-form-card">
+          <h2><span>01</span> Ruiter</h2>
+          <div className="pi-fields">
+            <div className="pi-field"><label htmlFor="ruiter_input">Ruiter (volledige naam) *</label>
+              <Input id="ruiter_input" autoComplete="name" required value={form.ruiter} onChange={e => setForm(s => ({...s, ruiter:e.target.value}))} /></div>
+            <BirthField form={form} onChange={setForm} errors={fieldErrors} wedstrijdDatum={gekozenWedstrijd?.datum} />
+            <div className="pi-field"><label htmlFor="email_input">E-mail *</label>
+              <Input id="email_input" type="email" autoComplete="email" required value={form.email} onChange={e => setForm(s => ({...s, email:e.target.value}))} /></div>
+            <label className="pi-checkbox"><input type="checkbox" checked={form.weh_lid} onChange={e => setForm(s => ({...s, weh_lid:e.target.checked}))} /> WEH-lid</label>
+          </div>
+        </Card>
+        <Card className="pi-form-card">
+          <h2><span>02</span> Paard</h2>
+          <div className="pi-fields">
+            <div className="pi-field"><label htmlFor="paard_input">Naam paard *</label>
+              <Input id="paard_input" required value={form.paard} onChange={e => setForm(s => ({...s, paard:e.target.value}))} /></div>
+            <div className="pi-field"><label htmlFor="geslacht_select">Geslacht paard</label>
+              <select id="geslacht_select" value={form.geslacht_paard} onChange={e => setForm(s => ({...s, geslacht_paard:e.target.value}))}>
+                <option value="">— kies —</option><option value="merrie">Merrie</option><option value="ruin">Ruin</option><option value="hengst">Hengst</option>
+              </select></div>
+            <HeightField form={form} onChange={setForm} errors={fieldErrors} />
+          </div>
+        </Card>
+        <Card className="pi-form-card">
+          <h2><span>03</span> Wedstrijd</h2>
+          <div className="pi-fields">
+            <div className="pi-field"><label htmlFor="wedstrijd_select">Wedstrijd *</label>
+              <select id="wedstrijd_select" required value={form.wedstrijd_id} onChange={e => setForm(s => ({...s, wedstrijd_id:e.target.value}))} disabled={loading || queryWedstrijdBestaat}>
+                <option value="">{loading ? 'Laden…' : '— kies een wedstrijd —'}</option>
+                {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ''}</option>)}
+              </select></div>
+            <div className="pi-field"><label htmlFor="klasse_select">Klasse *</label>
+              <select id="klasse_select" required value={form.klasse} onChange={e => setForm(s => ({...s, klasse:e.target.value}))}>
+                <option value="">— kies klasse —</option>
+                {KLASSEN.filter(k => allowedKlassenForWedstrijd.includes(k.code)).map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
+              </select></div>
+            <div className="pi-field"><label htmlFor="omroeper_input">Tekst voor de omroeper (optioneel)</label>
+              <textarea id="omroeper_input" rows={3} value={form.omroeper} onChange={e => setForm(s => ({...s, omroeper:e.target.value}))} /></div>
+            <div className="pi-field"><label htmlFor="opmerkingen_input">Opmerkingen (optioneel)</label>
+              <textarea id="opmerkingen_input" rows={3} value={form.opmerkingen} onChange={e => setForm(s => ({...s, opmerkingen:e.target.value}))} /></div>
+          </div>
+        </Card>
+        <Card className="pi-form-card">
+          <h2><span>04</span> Stalling</h2>
+          <StallFields form={form} onChange={setForm} errors={fieldErrors} />
+        </Card>
         <div className="pi-form-actions">
           {showWachtlijst ? (
             <div className="pi-actions-inline">
@@ -534,7 +499,6 @@ export default function PublicInschrijven() {
           )}
         </div>
       </form>
-    </Card>
 
     {showWachtlijst && !wachtlijstBusy && (
       <Alert type="info" className="pi-section-gap">
