@@ -7,7 +7,7 @@
 - `Deelnemers.jsx`: adminoverzicht en Wijzig-knop, desktop en mobiel. `DeelnemersInzage.jsx`: inzage voor wedstrijdmedewerkers.
 - `WachtlijstBeheer.jsx` gebruikt `promoveer_wachtlijst`; ook `afmelden_deelnemer` kan die functie aanroepen. Doorplaatsen moest daarom de nieuwe gegevens meenemen.
 - Startlijst, startlijstexports, scores en publieke uitslagen gebruiken expliciete kolomselecties/projecties. Deze berekeningen en exports zijn niet aangepast. Nieuwe geboortedata worden niet toegevoegd aan publieke uitslagen/exports.
-- Bestaande Working Point `Card`, `Input`, `Button`, `Alert` en CSS hergebruikt. Het publieke formulier heeft lichte achtergrond, witte cards, donkerblauwe accenten, labels boven de velden en één kolom op mobiel.
+- Bestaande Working Point `Card`, `Input`, `Button`, `Alert` en CSS hergebruikt. Het publieke formulier heeft lichte achtergrond, witte cards, donkerblauwe accenten, labels boven de velden en één kolom op mobiel. Op verzoek is ook de publieke navigatie volledig donkerblauw/wit; de eigen `reg-` CSS-prefix voorkomt vermenging met de beige proevenpagina.
 
 ## Opslag
 Migratie: `supabase/migrations/20261007094643_registration_birth_height_stalls.sql`.

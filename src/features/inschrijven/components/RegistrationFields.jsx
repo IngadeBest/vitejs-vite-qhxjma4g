@@ -4,38 +4,38 @@ import { STALMATEN, riderAge, todayKey } from '@/lib/registrationDetails';
 
 export function DetailField({ name, label, form, onChange, errors = {}, ...props }) {
   const id = useId();
-  return <div className="pi-field"><label htmlFor={id}>{label}</label>
+  return <div className="reg-field"><label htmlFor={id}>{label}</label>
     <Input id={id} name={name} value={form[name] ?? ''} onChange={e => onChange(s => ({ ...s, [name]: e.target.value }))}
       aria-invalid={!!errors[name]} aria-describedby={errors[name] ? `${id}-error` : undefined} {...props} />
-    {errors[name] && <p id={`${id}-error`} className="pi-field-error" role="alert">{errors[name]}</p>}
+    {errors[name] && <p id={`${id}-error`} className="reg-field-error" role="alert">{errors[name]}</p>}
   </div>;
 }
 export function BirthField({ form, onChange, errors, wedstrijdDatum, required = true }) {
   const age = riderAge(form.geboortedatum_ruiter, wedstrijdDatum);
   return <div><DetailField name="geboortedatum_ruiter" label={`Geboortedatum ruiter${required ? ' *' : ''}`} type="date" max={todayKey()} required={required} form={form} onChange={onChange} errors={errors} />
-    {age != null && <p className="pi-muted">{age} jaar {wedstrijdDatum ? 'op de wedstrijddatum' : 'vandaag'}</p>}</div>;
+    {age != null && <p className="reg-muted">{age} jaar {wedstrijdDatum ? 'op de wedstrijddatum' : 'vandaag'}</p>}</div>;
 }
 export function HeightField(props) {
   return <DetailField name="stokmaat_cm" label={`Stokmaat paard/pony (cm)${props.form.stal_nodig ? ' *' : ''}`} type="number" min="0.1" max="300" step="0.1" inputMode="decimal" required={props.form.stal_nodig === true} {...props} />;
 }
 export function StallFields({ form, onChange, errors = {} }) {
   const id = useId();
-  return <div className="pi-stalls">
-    <fieldset><legend>Heb je een stal nodig?</legend><div className="pi-choices">
-      {[false, true].map(value => <label className={`pi-choice ${form.stal_nodig === value ? 'is-selected' : ''}`} key={String(value)}>
+  return <div className="reg-stalls">
+    <fieldset><legend>Heb je een stal nodig?</legend><div className="reg-choices">
+      {[false, true].map(value => <label className={`reg-choice ${form.stal_nodig === value ? 'is-selected' : ''}`} key={String(value)}>
         <input type="radio" name={`${id}-need`} checked={form.stal_nodig === value} onChange={() => onChange(s => ({ ...s, stal_nodig: value, stalmaat: value ? s.stalmaat : '' }))} />{value ? 'Ja' : 'Nee'}
       </label>)}
     </div></fieldset>
-    {errors.stal_nodig && <p role="alert" className="pi-field-error">{errors.stal_nodig}</p>}
+    {errors.stal_nodig && <p role="alert" className="reg-field-error">{errors.stal_nodig}</p>}
     {form.stal_nodig === true && <>
-      <fieldset aria-describedby={errors.stalmaat ? `${id}-error` : undefined}><legend>Welke stal heb je nodig? *</legend><div className="pi-choices pi-size-choices">
-        {Object.entries(STALMATEN).map(([value, label]) => <label className={`pi-choice ${form.stalmaat === value ? 'is-selected' : ''}`} key={value}>
+      <fieldset aria-describedby={errors.stalmaat ? `${id}-error` : undefined}><legend>Welke stal heb je nodig? *</legend><div className="reg-choices reg-size-choices">
+        {Object.entries(STALMATEN).map(([value, label]) => <label className={`reg-choice ${form.stalmaat === value ? 'is-selected' : ''}`} key={value}>
           <input type="radio" name={`${id}-size`} required checked={form.stalmaat === value} onChange={() => onChange(s => ({ ...s, stalmaat: value }))} />
           <span>{label}<small>{value === 'klein' ? 'Geschikt voor pony/kleiner paard' : value === 'groot' ? 'Geschikt voor groot paard' : 'Organisatie mag indelen'}</small></span>
         </label>)}
       </div></fieldset>
-      {errors.stalmaat && <p id={`${id}-error`} role="alert" className="pi-field-error">{errors.stalmaat}</p>}
-      <p className="pi-muted">We gebruiken de stokmaat van je paard om de stalindeling te controleren. De organisatie kan de gekozen stalmaat indien nodig aanpassen.</p>
+      {errors.stalmaat && <p id={`${id}-error`} role="alert" className="reg-field-error">{errors.stalmaat}</p>}
+      <p className="reg-muted">We gebruiken de stokmaat van je paard om de stalindeling te controleren. De organisatie kan de gekozen stalmaat indien nodig aanpassen.</p>
     </>}
   </div>;
 }

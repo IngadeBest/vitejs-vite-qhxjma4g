@@ -358,7 +358,7 @@ export default function PublicInschrijven() {
   if (wachtlijstDone) {
     return (
       <Container maxWidth={820}>
-        <Card className="pi-result-card">
+        <Card className="reg-result-card">
           <h2>Je staat op de wachtlijst! 📋</h2>
           <p>
             Je bent toegevoegd aan de wachtlijst voor <b>{gekozenWedstrijd?.naam}</b> - klasse <b>{form.klasse}</b>.
@@ -377,7 +377,7 @@ export default function PublicInschrijven() {
   if (done) {
     return (
       <Container maxWidth={820}>
-        <Card className="pi-result-card">
+        <Card className="reg-result-card">
           <h2>Dank je wel!</h2>
           <p>
             Je inschrijving is ontvangen
@@ -391,16 +391,16 @@ export default function PublicInschrijven() {
 
   return (
     <Container maxWidth={980}>
-      <section className="pi-public-shell">
-        <header className="pi-hero">
+      <section className="reg-public-shell">
+        <header className="reg-hero">
           <div>
-            <div className="pi-kicker">Working Point</div>
+            <div className="reg-kicker">Working Point</div>
             <h1>Inschrijfformulier Ruiters</h1>
             <p>Schrijf je in voor de geselecteerde wedstrijd. Velden met * zijn verplicht.</p>
           </div>
-          <div className="pi-hero-badges">
-            <div className="pi-badge">{wedstrijden.length} wedstrijd(en) open</div>
-            {gekozenWedstrijd?.datum && <div className="pi-badge pi-badge-soft">Datum: {gekozenWedstrijd.datum}</div>}
+          <div className="reg-hero-badges">
+            <div className="reg-badge">{wedstrijden.length} wedstrijd(en) open</div>
+            {gekozenWedstrijd?.datum && <div className="reg-badge reg-badge-soft">Datum: {gekozenWedstrijd.datum}</div>}
           </div>
         </header>
 
@@ -421,65 +421,65 @@ export default function PublicInschrijven() {
       )}
 
       {wedstrijdNietBeschikbaar && (
-        <Alert type="warning" className="pi-section-gap">
+        <Alert type="warning" className="reg-section-gap">
           De gekozen wedstrijd is niet meer beschikbaar. Kies een andere open wedstrijd.
         </Alert>
       )}
 
-      <form onSubmit={onSubmit} className="pi-public-form" noValidate>
-        <Card className="pi-form-card">
+      <form onSubmit={onSubmit} className="reg-public-form" noValidate>
+        <Card className="reg-form-card">
           <h2><span>01</span> Ruiter</h2>
-          <div className="pi-fields">
-            <div className="pi-field"><label htmlFor="ruiter_input">Ruiter (volledige naam) *</label>
+          <div className="reg-fields">
+            <div className="reg-field"><label htmlFor="ruiter_input">Ruiter (volledige naam) *</label>
               <Input id="ruiter_input" autoComplete="name" required value={form.ruiter} onChange={e => setForm(s => ({...s, ruiter:e.target.value}))} /></div>
             <BirthField form={form} onChange={setForm} errors={fieldErrors} wedstrijdDatum={gekozenWedstrijd?.datum} />
-            <div className="pi-field"><label htmlFor="email_input">E-mail *</label>
+            <div className="reg-field"><label htmlFor="email_input">E-mail *</label>
               <Input id="email_input" type="email" autoComplete="email" required value={form.email} onChange={e => setForm(s => ({...s, email:e.target.value}))} /></div>
-            <label className="pi-checkbox"><input type="checkbox" checked={form.weh_lid} onChange={e => setForm(s => ({...s, weh_lid:e.target.checked}))} /> WEH-lid</label>
+            <label className="reg-checkbox"><input type="checkbox" checked={form.weh_lid} onChange={e => setForm(s => ({...s, weh_lid:e.target.checked}))} /> WEH-lid</label>
           </div>
         </Card>
-        <Card className="pi-form-card">
+        <Card className="reg-form-card">
           <h2><span>02</span> Paard</h2>
-          <div className="pi-fields">
-            <div className="pi-field"><label htmlFor="paard_input">Naam paard *</label>
+          <div className="reg-fields">
+            <div className="reg-field"><label htmlFor="paard_input">Naam paard *</label>
               <Input id="paard_input" required value={form.paard} onChange={e => setForm(s => ({...s, paard:e.target.value}))} /></div>
-            <div className="pi-field"><label htmlFor="geslacht_select">Geslacht paard</label>
+            <div className="reg-field"><label htmlFor="geslacht_select">Geslacht paard</label>
               <select id="geslacht_select" value={form.geslacht_paard} onChange={e => setForm(s => ({...s, geslacht_paard:e.target.value}))}>
                 <option value="">— kies —</option><option value="merrie">Merrie</option><option value="ruin">Ruin</option><option value="hengst">Hengst</option>
               </select></div>
             <HeightField form={form} onChange={setForm} errors={fieldErrors} />
           </div>
         </Card>
-        <Card className="pi-form-card">
+        <Card className="reg-form-card">
           <h2><span>03</span> Wedstrijd</h2>
-          <div className="pi-fields">
-            <div className="pi-field"><label htmlFor="wedstrijd_select">Wedstrijd *</label>
+          <div className="reg-fields">
+            <div className="reg-field"><label htmlFor="wedstrijd_select">Wedstrijd *</label>
               <select id="wedstrijd_select" required value={form.wedstrijd_id} onChange={e => setForm(s => ({...s, wedstrijd_id:e.target.value}))} disabled={loading || queryWedstrijdBestaat}>
                 <option value="">{loading ? 'Laden…' : '— kies een wedstrijd —'}</option>
                 {wedstrijden.map(w => <option key={w.id} value={w.id}>{w.naam} {w.datum ? `(${w.datum})` : ''}</option>)}
               </select></div>
-            <div className="pi-field"><label htmlFor="klasse_select">Klasse *</label>
+            <div className="reg-field"><label htmlFor="klasse_select">Klasse *</label>
               <select id="klasse_select" required value={form.klasse} onChange={e => setForm(s => ({...s, klasse:e.target.value}))}>
                 <option value="">— kies klasse —</option>
                 {KLASSEN.filter(k => allowedKlassenForWedstrijd.includes(k.code)).map(k => <option key={k.code} value={k.code}>{k.label}</option>)}
               </select></div>
-            <div className="pi-field"><label htmlFor="omroeper_input">Tekst voor de omroeper (optioneel)</label>
+            <div className="reg-field"><label htmlFor="omroeper_input">Tekst voor de omroeper (optioneel)</label>
               <textarea id="omroeper_input" rows={3} value={form.omroeper} onChange={e => setForm(s => ({...s, omroeper:e.target.value}))} /></div>
-            <div className="pi-field"><label htmlFor="opmerkingen_input">Opmerkingen (optioneel)</label>
+            <div className="reg-field"><label htmlFor="opmerkingen_input">Opmerkingen (optioneel)</label>
               <textarea id="opmerkingen_input" rows={3} value={form.opmerkingen} onChange={e => setForm(s => ({...s, opmerkingen:e.target.value}))} /></div>
           </div>
         </Card>
-        <Card className="pi-form-card">
+        <Card className="reg-form-card">
           <h2><span>04</span> Stalling</h2>
           <StallFields form={form} onChange={setForm} errors={fieldErrors} />
         </Card>
-        <div className="pi-form-actions">
+        <div className="reg-form-actions">
           {showWachtlijst ? (
-            <div className="pi-actions-inline">
+            <div className="reg-actions-inline">
               <Button 
                 type="button" 
                 onClick={() => setShowWachtlijst(false)}
-                style={{ background: '#888' }}
+                className="secondary"
               >
                 Annuleren
               </Button>
@@ -487,7 +487,6 @@ export default function PublicInschrijven() {
                 type="button" 
                 onClick={onWachtlijstSubmit} 
                 disabled={wachtlijstBusy || disabled}
-                style={{ background: '#ff9800' }}
               >
                 {wachtlijstBusy ? "Bezig..." : "📋 Plaatsen op wachtlijst"}
               </Button>
@@ -501,22 +500,22 @@ export default function PublicInschrijven() {
       </form>
 
     {showWachtlijst && !wachtlijstBusy && (
-      <Alert type="info" className="pi-section-gap">
+      <Alert type="info" className="reg-section-gap">
         <strong>📋 Wachtlijst</strong>
-        <p className="pi-alert-copy">
+        <p className="reg-alert-copy">
           Deze wedstrijd of klasse is vol. Je kunt je op de wachtlijst plaatsen en wordt gecontacteerd als er een plek vrijkomt.
         </p>
       </Alert>
     )}
       
-  {capacityLoading && <div className="pi-section-gap pi-muted">Controleren beschikbare plaatsen…</div>}
+  {capacityLoading && <div className="reg-section-gap reg-muted">Controleren beschikbare plaatsen…</div>}
 
   {totaalCapacityLimit !== null && totaalCurrentCount !== null && (
-    <div className="pi-capacity-box pi-section-gap">
+    <div className="reg-capacity-box reg-section-gap">
       {totaalCurrentCount >= totaalCapacityLimit ? (
         <Alert type="error">De wedstrijd is volledig volzet ({totaalCurrentCount}/{totaalCapacityLimit} deelnemers).</Alert>
       ) : (
-        <div className="pi-capacity-copy">
+        <div className="reg-capacity-copy">
           Wedstrijd capaciteit: {totaalCapacityLimit - totaalCurrentCount} van {totaalCapacityLimit} plaatsen beschikbaar
         </div>
       )}
@@ -524,11 +523,11 @@ export default function PublicInschrijven() {
   )}
 
   {capacityLimit !== null && currentCount !== null && (
-    <div className="pi-section-gap">
+    <div className="reg-section-gap">
       {currentCount >= capacityLimit ? (
         <Alert type="error">De geselecteerde klasse is volzet ({currentCount}/{capacityLimit}).</Alert>
       ) : (
-        <div className="pi-capacity-copy">Beschikbare plaatsen in klasse: {capacityLimit - currentCount} van {capacityLimit} beschikbaar.</div>
+        <div className="reg-capacity-copy">Beschikbare plaatsen in klasse: {capacityLimit - currentCount} van {capacityLimit} beschikbaar.</div>
       )}
     </div>
   )}

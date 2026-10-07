@@ -35,6 +35,13 @@ const navStyle = ({ isActive }) => ({
   whiteSpace: "nowrap",
 });
 
+const publicNavStyle = ({ isActive }) => ({
+  ...navStyle({ isActive }),
+  color: isActive ? '#fff' : '#18334f',
+  background: isActive ? '#18334f' : '#f3f6fa',
+  border: `1px solid ${isActive ? '#18334f' : '#dce4ed'}`,
+});
+
 const navGroups = [
   {
     title: "Wedstrijdpoint",
@@ -72,7 +79,7 @@ function AppHeader({ onApp, hasSelection }) {
     : "Beheer van inschrijving tot uitslag";
 
   return (
-    <header className="wp-app-header">
+    <header className={`wp-app-header${onApp ? "" : " wp-public-header"}`}>
       <div className="wp-app-brand">
         <div className="wp-app-brand-title">Working Point</div>
         <div className="wp-app-brand-subtitle">{subtitle}</div>
@@ -102,8 +109,8 @@ function AppHeader({ onApp, hasSelection }) {
           <div className="wp-nav-group">
             <div className="wp-nav-group-title">Publiek</div>
             <div className="wp-nav-group-links">
-              <NavLink to="/formulier" style={navStyle}>Inschrijven</NavLink>
-              <NavLink to="/contact" style={navStyle}>Contact</NavLink>
+              <NavLink to="/formulier" style={publicNavStyle}>Inschrijven</NavLink>
+              <NavLink to="/contact" style={publicNavStyle}>Contact</NavLink>
             </div>
           </div>
         )}

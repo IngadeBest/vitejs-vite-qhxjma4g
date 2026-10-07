@@ -183,3 +183,14 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Public registration uses a single navy, white and light-grey palette. */
+.wp-app-header.wp-public-header {
+  border-color: #dce4ed;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(24, 51, 79, 0.04);
+}
+.wp-public-header .wp-app-brand-title { color: #18334f; }
+.wp-public-header .wp-app-brand-subtitle,
+.wp-public-header .wp-nav-group-title { color: #526378; }
+.wp-public-header .wp-nav-group { border-color: #dce4ed; background: #fff; }
