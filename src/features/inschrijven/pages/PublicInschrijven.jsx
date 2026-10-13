@@ -1,3 +1,5 @@
+import TermsAcceptanceCard from '@/features/legal/TermsAcceptanceCard';
+import { TERMS_VERSION, TERMS_URL, PRIVACY_URL, termsError } from '@/features/legal/termsAcceptance';
 import { emptyRegistrationDetails, registrationErrors, registrationPayload } from '@/lib/registrationDetails';
 import { BirthField, HeightField, StallFields } from '../components/RegistrationFields';
 import { CLASS_OPTIONS } from '@/rules/weh/classes';
@@ -61,6 +63,8 @@ export default function PublicInschrijven() {
     omroeper: "",
     opmerkingen: "",
   });
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsValidation, setTermsValidation] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   useEffect(() => {
     setFieldErrors(previous => Object.keys(previous).length ? registrationErrors(form) : previous);
@@ -189,13 +193,15 @@ export default function PublicInschrijven() {
   async function onSubmit(e) {
     e.preventDefault();
     const errors = registrationErrors(form);
+    const acceptanceError = termsError({ terms_accepted: termsAccepted, terms_version: TERMS_VERSION });
+    setTermsValidation(acceptanceError);
     if (!form.ruiter.trim() || !form.paard.trim() || !form.klasse || !form.wedstrijd_id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       setErr('Vul naam ruiter, naam paard, een geldig e-mailadres, wedstrijd en klasse in.');
       setFieldErrors(errors);
       return;
     }
     setFieldErrors(errors);
-    if (Object.keys(errors).length) {
+    if (Object.keys(errors).length || acceptanceError) {
       setErr('Controleer de gemarkeerde velden.');
       return;
     }
@@ -204,6 +210,8 @@ export default function PublicInschrijven() {
     setErr("");
 
     const payload = {
+      terms_accepted: termsAccepted,
+      terms_version: TERMS_VERSION,
       wedstrijd_id: form.wedstrijd_id,
       klasse: form.klasse,
       weh_lid: form.weh_lid ? true : false,
@@ -307,13 +315,15 @@ export default function PublicInschrijven() {
   async function onWachtlijstSubmit(e) {
     e.preventDefault();
     const errors = registrationErrors(form);
+    const acceptanceError = termsError({ terms_accepted: termsAccepted, terms_version: TERMS_VERSION });
+    setTermsValidation(acceptanceError);
     if (!form.ruiter.trim() || !form.paard.trim() || !form.klasse || !form.wedstrijd_id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       setErr('Vul naam ruiter, naam paard, een geldig e-mailadres, wedstrijd en klasse in.');
       setFieldErrors(errors);
       return;
     }
     setFieldErrors(errors);
-    if (Object.keys(errors).length) {
+    if (Object.keys(errors).length || acceptanceError) {
       setErr('Controleer de gemarkeerde velden.');
       return;
     }
@@ -321,6 +331,8 @@ export default function PublicInschrijven() {
     setErr("");
 
     const payload = {
+      terms_accepted: termsAccepted,
+      terms_version: TERMS_VERSION,
       wedstrijd_id: form.wedstrijd_id,
       klasse: form.klasse,
       weh_lid: form.weh_lid ? true : false,
@@ -366,7 +378,7 @@ export default function PublicInschrijven() {
           <p>
             Je ontvangt een e-mail als er een plek vrijkomt. De organisator kan je ook rechtstreeks contacteren.
           </p>
-          <Button onClick={() => { setWachtlijstDone(false); setShowWachtlijst(false); setForm(f => ({ ...f, wedstrijd_id: "", klasse: "" })); }}>
+          <Button onClick={() => { setWachtlijstDone(false); setShowWachtlijst(false); setTermsAccepted(false); setForm(f => ({ ...f, wedstrijd_id: "", klasse: "" })); }}>
             Nieuwe inschrijving
           </Button>
         </Card>
@@ -396,6 +408,10 @@ export default function PublicInschrijven() {
           <div>
             <div className="reg-kicker">Working Point</div>
             <h1>Inschrijfformulier Ruiters</h1>
+            <nav className="reg-legal-links" aria-label="Voorwaarden en privacy">
+              <a href={TERMS_URL} target="_blank" rel="noopener noreferrer">Algemene voorwaarden</a>
+              <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer">Privacyverklaring</a>
+            </nav>
             <p>Schrijf je in voor de geselecteerde wedstrijd. Velden met * zijn verplicht.</p>
           </div>
           <div className="reg-hero-badges">
@@ -473,6 +489,7 @@ export default function PublicInschrijven() {
           <h2><span>04</span> Stalling</h2>
           <StallFields form={form} onChange={setForm} errors={fieldErrors} />
         </Card>
+        <TermsAcceptanceCard accepted={termsAccepted} onChange={value => { setTermsAccepted(value); setTermsValidation(''); }} error={termsValidation} />
         <div className="reg-form-actions">
           {showWachtlijst ? (
             <div className="reg-actions-inline">

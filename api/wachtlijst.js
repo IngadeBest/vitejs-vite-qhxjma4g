@@ -1,3 +1,4 @@
+import { termsError, acceptanceRecord } from '../src/features/legal/termsAcceptance.js';
 import { registrationErrors, registrationPayload } from '../src/lib/registrationDetails.js';
 import { createClient } from '@supabase/supabase-js';
 
@@ -88,6 +89,8 @@ async function requireAdmin(req, res) {
 async function handleWachtlijstAdd(req, res) {
   const b = req.body || {};
   const wedstrijd_id = b.wedstrijd_id;
+  const acceptanceError = termsError(b);
+  if (acceptanceError) return res.status(400).json({ ok: false, error: 'TERMS_REQUIRED', message: acceptanceError });
 
   if (!wedstrijd_id) {
     return res.status(400).json({ ok: false, error: 'NO_WEDSTRIJD_ID' });
@@ -203,6 +206,7 @@ async function handleWachtlijstAdd(req, res) {
 
     // Add to waitlist
     const payload = {
+      ...acceptanceRecord(b),
       wedstrijd_id,
       klasse: b.klasse,
       ruiter: b.ruiter,

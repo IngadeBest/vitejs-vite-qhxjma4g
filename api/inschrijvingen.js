@@ -1,3 +1,4 @@
+import { termsError, acceptanceRecord } from '../src/features/legal/termsAcceptance.js';
 import { registrationErrors, registrationPayload } from '../src/lib/registrationDetails.js';
 import { createClient } from '@supabase/supabase-js';
 
@@ -34,6 +35,8 @@ export default async function handler(req, res) {
 
   const b = req.body || {};
   const wedstrijd_id = b.wedstrijd_id;
+  const acceptanceError = termsError(b);
+  if (acceptanceError) return res.status(400).json({ ok: false, error: 'TERMS_REQUIRED', message: acceptanceError });
 
   if (!wedstrijd_id) return res.status(400).json({ ok: false, error: 'NO_WEDSTRIJD_ID' });
 
@@ -276,6 +279,7 @@ export default async function handler(req, res) {
     }
 
     const payload = {
+      ...acceptanceRecord(b),
       wedstrijd_id,
       wedstrijd: b.wedstrijd || wedstrijd.naam || null, // denormalized name for readability
       klasse: b.rubriek === "Jeugd" ? (b.klasse + " - Jeugd") : b.klasse, // Voeg " - Jeugd" toe als rubriek Jeugd is

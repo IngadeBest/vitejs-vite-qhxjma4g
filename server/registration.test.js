@@ -16,7 +16,7 @@ beforeEach(async()=>{
   register=(await import('../api/inschrijvingen.js')).default; waitlist=(await import('../api/wachtlijst.js')).default;
 });
 afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();});
-const valid={wedstrijd_id:'w',klasse:'we1',ruiter:'Test',paard:'Pony',email:'test@example.invalid',geboortedatum_ruiter:'2010-10-08',stal_nodig:false};
+const valid={terms_accepted:true,terms_version:'2026-10-07',wedstrijd_id:'w',klasse:'we1',ruiter:'Test',paard:'Pony',email:'test@example.invalid',geboortedatum_ruiter:'2010-10-08',stal_nodig:false};
 async function call(handler, body){const res={code:0,status(n){this.code=n;return this;},json(body){this.body=body;return this;}}; await handler({method:'POST',body},res);return res;}
 it.each(['registration','waitlist'])('%s rejects missing birth date server-side',async kind=>{
  const result=await call(kind==='registration'?register:waitlist,{...valid,geboortedatum_ruiter:null});
@@ -33,4 +33,18 @@ it.each(['registration','waitlist'])('%s validates stall details before insertin
 it('permits no stall without height or size',async()=>{
  expect((await call(register,valid)).code).toBe(200);
  expect(db.rows[0]).toMatchObject({stal_nodig:false,stalmaat:null,stokmaat_cm:null});
+});
+
+it.each(['registration','waitlist'])('%s rejects absent, unchecked, nonboolean or stale acceptance',async kind=>{
+ const handler=kind==='registration'?register:waitlist;
+ for (const patch of [{terms_accepted:undefined},{terms_accepted:false},{terms_accepted:'true'},{terms_version:'old'},{terms_version:undefined}]) {
+   const result=await call(handler,{...valid,...patch}); expect(result.code).toBe(400); expect(result.body.error).toBe('TERMS_REQUIRED');
+ }
+ expect(db.rows).toEqual([]);
+});
+it.each(['registration','waitlist'])('%s records the version and server time, ignoring a supplied timestamp',async kind=>{
+ const before=Date.now(); const handler=kind==='registration'?register:waitlist;
+ expect((await call(handler,{...valid,terms_accepted_at:'1999-01-01T00:00:00Z'})).code).toBe(200);
+ expect(db.rows[0]).toMatchObject({terms_accepted:true,terms_version:'2026-10-07'});
+ const timestamp=Date.parse(db.rows[0].terms_accepted_at); expect(timestamp).toBeGreaterThanOrEqual(before); expect(timestamp).toBeLessThanOrEqual(Date.now());
 });

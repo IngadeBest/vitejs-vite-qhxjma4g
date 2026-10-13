@@ -22,9 +22,10 @@ async function set(selector,value) {
     el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));
   });
 }
-async function mount() {
+async function mount(accept = true) {
  await act(async () => root.render(<MemoryRouter><PublicInschrijven /></MemoryRouter>));
  await set('#ruiter_input','Test Ruiter'); await set('#paard_input','Pony'); await set('#email_input','test@example.invalid'); await set('#klasse_select','we1');
+ if (accept) await act(async()=>container.querySelector('.wp-legal-check input').click());
 }
 async function submit(){ await act(async()=>container.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}))); }
 it('blocks registration without birth date with visible feedback', async()=> {
@@ -42,4 +43,43 @@ it('requires both height and size when requesting a stall',async()=>{
  await set('[name=stokmaat_cm]','170'); await submit(); expect(fetchMock).not.toHaveBeenCalled();
  await act(async()=>container.querySelectorAll('input[type=radio]')[3].click()); await submit();
  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({stal_nodig:true,stalmaat:'groot',stokmaat_cm:170});
+});
+
+it('requires a deliberate terms acceptance and keeps legal links separate from privacy consent',async()=>{
+ await mount(false); await set('[name=geboortedatum_ruiter]','2010-10-08'); await submit();
+ expect(fetchMock).not.toHaveBeenCalled(); expect(container.querySelector('#terms-error').textContent).toContain('vink aan');
+ expect(container.querySelectorAll('.wp-legal-acceptance input[type=checkbox]')).toHaveLength(1);
+ for (const a of container.querySelectorAll('.wp-legal-acceptance a')) { expect(a.target).toBe('_blank'); expect(a.rel).toContain('noopener'); }
+ expect(container.querySelector('#ruiter_input').value).toBe('Test Ruiter');
+ await act(async()=>container.querySelector('.wp-legal-check input').click()); await submit();
+ expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({terms_accepted:true,terms_version:'2026-10-07'});
+ expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('terms_accepted_at');
+});
+
+it('also requires acceptance for waitlist submission',async()=>{
+ await mount(); await set('[name=geboortedatum_ruiter]','2010-10-08');
+ fetchMock.mockResolvedValueOnce({ok:false,status:400,text:async()=>JSON.stringify({error:'KLASSE_VOLZET_WACHTLIJST',wachtlijst_enabled:true,message:'Vol'})});
+ await submit(); expect(fetchMock).toHaveBeenCalledTimes(1);
+ await act(async()=>container.querySelector('.wp-legal-check input').click());
+ const waitlistButton=()=>[...container.querySelectorAll('button')].find(b=>b.textContent.includes('Plaatsen op wachtlijst'));
+ await act(async()=>waitlistButton().click());
+ expect(fetchMock).toHaveBeenCalledTimes(1); expect(container.querySelector('#terms-error')).toBeTruthy();
+ await act(async()=>container.querySelector('.wp-legal-check input').click());
+ fetchMock.mockResolvedValueOnce({ok:true,json:async()=>({ok:true})});
+ await act(async()=>waitlistButton().click());
+ expect(fetchMock.mock.calls[1][0]).toBe('/api/wachtlijst');
+ expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({terms_accepted:true,terms_version:'2026-10-07'});
+ expect(container.textContent).toContain('Je staat op de wachtlijst');
+});
+
+it('offers both public documents below the title before filling in the form', async()=>{
+ await act(async () => root.render(<MemoryRouter><PublicInschrijven /></MemoryRouter>));
+ const nav=container.querySelector('h1').nextElementSibling;
+ expect(nav.tagName).toBe('NAV');
+ const links=[...nav.querySelectorAll('a')];
+ expect(links.map(a=>a.textContent)).toEqual(['Algemene voorwaarden','Privacyverklaring']);
+ expect(links.map(a=>a.getAttribute('href'))).toEqual(['/#/algemene-voorwaarden/2026-10-07','/#/privacy']);
+ for(const a of links) {expect(a.target).toBe('_blank');expect(a.rel).toContain('noopener');}
+ expect(container.querySelector('.wp-legal-acceptance h2').textContent).toBe('05 Voorwaarden & privacy');
+ expect(container.querySelector('.wp-legal-check input').checked).toBe(false);
 });

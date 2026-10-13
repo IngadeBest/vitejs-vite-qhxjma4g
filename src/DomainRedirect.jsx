@@ -61,7 +61,7 @@ export default function DomainRedirect() {
         if (hash !== "#/formulier") window.location.replace("#/formulier");
         return;
       }
-      const allowed = path.startsWith("/formulier") || path.startsWith("/contact");
+      const allowed = path.startsWith("/formulier") || path.startsWith("/contact") || path.startsWith("/algemene-voorwaarden") || path === "/privacy";
       if (!allowed) {
         go("app.workingpoint.nl", path, query);
         return;

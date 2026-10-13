@@ -1,3 +1,4 @@
+import { AcceptanceEvidence } from '@/features/legal/TermsAcceptanceCard';
 import { registrationErrors, registrationPayload } from '@/lib/registrationDetails';
 import { BirthField, HeightField, StallFields, RegistrationSummary } from '@/features/inschrijven/components/RegistrationFields';
 import '@/features/inschrijven/pages/PublicInschrijven.css';
@@ -152,6 +153,7 @@ export default function Deelnemers() {
         .from("inschrijvingen")
         .select(`
           id,
+          terms_accepted, terms_version, terms_accepted_at,
           stal_toewijzing, geboortedatum_ruiter, leeftijd_ruiter, stokmaat_cm, stal_nodig, stalmaat,
           created_at,
           wedstrijd_id,
@@ -797,6 +799,7 @@ export default function Deelnemers() {
                                       <BirthField form={editForm} onChange={setEditForm} required={!!deelnemer.geboortedatum_ruiter} wedstrijdDatum={wedstrijd?.datum} />
                                       <HeightField form={editForm} onChange={setEditForm} />
                                       <StallFields form={editForm} onChange={setEditForm} />
+                                      <AcceptanceEvidence registration={deelnemer} />
                                       <input
                                         type="text"
                                         value={editForm.paard}
@@ -940,6 +943,7 @@ export default function Deelnemers() {
                                       <BirthField form={editForm} onChange={setEditForm} required={!!deelnemer.geboortedatum_ruiter} wedstrijdDatum={wedstrijd?.datum} />
                                       <HeightField form={editForm} onChange={setEditForm} />
                                       <StallFields form={editForm} onChange={setEditForm} />
+                                      <AcceptanceEvidence registration={deelnemer} />
                                 <input
                                   type="text"
                                   value={editForm.paard}

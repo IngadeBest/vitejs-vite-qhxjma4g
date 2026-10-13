@@ -1,3 +1,4 @@
+import LegalPage, { LegalFooter } from './features/legal/LegalPage';
 import React from "react";
 import { HashRouter as Router, BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
 import PublicResults from '@/features/publicResults/PublicResults';
@@ -135,6 +136,8 @@ function InnerApp() {
   if (menuOverride === "public") onApp = false;
   if (menuOverride === "beheer" || menuOverride === "admin") onApp = true;
 
+  if (location.pathname.startsWith("/algemene-voorwaarden") || location.pathname === "/privacy") onApp = false;
+
   const { selectedWedstrijdId, selectedWedstrijd } = useWedstrijdContext();
   const hasSelection = !!selectedWedstrijd;
   const appRootElement = onApp
@@ -151,6 +154,9 @@ function InnerApp() {
       <AppHeader onApp={onApp} hasSelection={hasSelection} />
 
       <Routes>
+        <Route path="/algemene-voorwaarden" element={<LegalPage />} />
+        <Route path="/algemene-voorwaarden/2026-10-07" element={<LegalPage />} />
+        <Route path="/privacy" element={<LegalPage privacy />} />
   {/* Publiek */}
   <Route path="/formulier" element={onApp ? <AdminGate><InschrijfFormulier /></AdminGate> : <PublicInschrijven />} />
         <Route path="/contact" element={<Contact />} />
@@ -170,6 +176,7 @@ function InnerApp() {
         {/* Fallback: on app.* default to wedstrijden, else formulier */}
         <Route path="*" element={<Navigate to={onApp ? "/wedstrijden" : "/formulier"} replace />} />
       </Routes>
+      <LegalFooter />
     </>
   );
 }
